@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-server
+data
+uploads
+.env
+ios/App/Pods
+ios/App/build
+ios/DerivedData
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+.DS_Store
