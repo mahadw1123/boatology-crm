@@ -22,6 +22,7 @@ export default function VesselDetail() {
     latitude: "",
     longitude: "",
     insuranceDetails: "",
+    insuranceExpiryDate: "",
     notes: "",
   });
 
@@ -42,6 +43,7 @@ export default function VesselDetail() {
         latitude: (vesselQuery.data as any)?.latitude?.toString() || "",
         longitude: (vesselQuery.data as any)?.longitude?.toString() || "",
         insuranceDetails: (vesselQuery.data as any)?.insuranceDetails || "",
+        insuranceExpiryDate: (vesselQuery.data as any)?.insuranceExpiryDate || "",
         notes: (vesselQuery.data as any)?.notes || "",
       });
     }
@@ -258,6 +260,21 @@ export default function VesselDetail() {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
+                    Insurance Expiry Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={formData.insuranceExpiryDate}
+                    onChange={(e) => setFormData({ ...formData, insuranceExpiryDate: e.target.value })}
+                    className="mt-1 border-slate-200"
+                  />
+                  <p className="mt-1 text-sm text-slate-600">
+                    Optional — set this to get a Today's Agenda reminder 30 days before it lapses.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900">
                     Notes
                   </label>
                   <Textarea
@@ -309,6 +326,21 @@ export default function VesselDetail() {
                     </h3>
                     <p className="mt-1 text-slate-600 whitespace-pre-wrap">
                       {(vessel as any).insuranceDetails}
+                    </p>
+                  </div>
+                )}
+
+                {(vessel as any)?.insuranceExpiryDate && (
+                  <div>
+                    <h3 className="font-medium text-slate-900">
+                      Insurance Expiry Date
+                    </h3>
+                    <p className="mt-1 text-slate-600">
+                      {new Date((vessel as any).insuranceExpiryDate).toLocaleDateString("en-AU", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </p>
                   </div>
                 )}

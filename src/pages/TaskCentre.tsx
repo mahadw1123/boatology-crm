@@ -245,6 +245,16 @@ export default function TaskCentre() {
                           View linked job
                         </button>
                       )}
+                      {task.linkedQuoteId && (
+                        <button className="text-[#2d4160] hover:underline" onClick={() => navigate(`/quotes/${task.linkedQuoteId}`)}>
+                          View linked quote
+                        </button>
+                      )}
+                      {task.linkedInvoiceId && (
+                        <button className="text-[#2d4160] hover:underline" onClick={() => navigate(`/invoices`)}>
+                          View linked invoice
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

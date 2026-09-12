@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
@@ -8,7 +8,10 @@ export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   openId: text("openId").notNull().unique(),
   name: text("name"),
-  email: text("email"),
+  // Nullable-safe: SQLite unique indexes allow any number of NULLs, so
+  // accounts without an email (if any ever exist) don't collide with each
+  // other — only two non-null duplicate emails would be rejected.
+  email: text("email").unique(),
   phone: text("phone"),
   passwordHash: text("passwordHash"),
   loginMethod: text("loginMethod"),
@@ -24,6 +27,14 @@ export const users = sqliteTable("users", {
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
   lastSignedIn: text("lastSignedIn").default(now).notNull(),
+  // Drives the "you haven't checked Task Centre today" Today's Agenda
+  // reminder — updated whenever this user actually loads the Task Centre
+  // list, not just when they open the page shell.
+  lastTaskCentreViewAt: text("lastTaskCentreViewAt"),
+  // Today's Agenda categories this user has personally muted (JSON array of
+  // category name strings) — without this, an item nobody acts on just
+  // resurfaces every day forever with no way to quiet it.
+  mutedAgendaCategories: text("mutedAgendaCategories", { mode: "json" }).default(sql`'[]'`),
 });
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -56,6 +67,10 @@ export const vessels = sqliteTable("vessels", {
   latitude: real("latitude"),
   longitude: real("longitude"),
   insuranceDetails: text("insuranceDetails"),
+  // A real date, separate from the freeform `insuranceDetails` text above —
+  // needed so Today's Agenda can actually compare it against today and warn
+  // before cover lapses, which a plain description field can't support.
+  insuranceExpiryDate: text("insuranceExpiryDate"),
   photos: text("photos", { mode: "json" }).default(sql`'[]'`),
   serviceHistory: text("serviceHistory", { mode: "json" }).default(sql`'[]'`),
   createdAt: text("createdAt").default(now).notNull(),
@@ -71,11 +86,17 @@ export const quotes = sqliteTable("quotes", {
   vesselId: integer("vesselId"),
   quoteNumber: text("quoteNumber").unique(),
   status: text("status", {
-    enum: ["draft", "pending_approval", "sent", "accepted", "rejected", "expired"],
+    enum: ["draft", "pending_approval", "sent", "accepted", "rejected", "expired", "superseded"],
   })
     .default("draft")
     .notNull(),
   lineItems: text("lineItems", { mode: "json" }).default(sql`'[]'`),
+  // Which staff member owns following this quote up (chasing a response,
+  // sending a revision, etc.) — separate from createdBy, since ownership
+  // can be reassigned later without rewriting who originally drafted it.
+  // Drives that person's personal Today's Agenda; unset falls back to the
+  // shared role-based (accounts/ops) agenda split.
+  assignedUserId: integer("assignedUserId"),
   laborCost: real("laborCost").default(0),
   partsCost: real("partsCost").default(0),
   totalAmount: real("totalAmount").default(0),
@@ -83,12 +104,29 @@ export const quotes = sqliteTable("quotes", {
   expiryDate: text("expiryDate"),
   rejectionReason: text("rejectionReason"),
   revisionHistory: text("revisionHistory", { mode: "json" }).default(sql`'[]'`),
+  // Revisions are separate rows linked back to the first quote in the chain,
+  // not an in-place edit — `revisionNumber` 1 is the original, and
+  // `parentQuoteId` always points at that original (not the prior revision),
+  // so every revision in a chain can be found with one equality lookup.
+  revisionNumber: integer("revisionNumber").default(1).notNull(),
+  parentQuoteId: integer("parentQuoteId"),
+  // Why this specific revision was made — entered by staff when creating
+  // it, shown to the customer alongside the new quote so a price/scope
+  // change never arrives unexplained.
+  revisionReason: text("revisionReason"),
+  // Set when staff dismiss the "customer stuck in back-and-forth, give them
+  // a call" popup for this specific revision — marks that the call was
+  // made, so it stops reappearing. A further revision after this is a new
+  // quote row with its own id, so it naturally starts un-dismissed again.
+  revisionFollowUpResolvedAt: text("revisionFollowUpResolvedAt"),
   createdBy: integer("createdBy"),
   approvedBy: integer("approvedBy"),
   sentAt: text("sentAt"),
   acceptedAt: text("acceptedAt"),
   rejectedAt: text("rejectedAt"),
   xeroQuoteRef: text("xeroQuoteRef"),
+  xeroSyncStatus: text("xeroSyncStatus", { enum: ["not_synced", "syncing", "synced", "failed"] }).default("not_synced").notNull(),
+  xeroLastSyncError: text("xeroLastSyncError"),
   emailStatus: text("emailStatus", { enum: ["not_sent", "pending", "sent", "failed"] }).default("not_sent").notNull(),
   emailError: text("emailError"),
   emailMessageId: text("emailMessageId"),
@@ -102,7 +140,11 @@ export type InsertQuote = typeof quotes.$inferInsert;
 /** Jobs - job information and status tracking */
 export const jobs = sqliteTable("jobs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  quoteId: integer("quoteId"),
+  // One job per quote — enforced at the DB level (NULLs are exempt, so a
+  // job with no source quote never collides with another). If multi-phase
+  // work from a single quote is ever needed, model it as multiple tasks on
+  // one job or multiple quotes, not multiple jobs sharing a quoteId.
+  quoteId: integer("quoteId").unique(),
   customerId: integer("customerId").notNull(),
   vesselId: integer("vesselId"),
   jobNumber: text("jobNumber").unique(),
@@ -121,21 +163,55 @@ export const jobs = sqliteTable("jobs", {
       "final_invoice",
       "customer_collection",
       "closed",
+      "cancelled",
     ],
   })
     .default("created")
     .notNull(),
   description: text("description"),
+  // The responsible staff member (office/admin/management) who owns this
+  // job's paperwork end to end — separate from jobAssignments, which is
+  // which technician(s) actually do the physical work. Drives their
+  // personal Today's Agenda and Calendar "My Jobs" filter.
+  assignedUserId: integer("assignedUserId"),
   estimatedLaborHours: real("estimatedLaborHours"),
   actualLaborHours: real("actualLaborHours"),
   priority: text("priority", { enum: ["low", "medium", "high", "urgent"] }).default("medium"),
   dueDate: text("dueDate"),
+  cancellationReason: text("cancellationReason"),
+  cancelledAt: text("cancelledAt"),
+  // When the job most recently entered "waiting_parts" — cleared the moment
+  // it leaves that status. `updatedAt` below can't be used for this: it's
+  // only ever set at insert time, never bumped by an ordinary update, so it
+  // says nothing about how long a job has actually been stuck waiting.
+  waitingPartsSince: text("waitingPartsSince"),
   depositAmount: real("depositAmount"),
   depositReceived: integer("depositReceived", { mode: "boolean" }).default(false),
   additionalWorkRequested: integer("additionalWorkRequested", { mode: "boolean" }).default(false),
   additionalWorkApproved: integer("additionalWorkApproved", { mode: "boolean" }).default(false),
+  additionalWorkDeclined: integer("additionalWorkDeclined", { mode: "boolean" }).default(false),
+  // What extra work the technician found is needed — shown to the customer
+  // on their portal alongside the Approve/Decline buttons, since a bare
+  // approval flag with no explanation gives them nothing to actually decide.
+  additionalWorkNotes: text("additionalWorkNotes"),
+  additionalWorkRequestedAt: text("additionalWorkRequestedAt"),
+  additionalWorkRespondedAt: text("additionalWorkRespondedAt"),
+  additionalWorkDeclineReason: text("additionalWorkDeclineReason"),
+  // Set once staff actually raise/adjust an invoice reflecting the
+  // approved extra work — drives the "extra work approved, invoice not
+  // updated yet" Today's Agenda reminder, so approving the work doesn't
+  // silently drop the ball on billing for it.
+  additionalWorkInvoicedAt: text("additionalWorkInvoicedAt"),
   documents: text("documents", { mode: "json" }).default(sql`'[]'`),
   xeroInvoiceRef: text("xeroInvoiceRef"),
+  xeroSyncStatus: text("xeroSyncStatus", { enum: ["not_synced", "syncing", "synced", "failed"] }).default("not_synced").notNull(),
+  xeroLastSyncError: text("xeroLastSyncError"),
+  // Tracks the most recent job-related email attempt (created/updated/completed/
+  // cancelled/scheduled all share this one field — jobs send several distinct
+  // emails over their lifetime, unlike quotes/invoices which send one).
+  emailStatus: text("emailStatus", { enum: ["not_sent", "pending", "sent", "failed"] }).default("not_sent").notNull(),
+  emailError: text("emailError"),
+  lastEmailAttemptAt: text("lastEmailAttemptAt"),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
   completedAt: text("completedAt"),
@@ -166,6 +242,11 @@ export const jobAssignments = sqliteTable("jobAssignments", {
   employeeId: integer("employeeId").notNull(),
   assignedAt: text("assignedAt").default(now).notNull(),
   completedAt: text("completedAt"),
+  // First time this technician actually opened the job after being
+  // assigned to it — drives the "new job assigned, not opened yet" Today's
+  // Agenda reminder. Stamped by jobs.getById, not by the assignment itself,
+  // so it genuinely reflects "they looked at it," not just "it exists."
+  viewedAt: text("viewedAt"),
 });
 export type JobAssignment = typeof jobAssignments.$inferSelect;
 export type InsertJobAssignment = typeof jobAssignments.$inferInsert;
@@ -242,6 +323,10 @@ export const notifications = sqliteTable("notifications", {
       "additional_work_approval",
       "invoice_issued",
       "job_completed",
+      "job_assigned",
+      "job_unassigned",
+      "job_updated",
+      "job_cancelled",
       "system",
     ],
   }).notNull(),
@@ -360,8 +445,15 @@ export type InsertStaffInvite = typeof staffInvites.$inferInsert;
 export const invoices = sqliteTable("invoices", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   jobId: integer("jobId"),
+  // Which staff member owns chasing payment on this invoice. Unset falls
+  // back to the shared accounts-team agenda.
+  assignedUserId: integer("assignedUserId"),
   invoiceType: text("invoiceType", { enum: ["deposit", "final", "standalone"] }).default("standalone").notNull(),
   depositAppliedAmount: real("depositAppliedAmount"),
+  // The deposit % actually charged, captured at accept-time — kept alongside
+  // the dollar amount so a later change to the configured default percentage
+  // never rewrites what an already-issued historical invoice says it charged.
+  depositPercentageUsed: real("depositPercentageUsed"),
   customerId: integer("customerId").notNull(),
   quoteId: integer("quoteId"),
   invoiceNumber: text("invoiceNumber").unique(),
@@ -390,6 +482,21 @@ export const invoices = sqliteTable("invoices", {
   refundStatus: text("refundStatus", { enum: ["partial", "full"] }),
   refundedAmount: real("refundedAmount"),
   refundedAt: text("refundedAt"),
+  // The actual refund payment always happens outside Boatology (bank
+  // transfer, Stripe dashboard, cash) — this just records that it happened
+  // and why, it never moves money itself.
+  refundReason: text("refundReason"),
+  refundedBy: integer("refundedBy"),
+  voidReason: text("voidReason"),
+  voidedAt: text("voidedAt"),
+  voidedBy: integer("voidedBy"),
+  // Xero sync lives on the invoice now, not the quote or the job — an
+  // invoice is the final, stable document; a quote can still change, and a
+  // job can carry more than one invoice over its life. Only ever synced
+  // once actually issued, never speculatively.
+  xeroInvoiceRef: text("xeroInvoiceRef"),
+  xeroSyncStatus: text("xeroSyncStatus", { enum: ["not_synced", "syncing", "synced", "failed"] }).default("not_synced").notNull(),
+  xeroLastSyncError: text("xeroLastSyncError"),
   emailStatus: text("emailStatus", { enum: ["not_sent", "pending", "sent", "failed"] }).default("not_sent").notNull(),
   emailError: text("emailError"),
   emailMessageId: text("emailMessageId"),
@@ -398,7 +505,14 @@ export const invoices = sqliteTable("invoices", {
   paidAt: text("paidAt"),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
-});
+}, (table) => ({
+  // Backs up the existing app-level idempotency check in
+  // acceptQuoteAndEnsureDeposit with a real DB guarantee: at most one
+  // invoice per (quote, invoiceType) — e.g. one deposit invoice per quote.
+  // NULL quoteId (standalone invoices) is exempt from SQLite's uniqueness,
+  // so this never affects invoices that aren't quote-linked.
+  quoteIdInvoiceTypeUnique: uniqueIndex("invoices_quoteId_invoiceType_unique").on(table.quoteId, table.invoiceType),
+}));
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
 
@@ -452,6 +566,46 @@ export const jobCosts = sqliteTable("jobCosts", {
 export type JobCost = typeof jobCosts.$inferSelect;
 export type InsertJobCost = typeof jobCosts.$inferInsert;
 
+/** Business Expenses — general internal/business overhead costs that
+ * aren't tied to any customer job (rent, subscriptions, insurance,
+ * supplies, equipment purchases, etc.). Deliberately separate from
+ * jobCosts (which always requires a jobId) and from timeEntries'
+ * isInternalCost flag (which tracks labour hours, not a dollar spend). */
+export const businessExpenses = sqliteTable("businessExpenses", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  category: text("category", {
+    enum: ["rent", "utilities", "insurance", "subscription", "supplies", "equipment", "other"],
+  }).notNull(),
+  description: text("description").notNull(),
+  amount: real("amount").notNull(),
+  date: text("date").notNull(),
+  notes: text("notes"),
+  createdBy: integer("createdBy"),
+  createdAt: text("createdAt").default(now).notNull(),
+});
+export type BusinessExpense = typeof businessExpenses.$inferSelect;
+export type InsertBusinessExpense = typeof businessExpenses.$inferInsert;
+
+/** Customer Messages — the "Contact Us" popup on the Customer Portal.
+ * Deliberately its own table rather than a notification: a notification
+ * disappears once read, but a customer enquiry needs to stay visible and
+ * actionable (in Today's Agenda, on the Customer record) until someone
+ * actually resolves it. */
+export const customerMessages = sqliteTable("customerMessages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  customerId: integer("customerId").notNull(),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  message: text("message").notNull(),
+  status: text("status", { enum: ["new", "resolved"] }).default("new").notNull(),
+  resolvedBy: integer("resolvedBy"),
+  resolvedAt: text("resolvedAt"),
+  createdAt: text("createdAt").default(now).notNull(),
+});
+export type CustomerMessage = typeof customerMessages.$inferSelect;
+export type InsertCustomerMessage = typeof customerMessages.$inferInsert;
+
 /** Tasks — real sub-units of work within a job (not just a job's single
  * description). Technicians start/pause/complete these individually; this
  * is the foundation the QR job view and mobile task list are built on. */
@@ -491,6 +645,9 @@ export const inventoryItems = sqliteTable("inventoryItems", {
   minimumStock: real("minimumStock").default(0).notNull(),
   unitCost: real("unitCost"),
   notes: text("notes"),
+  // Who's responsible for keeping this item stocked — drives their
+  // personal Today's Agenda "Stock Levels" reminder for this specific item.
+  assignedUserId: integer("assignedUserId"),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
 });
@@ -507,6 +664,9 @@ export const materialRequests = sqliteTable("materialRequests", {
   inventoryItemId: integer("inventoryItemId"),
   materialName: text("materialName").notNull(),
   quantity: real("quantity").default(1).notNull(),
+  // Who's responsible for actioning this request (approving, then
+  // ordering) — drives their personal Today's Agenda.
+  assignedUserId: integer("assignedUserId"),
   urgency: text("urgency", { enum: ["low", "normal", "high", "urgent"] }).default("normal").notNull(),
   supplier: text("supplier"),
   reason: text("reason"),
@@ -562,15 +722,25 @@ export const staffTasks = sqliteTable("staffTasks", {
   ownerId: integer("ownerId"), // unassigned/shared pool if null
   dueDate: text("dueDate"),
   priority: text("priority", { enum: ["low", "medium", "high", "urgent"] }).default("medium"),
-  status: text("status", { enum: ["pending", "in_progress", "completed"] }).default("pending").notNull(),
+  status: text("status", { enum: ["pending", "in_progress", "completed", "cancelled"] }).default("pending").notNull(),
   linkedJobId: integer("linkedJobId"),
   linkedCustomerId: integer("linkedCustomerId"),
+  linkedQuoteId: integer("linkedQuoteId"),
+  linkedInvoiceId: integer("linkedInvoiceId"),
   estimatedMinutes: integer("estimatedMinutes"),
   blockedByTaskId: integer("blockedByTaskId"),
   autoGenerated: integer("autoGenerated", { mode: "boolean" }).default(false),
+  // Identifies which automatic rule (and which instance of it — e.g.
+  // "DEPOSIT_UNPAID:42") created this task, so the rule engine can check
+  // "is there already an open task for this" instead of re-matching on
+  // fragile title text. Deliberately not DB-unique: a rule is allowed to
+  // fire again once its previous task is completed/cancelled, and app-level
+  // dedup (see server/_core/taskRules.ts) already checks open tasks only.
+  ruleKey: text("ruleKey"),
   createdBy: integer("createdBy"),
   createdAt: text("createdAt").default(now).notNull(),
   completedAt: text("completedAt"),
+  completedBy: integer("completedBy"),
 });
 export type StaffTask = typeof staffTasks.$inferSelect;
 export type InsertStaffTask = typeof staffTasks.$inferInsert;
@@ -625,7 +795,7 @@ export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
 export const errorEvents = sqliteTable("errorEvents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   fingerprint: text("fingerprint").notNull().unique(),
-  source: text("source", { enum: ["server", "browser", "payment", "email", "background"] }).notNull(),
+  source: text("source", { enum: ["server", "browser", "payment", "email", "background", "backup"] }).notNull(),
   severity: text("severity", { enum: ["warning", "error", "fatal"] }).default("error").notNull(),
   message: text("message").notNull(),
   stack: text("stack"),

@@ -142,6 +142,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
+  if (location.startsWith("/calendar") && user?.role === "technician") {
+    // Calendar.tsx already renders a reduced, technician-appropriate view
+    // internally (no team workload data, no create/edit for non-managers).
+    // Without this, a technician clicking Calendar from their simplified
+    // home screen would suddenly land in the full desktop admin shell —
+    // a sidebar full of mostly-forbidden links they can't use.
+    return <>{children}</>;
+  }
+
   // Technicians land on their simplified mobile view instead of the full
   // desktop dashboard/sidebar — they only need Today's Jobs, Clock In/Out,
   // photo upload, and Calendar, and mostly use this on their phone.
@@ -158,30 +167,35 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-surface-muted">
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-20 flex w-60 flex-col bg-navy text-white">
-        <Link href="/">
-          <a className="flex h-16 items-center gap-2 px-5 hover:bg-white/5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
-              <BoatologyLogo variant="emblem" light className="h-5 w-5" />
-            </div>
-            <span className="text-sm font-semibold tracking-wide">{companyNameQuery.data?.name || "Boatology"}</span>
-          </a>
+        <Link href="/" className="flex h-16 items-center gap-2 px-5 hover:bg-white/5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
+            <BoatologyLogo variant="emblem" light className="h-5 w-5" />
+          </div>
+          <span className="text-sm font-semibold tracking-wide">{companyNameQuery.data?.name || "Boatology"}</span>
         </Link>
         <nav className="flex-1 space-y-0.5 px-3 py-4">
           {visibleNavItems.map((item) => {
-            const active = item.href === "/" ? location === "/" : location.startsWith(item.href);
+            // /customers/:id is a Customer Detail page reached from Contacts,
+            // not its own nav item (customers/* is hidden — see NAV_ITEMS
+            // comment above) — without this, opening a customer record would
+            // leave the whole sidebar looking unselected.
+            const active =
+              item.href === "/"
+                ? location === "/"
+                : location.startsWith(item.href) || (item.href === "/contacts" && location.startsWith("/customers"));
             const Icon = item.icon;
             return (
-              <Link key={item.href} href={item.href}>
-                <a
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                    active
-                      ? "bg-white/10 font-medium text-white"
-                      : "text-white/70 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
-                </a>
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  active
+                    ? "bg-white/10 font-medium text-white"
+                    : "text-white/70 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {item.label}
               </Link>
             );
           })}
@@ -358,6 +372,7 @@ function GlobalSearch() {
 
 function NotificationsBell() {
   const [isOpen, setIsOpen] = useState(false);
+  const [, navigate] = useLocation();
   const notificationsQuery = trpc.notifications.list.useQuery(undefined, { refetchInterval: 30000 });
   const utils = trpc.useUtils();
 
@@ -367,6 +382,28 @@ function NotificationsBell() {
 
   const notifications = notificationsQuery.data || [];
   const unreadCount = notifications.filter((n: any) => !n.isRead).length;
+
+  const goToNotification = (n: any) => {
+    if (!n.isRead) markReadMutation.mutate({ id: n.id });
+    setIsOpen(false);
+    if (!n.relatedEntityId) return;
+    switch (n.relatedEntityType) {
+      case "customer":
+        navigate(`/customers/${n.relatedEntityId}`);
+        break;
+      case "job":
+        navigate(`/jobs/${n.relatedEntityId}`);
+        break;
+      case "quote":
+        navigate(`/quotes/${n.relatedEntityId}`);
+        break;
+      case "invoice":
+        navigate(`/invoices`);
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <div className="relative">
@@ -396,7 +433,7 @@ function NotificationsBell() {
                 notifications.map((n: any) => (
                   <button
                     key={n.id}
-                    onClick={() => !n.isRead && markReadMutation.mutate({ id: n.id })}
+                    onClick={() => goToNotification(n)}
                     className={`block w-full border-b border-border/50 px-4 py-3 text-left last:border-0 hover:bg-surface-muted ${
                       !n.isRead ? "bg-ocean-50" : ""
                     }`}

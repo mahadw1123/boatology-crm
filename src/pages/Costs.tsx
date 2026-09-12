@@ -12,141 +12,198 @@ import {
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { DownloadButton } from "@/components/DownloadButton";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { DollarSign, Play, Square, Info } from "lucide-react";
+import { DollarSign, Plus, Info, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errors";
 
-function LiveTimer({ startIso }: { startIso: string }) {
-  const [elapsed, setElapsed] = useState(0);
-  useEffect(() => {
-    const start = new Date(startIso).getTime();
-    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [startIso]);
-  const h = Math.floor(elapsed / 3600);
-  const m = Math.floor((elapsed % 3600) / 60);
-  const s = elapsed % 60;
-  return (
-    <span className="font-mono text-2xl font-semibold text-[#0c1e38]">
-      {String(h).padStart(2, "0")}:{String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}
-    </span>
-  );
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function InternalClockPanel() {
-  const [employeeId, setEmployeeId] = useState("");
+function BusinessExpensesPanel() {
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(todayISO());
   const [notes, setNotes] = useState("");
   const utils = trpc.useUtils();
 
-  const employeesQuery = trpc.employees.list.useQuery();
-  const activeEntryQuery = trpc.timeEntries.activeEntry.useQuery(
-    employeeId ? parseInt(employeeId) : 0,
-    { enabled: !!employeeId, refetchInterval: 15000 }
-  );
+  const expensesQuery = trpc.businessExpenses.list.useQuery(undefined, { retry: false });
+  const summaryQuery = trpc.businessExpenses.summary.useQuery(undefined, { retry: false });
 
-  const clockInMutation = trpc.timeEntries.clockIn.useMutation({
+  const createMutation = trpc.businessExpenses.create.useMutation({
     onSuccess: () => {
-      toast.success("Clocked in — internal/admin time");
-      utils.timeEntries.activeEntry.invalidate(parseInt(employeeId));
+      toast.success("Expense logged");
+      setCategory("");
+      setDescription("");
+      setAmount("");
+      setNotes("");
+      utils.businessExpenses.list.invalidate();
+      utils.businessExpenses.summary.invalidate();
     },
     onError: (err) => showErrorToast(err),
   });
 
-  const clockOutMutation = trpc.timeEntries.clockOut.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Clocked out — ${data.hoursWorked} hours logged as internal cost`);
-      utils.timeEntries.activeEntry.invalidate(parseInt(employeeId));
-      utils.timeEntries.internalCostList.invalidate();
-      utils.timeEntries.internalCostSummary.invalidate();
+  const deleteMutation = trpc.businessExpenses.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Expense removed");
+      utils.businessExpenses.list.invalidate();
+      utils.businessExpenses.summary.invalidate();
     },
     onError: (err) => showErrorToast(err),
   });
 
-  const activeEntry = activeEntryQuery.data;
+  const handleSubmit = () => {
+    if (!category || !description.trim() || !amount || !date) return;
+    createMutation.mutate({
+      category: category as any,
+      description: description.trim(),
+      amount: parseFloat(amount),
+      date,
+      notes: notes || undefined,
+    });
+  };
+
+  if (expensesQuery.error) {
+    return (
+      <Card className="mb-8 border-slate-200 bg-white shadow-sm">
+        <div className="p-6 text-sm text-slate-500">
+          Only admin, management, and office staff accounts can view business expenses.
+        </div>
+      </Card>
+    );
+  }
+
+  const expenses = expensesQuery.data || [];
+  const summary = summaryQuery.data;
 
   return (
-    <Card className="mb-8 border-slate-200 bg-white shadow-sm">
-      <div className="p-6">
-        <h2 className="mb-1 text-lg font-semibold text-slate-900">Clock In / Out — Internal & Admin Time</h2>
-        <p className="mb-4 flex items-center gap-1.5 text-xs text-slate-500">
-          <Info className="h-3.5 w-3.5" />
-          Not tied to a customer job, not billed on any quote, not synced to Xero — just tracked as
-          internal business cost.
-        </p>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div>
-            <label className="block text-sm font-medium text-slate-900">Employee</label>
-            <Select value={employeeId} onValueChange={setEmployeeId} disabled={!!activeEntry}>
-              <SelectTrigger className="mt-1 border-slate-200">
-                <SelectValue placeholder="Select employee" />
-              </SelectTrigger>
-              <SelectContent>
-                {(employeesQuery.data || []).map((emp: any) => (
-                  <SelectItem key={emp.id} value={emp.id.toString()}>
-                    {emp.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {!activeEntry && (
+    <>
+      <Card className="mb-8 border-slate-200 bg-white shadow-sm">
+        <div className="p-6">
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">Log a Business Expense</h2>
+          <p className="mb-4 flex items-center gap-1.5 text-xs text-slate-500">
+            <Info className="h-3.5 w-3.5" />
+            General overhead that isn't a job cost or labour hours — rent, utilities, insurance,
+            subscriptions, supplies, equipment purchases.
+          </p>
+          <div className="grid gap-4 md:grid-cols-5">
             <div>
-              <label className="block text-sm font-medium text-slate-900">What are you working on?</label>
+              <label className="block text-sm font-medium text-slate-900">Category</label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="mt-1 border-slate-200">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rent">Rent</SelectItem>
+                  <SelectItem value="utilities">Utilities</SelectItem>
+                  <SelectItem value="insurance">Insurance</SelectItem>
+                  <SelectItem value="subscription">Subscription</SelectItem>
+                  <SelectItem value="supplies">Supplies</SelectItem>
+                  <SelectItem value="equipment">Equipment</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-900">Description</label>
               <Input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Admin, invoicing, supplier calls"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Marina berth rent — September"
                 className="mt-1 border-slate-200"
               />
             </div>
-          )}
 
-          <div className="flex items-end">
-            {activeEntry ? (
-              <Button
-                variant="destructive"
-                className="w-full"
-                onClick={() => clockOutMutation.mutate({ employeeId: parseInt(employeeId) })}
-                disabled={clockOutMutation.isPending}
-              >
-                <Square className="mr-2 h-4 w-4" />
-                Clock Out
-              </Button>
-            ) : (
+            <div>
+              <label className="block text-sm font-medium text-slate-900">Amount ($)</label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="mt-1 border-slate-200"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-900">Date</label>
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="mt-1 border-slate-200"
+              />
+            </div>
+
+            <div className="flex items-end">
               <Button
                 className="w-full bg-[#0c1e38] hover:bg-[#0c1e38]/90"
-                onClick={() =>
-                  employeeId &&
-                  clockInMutation.mutate({ employeeId: parseInt(employeeId), isInternalCost: true, notes })
-                }
-                disabled={!employeeId || clockInMutation.isPending}
+                onClick={handleSubmit}
+                disabled={!category || !description.trim() || !amount || !date || createMutation.isPending}
               >
-                <Play className="mr-2 h-4 w-4" />
-                Clock In
+                <Plus className="mr-2 h-4 w-4" />
+                Add Expense
               </Button>
-            )}
+            </div>
           </div>
         </div>
+      </Card>
 
-        {activeEntry?.clockInTime && (
-          <div className="mt-6 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-            <div>
-              <p className="text-sm text-emerald-700">
-                Currently logging internal time{activeEntry.notes ? `: ${activeEntry.notes}` : ""}
-              </p>
-              <p className="text-xs text-emerald-600">
-                Started at {new Date(activeEntry.clockInTime).toLocaleTimeString()}
-              </p>
-            </div>
-            <LiveTimer startIso={activeEntry.clockInTime} />
+      <Card className="mb-8 border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <h2 className="font-semibold text-slate-900">Business Expenses</h2>
+          <div className="flex items-center gap-4">
+            {summary && summary.totalAmount > 0 && (
+              <span className="text-sm text-slate-600">
+                Total: <span className="font-semibold text-slate-900">${summary.totalAmount.toFixed(2)}</span>
+              </span>
+            )}
+            <DownloadButton data={expenses} filename="boatology-business-expenses" />
           </div>
-        )}
-      </div>
-    </Card>
+        </div>
+        <div className="overflow-x-auto">
+          {expenses.length === 0 ? (
+            <p className="p-6 text-sm text-slate-500">No business expenses logged yet.</p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Notes</th>
+                  <th className="px-6 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {expenses.map((e: any) => (
+                  <tr key={e.id} className="border-b border-slate-100">
+                    <td className="px-6 py-3 text-sm text-slate-600">{e.date}</td>
+                    <td className="px-6 py-3 text-sm text-slate-900 capitalize">{e.category}</td>
+                    <td className="px-6 py-3 text-sm text-slate-900">{e.description}</td>
+                    <td className="px-6 py-3 text-sm font-medium text-slate-900">${e.amount.toFixed(2)}</td>
+                    <td className="px-6 py-3 text-sm text-slate-600">{e.notes || "—"}</td>
+                    <td className="px-6 py-3 text-right">
+                      <button
+                        onClick={() => deleteMutation.mutate({ id: e.id })}
+                        className="text-slate-300 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Card>
+    </>
   );
 }
 
@@ -172,6 +229,10 @@ function InternalCostSummary() {
       <Card className="mb-6 border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="font-semibold text-slate-900">Total Internal Hours by Employee</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Logged from Time Tracking — check "Internal / admin time" there when the hours aren't
+            tied to a customer job.
+          </p>
         </div>
         <div className="p-6">
           {summaryQuery.isLoading ? (
@@ -249,8 +310,8 @@ export default function Costs() {
       </div>
 
       <div className="mx-auto max-w-7xl px-6 py-8">
-        <InternalClockPanel />
         <InternalCostSummary />
+        <BusinessExpensesPanel />
       </div>
     </div>
   );

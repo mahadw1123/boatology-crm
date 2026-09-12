@@ -191,9 +191,14 @@ role-based access control.
 
 ## Database backup
 
-Administration → Settings → **Download Database** gives admins a direct
-download of the entire live database file (admin-only, checked on the server
-side, not just hidden in the UI).
+Administration → Settings → **Download Database** gives admins a direct,
+on-demand download of the entire live database file (admin-only, checked on
+the server side, not just hidden in the UI) — a consistent point-in-time
+snapshot taken via SQLite's own online-backup API, safe to run against a
+database still being written to. There is no separate scheduled backup
+system to manage; downloading the file whenever you want a copy is the
+whole feature. To restore one later, see `scripts/restore-backup.mjs`
+(`npm run backup:restore -- <path-to-downloaded-file>`).
 
 ## Machine learning — starts empty, learns as you go
 

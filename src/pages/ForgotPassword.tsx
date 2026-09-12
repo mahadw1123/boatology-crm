@@ -35,11 +35,9 @@ export default function ForgotPassword() {
               If an account exists for <strong>{email}</strong>, we've sent a link to reset your password. It
               expires in 1 hour.
             </p>
-            <Link href="/login">
-              <a className="mt-6 flex items-center gap-1.5 text-sm text-ocean hover:underline">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back to sign in
-              </a>
+            <Link href="/login" className="mt-6 flex items-center gap-1.5 text-sm text-ocean hover:underline">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to sign in
             </Link>
           </div>
         ) : (
@@ -63,11 +61,9 @@ export default function ForgotPassword() {
                 {requestMutation.isPending ? "Sending..." : "Send Reset Link"}
               </Button>
             </form>
-            <Link href="/login">
-              <a className="mt-4 flex items-center gap-1.5 text-sm text-ocean hover:underline">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back to sign in
-              </a>
+            <Link href="/login" className="mt-4 flex items-center gap-1.5 text-sm text-ocean hover:underline">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to sign in
             </Link>
           </>
         )}

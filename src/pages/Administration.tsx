@@ -74,13 +74,14 @@ export default function Administration() {
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-6 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid h-auto w-full grid-cols-2 md:h-10 md:grid-cols-6">
+          <TabsList className="grid h-auto w-full grid-cols-2 md:h-10 md:grid-cols-7">
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             <TabsTrigger value="audit-log">Audit Log</TabsTrigger>
             <TabsTrigger value="system-errors">System Errors</TabsTrigger>
+            <TabsTrigger value="system-health">System Health</TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -128,7 +129,9 @@ export default function Administration() {
               </div>
             </Card>
 
-            <EmergencyContactSettingCard />
+            <EmailSettingsCard />
+
+            <MorningBriefingRecipientsCard />
 
             <SystemSettingsCard />
           </TabsContent>
@@ -139,6 +142,10 @@ export default function Administration() {
 
           <TabsContent value="system-errors" className="mt-6">
             <SystemErrorsTabContent />
+          </TabsContent>
+
+          <TabsContent value="system-health" className="mt-6">
+            <SystemHealthTabContent />
           </TabsContent>
         </Tabs>
       </div>
@@ -303,6 +310,7 @@ function StaffInviteSection() {
 function ExistingUsersList() {
   const usersQuery = trpc.administration.users.useQuery();
   const customersQuery = trpc.customers.list.useQuery();
+  const techniciansQuery = trpc.employees.list.useQuery({ role: "technician" });
   const users = usersQuery.data || [];
   const utils = trpc.useUtils();
   const meQuery = trpc.auth.me.useQuery();
@@ -310,6 +318,14 @@ function ExistingUsersList() {
   const relinkMutation = trpc.administration.relinkCustomer.useMutation({
     onSuccess: () => {
       toast.success("Portal access fixed");
+      utils.administration.users.invalidate();
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const relinkTechnicianMutation = trpc.administration.relinkTechnician.useMutation({
+    onSuccess: () => {
+      toast.success("Technician account linked");
       utils.administration.users.invalidate();
     },
     onError: (err) => showErrorToast(err),
@@ -327,12 +343,15 @@ function ExistingUsersList() {
   if (users.length === 0) return <p className="text-sm text-slate-500">No users yet.</p>;
 
   const customersById = new Map((customersQuery.data || []).map((c: any) => [c.id, c]));
+  const techniciansById = new Map((techniciansQuery.data || []).map((e: any) => [e.id, e]));
 
   return (
     <div className="space-y-2">
       {users.map((u: any) => {
         const linkedCustomer = u.customerId ? customersById.get(u.customerId) : null;
         const isBroken = u.role === "customer" && u.customerId && !linkedCustomer;
+        const linkedTechnician = u.employeeId ? techniciansById.get(u.employeeId) : null;
+        const isTechnicianBroken = u.role === "technician" && u.employeeId && !linkedTechnician;
 
         return (
           <div key={u.id} className="rounded-lg border border-slate-200 p-3">
@@ -391,6 +410,38 @@ function ExistingUsersList() {
                 )}
               </div>
             )}
+
+            {u.role === "technician" && (
+              <div className="mt-2 flex items-center gap-2">
+                {isTechnicianBroken ? (
+                  <p className="text-xs font-medium text-red-600">
+                    Linked to an employee record that no longer exists — their jobs won't show up
+                  </p>
+                ) : linkedTechnician ? (
+                  <p className="text-xs text-emerald-600">Linked to: {linkedTechnician.name}</p>
+                ) : (
+                  <p className="text-xs text-amber-600">
+                    Not linked to any employee record — their jobs won't show up until fixed
+                  </p>
+                )}
+                {(isTechnicianBroken || !linkedTechnician) && (
+                  <Select
+                    onValueChange={(v) => relinkTechnicianMutation.mutate({ userId: u.id, employeeId: parseInt(v) })}
+                  >
+                    <SelectTrigger className="h-7 w-48 border-slate-200 text-xs">
+                      <SelectValue placeholder="Fix — pick correct employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(techniciansQuery.data || []).map((e: any) => (
+                        <SelectItem key={e.id} value={e.id.toString()}>
+                          {e.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
@@ -398,58 +449,167 @@ function ExistingUsersList() {
   );
 }
 
-function EmergencyContactSettingCard() {
-  const utils = trpc.useUtils();
-  const settingsQuery = trpc.administration.settings.useQuery();
-  const [phone, setPhone] = useState("");
-
-  useEffect(() => {
-    if (settingsQuery.data) {
-      const s = settingsQuery.data.find((x: any) => x.key === "emergency_contact_phone");
-      setPhone(s?.value || "");
-    }
-  }, [settingsQuery.data]);
-
-  const updateMutation = trpc.administration.updateSetting.useMutation({
-    onSuccess: () => {
-      toast.success("Emergency contact saved");
-      utils.administration.settings.invalidate();
-    },
-    onError: (err) => showErrorToast(err),
+function EmailSettingsCard() {
+  const testMutation = trpc.administration.sendTestEmail.useMutation({
+    onSuccess: () => toast.success("Test email sent — check your inbox."),
+    onError: (err) => showErrorToast(err, "The test email could not be sent."),
   });
 
   return (
     <Card className="mb-6 border-slate-200 bg-white shadow-sm">
       <div className="p-6">
-        <h2 className="mb-1 text-lg font-semibold text-slate-900">Emergency Contact</h2>
+        <h2 className="mb-1 text-lg font-semibold text-slate-900">Email Settings</h2>
         <p className="mb-4 text-sm text-slate-600">
-          Shown as a one-tap call button on every technician's phone (Technician Home and the QR
-          job view) — for a genuine on-site emergency, not general enquiries.
+          Outgoing email (quotes, invoices, notifications) is sent via Resend, configured through
+          the server's environment variables (RESEND_API_KEY, EMAIL_FROM) — not editable here, since
+          that keeps the API key out of the database. Use the button below to confirm it's actually
+          working.
         </p>
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-slate-900">Phone Number</label>
-            <Input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g. 0400 000 000"
-              className="mt-1 border-slate-200"
-            />
+        <Button
+          variant="outline"
+          onClick={() => testMutation.mutate()}
+          disabled={testMutation.isPending}
+        >
+          {testMutation.isPending ? "Sending..." : "Send Test Email"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+/** Who receives the automatic 7am daily Morning Briefing email — sent to
+ * every active admin/office staff/management user by default, but
+ * configurable down to a specific subset here. Leaving nothing checked (or
+ * everyone checked) is treated as "the default: all staff", so there's no
+ * way to accidentally end up sending it to nobody. */
+function MorningBriefingRecipientsCard() {
+  const utils = trpc.useUtils();
+  const usersQuery = trpc.administration.users.useQuery();
+  const settingsQuery = trpc.administration.settings.useQuery();
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [extraEmails, setExtraEmails] = useState("");
+
+  const staffUsers = (usersQuery.data || []).filter((u: any) =>
+    ["admin", "office_staff", "management"].includes(u.role)
+  );
+
+  useEffect(() => {
+    if (settingsQuery.data && usersQuery.data) {
+      const raw = settingsQuery.data.find((x: any) => x.key === "morning_briefing_recipient_ids")?.value;
+      // An empty/unset setting means "the default: everyone" — represented
+      // concretely as every staff id checked, not a separate sentinel
+      // state, so unchecking one box from that starting point behaves
+      // exactly like unchecking any other box.
+      setSelected(
+        raw
+          ? new Set(raw.split(",").map((id: string) => parseInt(id, 10)))
+          : new Set(staffUsers.map((u: any) => u.id))
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsQuery.data, usersQuery.data]);
+
+  useEffect(() => {
+    if (settingsQuery.data) {
+      const raw = settingsQuery.data.find((x: any) => x.key === "morning_briefing_extra_emails")?.value;
+      setExtraEmails(raw || "");
+    }
+  }, [settingsQuery.data]);
+
+  const updateMutation = trpc.administration.updateSetting.useMutation({
+    onSuccess: () => {
+      toast.success("Morning Briefing recipients saved");
+      utils.administration.settings.invalidate();
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const updateExtraEmailsMutation = trpc.administration.updateSetting.useMutation({
+    onSuccess: () => {
+      toast.success("Extra recipients saved");
+      utils.administration.settings.invalidate();
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const toggle = (id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSave = () => {
+    // Everyone checked is saved as empty ("the default: all staff") so a
+    // later-added staff member is included automatically instead of
+    // silently missed.
+    const value = selected.size === staffUsers.length ? "" : [...selected].join(",");
+    updateMutation.mutate({ key: "morning_briefing_recipient_ids", value });
+  };
+
+  return (
+    <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+      <div className="p-6">
+        <h2 className="mb-1 text-lg font-semibold text-slate-900">Morning Briefing Recipients</h2>
+        <p className="mb-4 text-sm text-slate-600">
+          Every morning at 7am, a briefing of overdue jobs, jobs due today, unpaid deposits/invoices,
+          and low stock is emailed automatically. By default it goes to every admin, office staff, and
+          management account — uncheck anyone below who shouldn't receive it.
+        </p>
+        {usersQuery.isLoading ? (
+          <div className="h-16 animate-pulse rounded bg-slate-100" />
+        ) : staffUsers.length === 0 ? (
+          <p className="text-sm text-slate-500">No staff users yet.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {staffUsers.map((u: any) => (
+              <label key={u.id} className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={selected.has(u.id)}
+                  onChange={() => toggle(u.id)}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                {u.name} <span className="text-xs text-slate-400">({u.email})</span>
+              </label>
+            ))}
           </div>
-          <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
-            onClick={() =>
-              updateMutation.mutate({
-                key: "emergency_contact_phone",
-                value: phone.trim(),
-                description: "One-tap emergency call number shown to technicians on-site",
-              })
-            }
-            disabled={updateMutation.isPending}
-          >
-            {updateMutation.isPending ? "Saving..." : "Save"}
-          </Button>
+        )}
+        <Button
+          className="mt-4 bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+          onClick={handleSave}
+          disabled={updateMutation.isPending || usersQuery.isLoading}
+        >
+          {updateMutation.isPending ? "Saving..." : "Save Recipients"}
+        </Button>
+
+        <div className="mt-6 border-t border-slate-100 pt-4">
+          <label className="block text-sm font-medium text-slate-900">
+            Also send to (no CRM login needed)
+          </label>
+          <p className="mb-2 mt-1 text-xs text-slate-500">
+            Comma-separated email addresses — an owner checking in remotely, an accountant, anyone
+            who should get the briefing without a staff account.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              value={extraEmails}
+              onChange={(e) => setExtraEmails(e.target.value)}
+              placeholder="owner@example.com, accountant@example.com"
+              className="border-slate-200"
+            />
+            <Button
+              variant="outline"
+              onClick={() =>
+                updateExtraEmailsMutation.mutate({ key: "morning_briefing_extra_emails", value: extraEmails.trim() })
+              }
+              disabled={updateExtraEmailsMutation.isPending}
+            >
+              {updateExtraEmailsMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>
@@ -463,6 +623,8 @@ function SystemSettingsCard() {
   const [depositPercentage, setDepositPercentage] = useState("30");
   const [companyName, setCompanyName] = useState("Boatology");
   const [companyEmail, setCompanyEmail] = useState("");
+  const [waitingPartsAlertDays, setWaitingPartsAlertDays] = useState("7");
+  const [backupRecipientEmail, setBackupRecipientEmail] = useState("");
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -471,6 +633,8 @@ function SystemSettingsCard() {
       setDepositPercentage(get("deposit_percentage") || "30");
       setCompanyName(get("company_name") || "Boatology");
       setCompanyEmail(get("company_email") || "");
+      setWaitingPartsAlertDays(get("waiting_parts_alert_days") || "7");
+      setBackupRecipientEmail(get("backup_recipient_email") || "");
     }
   }, [settingsQuery.data]);
 
@@ -493,6 +657,16 @@ function SystemSettingsCard() {
         }),
         updateMutation.mutateAsync({ key: "company_name", value: companyName }),
         updateMutation.mutateAsync({ key: "company_email", value: companyEmail }),
+        updateMutation.mutateAsync({
+          key: "waiting_parts_alert_days",
+          value: waitingPartsAlertDays,
+          description: "Days a job can sit in \"Waiting on Parts\" before Today's Agenda flags it",
+        }),
+        updateMutation.mutateAsync({
+          key: "backup_recipient_email",
+          value: backupRecipientEmail,
+          description: "Where the daily automatic database backup is emailed",
+        }),
       ]);
       toast.success("Settings saved");
       utils.administration.settings.invalidate();
@@ -531,6 +705,37 @@ function SystemSettingsCard() {
             <p className="mt-1 text-sm text-slate-600">
               This is the actual percentage charged as a deposit the moment a quote is accepted — not
               just a label, it directly controls the deposit invoice amount.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-900">Waiting on Parts Alert (Days)</label>
+            <Input
+              type="number"
+              value={waitingPartsAlertDays}
+              onChange={(e) => setWaitingPartsAlertDays(e.target.value)}
+              className="mt-1 border-slate-200"
+            />
+            <p className="mt-1 text-sm text-slate-600">
+              How long a job can sit in "Waiting on Parts" before Today's Agenda flags it for someone to
+              chase up the supplier. Lower this if parts delays are hurting jobs, raise it if it's firing
+              too eagerly.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-900">Database Backup Email</label>
+            <Input
+              type="email"
+              value={backupRecipientEmail}
+              onChange={(e) => setBackupRecipientEmail(e.target.value)}
+              placeholder="owner@yourcompany.com"
+              className="mt-1 border-slate-200"
+            />
+            <p className="mt-1 text-sm text-slate-600">
+              Every night at 3am, a full copy of the database is emailed here automatically — a real
+              off-server backup, not just whatever's on this one machine. Leave blank to turn it off.
+              Forward these somewhere they'll actually be kept, not just left in an inbox.
             </p>
           </div>
 
@@ -775,11 +980,19 @@ const auditActionColors: Record<string, { bg: string; text: string }> = {
 };
 
 function AuditLogTabContent() {
-  const auditQuery = trpc.administration.auditLog.useQuery();
+  const [search, setSearch] = useState("");
+  const [userId, setUserId] = useState<string>("");
+  const [entityType, setEntityType] = useState("");
   const usersQuery = trpc.administration.users.useQuery();
+  const auditQuery = trpc.administration.auditLog.useQuery({
+    search: search.trim() || undefined,
+    userId: userId ? Number(userId) : undefined,
+    entityType: entityType.trim() || undefined,
+  });
   const usersById = new Map((usersQuery.data || []).map((u: any) => [u.id, u]));
 
   const entries = auditQuery.data || [];
+  const hasFilters = !!(search.trim() || userId || entityType.trim());
 
   return (
     <Card className="border-slate-200 bg-white shadow-sm">
@@ -789,6 +1002,54 @@ function AuditLogTabContent() {
           A record of logins, deletions, payments, staff invites, and configuration changes — the
           most recent 200 events.
         </p>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Search action</label>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="e.g. delete, login"
+              className="mt-1 w-48 border-slate-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">Entity type</label>
+            <Input
+              value={entityType}
+              onChange={(e) => setEntityType(e.target.value)}
+              placeholder="e.g. job, quote"
+              className="mt-1 w-40 border-slate-200"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600">User</label>
+            <select
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              className="mt-1 h-9 w-48 rounded-md border border-slate-200 bg-white px-3 text-sm"
+            >
+              <option value="">All users</option>
+              {(usersQuery.data || []).map((u: any) => (
+                <option key={u.id} value={u.id}>
+                  {u.name || u.email || `User #${u.id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+          {hasFilters && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearch("");
+                setUserId("");
+                setEntityType("");
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
       </div>
 
       {auditQuery.isLoading ? (
@@ -796,7 +1057,9 @@ function AuditLogTabContent() {
           <div className="h-32 animate-pulse rounded bg-slate-100" />
         </div>
       ) : entries.length === 0 ? (
-        <p className="p-6 text-center text-sm text-slate-500">No events recorded yet.</p>
+        <p className="p-6 text-center text-sm text-slate-500">
+          {hasFilters ? "No events match these filters." : "No events recorded yet."}
+        </p>
       ) : (
         <div className="divide-y divide-slate-100">
           {entries.map((entry: any) => {
@@ -839,6 +1102,148 @@ function AuditLogTabContent() {
   );
 }
 
+
+const HEARTBEAT_LABELS: Record<string, string> = {
+  morning_briefing: "Morning Briefing (7:00am)",
+  reminder_check: "Quote Reminder Check (7:15am)",
+  stripe_reconciliation: "Stripe Reconciliation (every 30 min)",
+  task_rules: "Task Rules (every 30 min)",
+};
+
+function StatusPill({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${ok ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+      {ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+      {label}
+    </span>
+  );
+}
+
+function SystemHealthTabContent() {
+  const healthQuery = trpc.administration.systemHealth.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
+  const health = healthQuery.data as any;
+
+  if (healthQuery.isLoading) {
+    return (
+      <Card className="border-slate-200 bg-white p-6 shadow-sm">
+        <div className="h-32 animate-pulse rounded bg-slate-100" />
+      </Card>
+    );
+  }
+  if (!health) {
+    return (
+      <Card className="border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
+        Could not load system health.
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-slate-200 bg-white shadow-sm">
+        <div className="p-6">
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Integrations</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-sm font-medium text-slate-900">Database</p>
+              <div className="mt-2">
+                <StatusPill ok={health.database.healthy} label={health.database.healthy ? "Healthy" : "Unreachable"} />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">{health.database.detail}</p>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-sm font-medium text-slate-900">Resend (Email)</p>
+              <div className="mt-2">
+                <StatusPill ok={health.resend.configured} label={health.resend.configured ? "Configured" : "Not configured"} />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                {health.resend.usingTestSender ? "Using the Resend test-only sender — set a verified domain in EMAIL_FROM." : health.resend.fromAddress}
+                {health.resend.recentFailures > 0 && <span className="mt-1 block text-amber-600">{health.resend.recentFailures} recent unresolved failure(s)</span>}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-sm font-medium text-slate-900">Stripe</p>
+              <div className="mt-2">
+                <StatusPill ok={health.stripe.configured} label={health.stripe.configured ? "Configured" : "Not configured"} />
+              </div>
+              {health.stripe.recentFailures > 0 && <p className="mt-2 text-xs text-amber-600">{health.stripe.recentFailures} recent unresolved failure(s)</p>}
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="text-sm font-medium text-slate-900">Xero</p>
+              <div className="mt-2">
+                <StatusPill
+                  ok={health.xero.connected}
+                  label={!health.xero.configured ? "Not configured" : health.xero.connected ? `Connected — ${health.xero.tenantName}` : "Not connected"}
+                />
+              </div>
+              {health.xero.recentFailures > 0 && <p className="mt-2 text-xs text-amber-600">{health.xero.recentFailures} recent unresolved failure(s)</p>}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="border-slate-200 bg-white shadow-sm">
+        <div className="p-6">
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">Background Jobs</h2>
+          <p className="mb-4 text-sm text-slate-600">Each scheduled job reports its own last run here — a real signal, not just "the server is up."</p>
+          {health.scheduler.heartbeats.length === 0 ? (
+            <p className="text-sm text-slate-500">No scheduled job has run yet since this server started.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {Object.keys(HEARTBEAT_LABELS).map((job) => {
+                const beat = health.scheduler.heartbeats.find((h: any) => h.job === job);
+                return (
+                  <div key={job} className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{HEARTBEAT_LABELS[job]}</p>
+                      <p className="text-xs text-slate-500">{beat?.detail || "Not run yet."}</p>
+                    </div>
+                    <div className="text-right">
+                      {beat ? <StatusPill ok={beat.status === "ok"} label={beat.status === "ok" ? "OK" : "Failed"} /> : <StatusPill ok={false} label="Never run" />}
+                      {beat?.at && <p className="mt-1 text-xs text-slate-400">{new Date(beat.at).toLocaleString("en-AU")}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="border-slate-200 bg-white shadow-sm">
+        <div className="p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">Recent Errors</h2>
+            <span className={`text-sm font-medium ${health.errors.unresolved > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+              {health.errors.unresolved} unresolved{health.errors.fatal > 0 ? ` (${health.errors.fatal} fatal)` : ""}
+            </span>
+          </div>
+          {health.errors.recent.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500">No unresolved errors.</p>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {health.errors.recent.map((e: any) => (
+                <div key={e.id} className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                  <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${e.severity === "fatal" ? "text-red-600" : "text-amber-600"}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-slate-900">{e.message}</p>
+                    <p className="text-xs text-slate-500">{e.source} · {new Date(e.lastSeenAt).toLocaleString("en-AU")}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-4 text-xs text-slate-500">Full list and resolve actions are on the System Errors tab.</p>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 function SystemErrorsTabContent() {
   const [includeResolved, setIncludeResolved] = useState(false);

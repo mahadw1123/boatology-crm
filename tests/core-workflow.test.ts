@@ -71,16 +71,17 @@ test("accepting a quote creates exactly one deposit invoice", async () => {
     lineItems: [{ description: "Service", quantity: 1, unitPrice: 1000 }],
   });
 
-  const invoice = await db.acceptQuoteAndEnsureDeposit(quote.id, customer.id, 300);
+  const invoice = await db.acceptQuoteAndEnsureDeposit(quote.id, customer.id, 300, 30);
   assert.ok(invoice);
   assert.equal(invoice?.invoiceType, "deposit");
   assert.equal(invoice?.totalDue, 300);
+  assert.equal(invoice?.depositPercentageUsed, 30);
 
   const storedQuote = await db.getQuoteById(quote.id);
   assert.equal(storedQuote?.status, "accepted");
 
   await assert.rejects(
-    () => db.acceptQuoteAndEnsureDeposit(quote.id, customer.id, 300),
+    () => db.acceptQuoteAndEnsureDeposit(quote.id, customer.id, 300, 30),
     /QUOTE_NOT_SENT/
   );
 
@@ -210,6 +211,149 @@ test("repeated unexpected errors are grouped and can be resolved", async () => {
   await db.resolveSystemError(matching!.id);
   const unresolved = await db.getSystemErrors();
   assert.equal(unresolved.some((entry) => entry.id === matching!.id), false);
+});
+
+test("job eligibility reflects deposit state, and a quote can only ever have one job", async () => {
+  const { getJobEligibility } = await import("../server/_core/workflow");
+  const customer = await db.createCustomer({ name: "Eligibility Customer" });
+  const quote = await db.createQuote({
+    customerId: customer.id,
+    quoteNumber: "Q-TEST-0003",
+    status: "sent",
+    totalAmount: 1000,
+  });
+
+  const beforeAccept = await getJobEligibility(quote.id);
+  assert.equal(beforeAccept.eligible, false);
+  assert.match(beforeAccept.reasons[0], /deposit invoice yet/);
+
+  const deposit = await db.acceptQuoteAndEnsureDeposit(quote.id, customer.id, 300, 30);
+  const beforePaid = await getJobEligibility(quote.id);
+  assert.equal(beforePaid.eligible, false);
+  assert.match(beforePaid.reasons[0], /hasn't been paid yet/);
+
+  await db.updateInvoice(deposit!.id, { status: "paid" });
+  const afterPaid = await getJobEligibility(quote.id);
+  assert.equal(afterPaid.eligible, true);
+  assert.deepEqual(afterPaid.reasons, []);
+
+  await db.createJob({ customerId: customer.id, quoteId: quote.id, jobNumber: "J-TEST-ELIG-1", status: "created" });
+  await assert.rejects(
+    () => db.createJob({ customerId: customer.id, quoteId: quote.id, jobNumber: "J-TEST-ELIG-2", status: "created" }),
+    /UNIQUE constraint failed/
+  );
+});
+
+test("Xero sync is idempotent — an existing ref short-circuits without a network call", async () => {
+  const { createXeroInvoiceForInvoice } = await import("../server/_core/xero");
+  const customer = await db.createCustomer({ name: "Xero Customer" });
+  const invoice = await db.createInvoice({
+    customerId: customer.id,
+    invoiceNumber: "INV-TEST-0004",
+    status: "sent",
+    subtotal: 500,
+    totalDue: 500,
+  });
+  await db.updateInvoice(invoice.id, { xeroInvoiceRef: "ALREADY-SYNCED-REF" });
+
+  // No Xero credentials exist in the test env — if this reached the network
+  // call, it would throw. Getting a clean result back proves the existing-ref
+  // short-circuit fired before any Xero API call was attempted.
+  const result = await createXeroInvoiceForInvoice(invoice.id);
+  assert.equal(result.alreadySynced, true);
+  assert.equal(result.xeroInvoiceRef, "ALREADY-SYNCED-REF");
+});
+
+test("permission groups: a technician cannot create customers or view the admin user list, an admin can do both", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:perm-admin@example.com",
+    name: "Perm Admin",
+    email: "perm-admin@example.com",
+    passwordHash: await hashPassword("Perm-Admin-Password-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const technicianEmployee = await db.createEmployee({ name: "Perm Technician", role: "technician", email: "perm-tech@example.com" });
+  const technicianUser = await db.createUser({
+    openId: "local:perm-tech@example.com",
+    name: technicianEmployee.name,
+    email: technicianEmployee.email,
+    passwordHash: await hashPassword("Perm-Tech-Password-42"),
+    loginMethod: "password",
+    role: "technician",
+    employeeId: technicianEmployee.id,
+  });
+
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  const technicianCaller = appRouter.createCaller(contextFor(technicianUser));
+
+  await assert.rejects(
+    () => technicianCaller.customers.create({ name: "Should Be Blocked", sendWelcomeEmail: false }),
+    (error: any) => error?.code === "FORBIDDEN"
+  );
+  await assert.rejects(
+    () => technicianCaller.administration.users(),
+    (error: any) => error?.code === "FORBIDDEN"
+  );
+
+  const created = await adminCaller.customers.create({ name: "Perm Test OK", sendWelcomeEmail: false });
+  assert.ok(created.id);
+  const users = await adminCaller.administration.users();
+  assert.ok(users.length > 0);
+});
+
+test("Stripe status check reports the right state without a Stripe account configured", async () => {
+  const { checkStripeStatus } = await import("../server/_core/paymentReconciliation");
+  const customer = await db.createCustomer({ name: "Stripe Check Customer" });
+
+  const noPaymentInvoice = await db.createInvoice({
+    customerId: customer.id,
+    invoiceNumber: "INV-TEST-0002",
+    invoiceType: "final",
+    subtotal: 200,
+    totalDue: 200,
+    status: "sent",
+  });
+  const neverStarted = await checkStripeStatus(noPaymentInvoice.id);
+  assert.equal(neverStarted.checked, false);
+  assert.match(neverStarted.detail, /No Stripe payment was ever started/);
+
+  const withIntentInvoice = await db.createInvoice({
+    customerId: customer.id,
+    invoiceNumber: "INV-TEST-0003",
+    invoiceType: "final",
+    subtotal: 200,
+    totalDue: 200,
+    status: "sent",
+    stripePaymentIntentId: "pi_test_not_real",
+  });
+  const notConfigured = await checkStripeStatus(withIntentInvoice.id);
+  assert.equal(notConfigured.checked, false);
+  assert.match(notConfigured.detail, /not configured/);
+});
+
+test("task rules dedup by ruleKey and auto-resolve once the underlying condition clears", async () => {
+  const { ensureTask, resolveTask } = await import("../server/_core/taskRules");
+  const ruleKey = "TEST_RULE:unique-key-for-this-test";
+
+  const firstCreate = await ensureTask(ruleKey, { title: "Test rule task", priority: "high" });
+  assert.equal(firstCreate, true);
+  const secondCreate = await ensureTask(ruleKey, { title: "Test rule task", priority: "high" });
+  assert.equal(secondCreate, false, "a second call with the same ruleKey must not create a duplicate task");
+
+  const tasks = await db.getStaffTasks();
+  const matching = tasks.filter((t) => t.ruleKey === ruleKey);
+  assert.equal(matching.length, 1);
+  assert.equal(matching[0].status, "pending");
+
+  await resolveTask(ruleKey);
+  const afterResolve = await db.getStaffTasks();
+  const resolved = afterResolve.find((t) => t.ruleKey === ruleKey);
+  assert.equal(resolved?.status, "completed");
+
+  // The rule is free to fire again once its previous task is closed.
+  const thirdCreate = await ensureTask(ruleKey, { title: "Test rule task", priority: "high" });
+  assert.equal(thirdCreate, true, "a rule may create a new task once the prior one for the same key is resolved");
 });
 
 test.after(() => {

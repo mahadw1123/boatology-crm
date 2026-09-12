@@ -22,8 +22,11 @@ const statusLabels: Record<string, string> = {
   rejected: "Declined",
 };
 
-export default function Materials() {
-  const [, navigate] = useLocation();
+/** The actual Materials content, with no outer page wrapper — reused both
+ * as the standalone /materials route (mobile QR/deep-link entry) and
+ * embedded in a dialog from the technician dashboard so it opens as a
+ * popup instead of a full page navigation. */
+export function MaterialsPanel() {
   const [search, setSearch] = useState("");
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
 
@@ -40,11 +43,7 @@ export default function Materials() {
   const jobsById = new Map((jobsQuery.data || []).map((j: any) => [j.id, j]));
 
   return (
-    <div className="mx-auto max-w-3xl p-4 pb-24 md:p-6">
-      <button onClick={() => navigate("/technician-home")} className="mb-4 flex items-center gap-1 text-sm text-slate-500">
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </button>
+    <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Materials</h1>
@@ -131,6 +130,19 @@ export default function Materials() {
       )}
 
       <RequestMaterialDialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen} taskId={undefined} jobId={undefined} />
+    </div>
+  );
+}
+
+export default function Materials() {
+  const [, navigate] = useLocation();
+  return (
+    <div className="mx-auto max-w-3xl p-4 pb-24 md:p-6">
+      <button onClick={() => navigate("/technician-home")} className="mb-4 flex items-center gap-1 text-sm text-slate-500">
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </button>
+      <MaterialsPanel />
     </div>
   );
 }

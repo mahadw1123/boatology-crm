@@ -32,6 +32,7 @@ export function CreateCustomerDialog({
     insuranceClaimNumber: "",
     notes: "",
   });
+  const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
 
   const createMutation = trpc.customers.create.useMutation();
   const utils = trpc.useUtils();
@@ -45,7 +46,7 @@ export function CreateCustomerDialog({
     }
 
     try {
-      const customer = await createMutation.mutateAsync(formData);
+      const customer = await createMutation.mutateAsync({ ...formData, sendWelcomeEmail: sendWelcomeEmail && !!formData.email });
       toast.success("Customer created successfully");
       if (customer.duplicateWarning) {
         toast.warning(`Heads up — "${customer.duplicateWarning.existingCustomerName}" already uses this email. Might be a duplicate entry.`, { duration: 8000 });
@@ -58,6 +59,7 @@ export function CreateCustomerDialog({
         insuranceClaimNumber: "",
         notes: "",
       });
+      setSendWelcomeEmail(true);
       utils.customers.list.invalidate();
       onOpenChange(false);
       onSuccess?.(customer);
@@ -108,6 +110,17 @@ export function CreateCustomerDialog({
                 placeholder="email@example.com"
                 className="mt-1 border-slate-200"
               />
+              {formData.email && (
+                <label className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={sendWelcomeEmail}
+                    onChange={(e) => setSendWelcomeEmail(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  Send welcome email
+                </label>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">

@@ -11,177 +11,16 @@ import {
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { useJobDisplayName } from "@/lib/jobNaming";
-import { Clock, Plus, Search, Play, Square } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Clock, Plus } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errors";
-
-function LiveTimer({ startIso }: { startIso: string }) {
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    const start = new Date(startIso).getTime();
-    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [startIso]);
-
-  const hours = Math.floor(elapsed / 3600);
-  const minutes = Math.floor((elapsed % 3600) / 60);
-  const seconds = elapsed % 60;
-
-  return (
-    <span className="font-mono text-2xl font-semibold text-[#0c1e38]">
-      {String(hours).padStart(2, "0")}:{String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
-    </span>
-  );
-}
-
-function ClockInOutPanel() {
-  const [employeeId, setEmployeeId] = useState("");
-  const [jobId, setJobId] = useState("");
-  const utils = trpc.useUtils();
-
-  const employeesQuery = trpc.employees.list.useQuery({ role: "technician" });
-  const jobsQuery = trpc.jobs.list.useQuery();
-  const { getDisplayName } = useJobDisplayName();
-  const activeEntryQuery = trpc.timeEntries.activeEntry.useQuery(
-    employeeId ? parseInt(employeeId) : 0,
-    { enabled: !!employeeId, refetchInterval: 15000 }
-  );
-
-  const clockInMutation = trpc.timeEntries.clockIn.useMutation({
-    onSuccess: () => {
-      toast.success("Clocked in");
-      utils.timeEntries.activeEntry.invalidate(parseInt(employeeId));
-    },
-    onError: (err) => showErrorToast(err),
-  });
-
-  const clockOutMutation = trpc.timeEntries.clockOut.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Clocked out — ${data.hoursWorked} hours logged`);
-      utils.timeEntries.activeEntry.invalidate(parseInt(employeeId));
-      utils.timeEntries.listByEmployee.invalidate(parseInt(employeeId));
-    },
-    onError: (err) => showErrorToast(err),
-  });
-
-  const switchJobMutation = trpc.timeEntries.switchJob.useMutation({
-    onSuccess: () => {
-      toast.success("Switched — previous job's time was logged automatically");
-      setJobId("");
-      utils.timeEntries.activeEntry.invalidate(parseInt(employeeId));
-      utils.timeEntries.listByEmployee.invalidate(parseInt(employeeId));
-    },
-    onError: (err) => showErrorToast(err),
-  });
-
-  const activeEntry = activeEntryQuery.data;
-  const activeJob = activeEntry ? (jobsQuery.data || []).find((j: any) => j.id === activeEntry.jobId) : null;
-
-  return (
-    <Card className="mb-8 border-slate-200 bg-white shadow-sm">
-      <div className="p-6">
-        <h2 className="mb-4 text-lg font-semibold text-slate-900">Clock In / Clock Out</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <div>
-            <label className="block text-sm font-medium text-slate-900">Employee</label>
-            <Select value={employeeId} onValueChange={setEmployeeId} disabled={!!activeEntry}>
-              <SelectTrigger className="mt-1 border-slate-200">
-                <SelectValue placeholder="Select employee" />
-              </SelectTrigger>
-              <SelectContent>
-                {(employeesQuery.data || []).map((emp: any) => (
-                  <SelectItem key={emp.id} value={emp.id.toString()}>
-                    {emp.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-900">
-              {activeEntry ? "Switch to a different job" : "Job"}
-            </label>
-            <Select value={jobId} onValueChange={setJobId}>
-              <SelectTrigger className="mt-1 border-slate-200">
-                <SelectValue placeholder={activeEntry ? "Pick a job to switch to..." : "Select job"} />
-              </SelectTrigger>
-              <SelectContent>
-                {(jobsQuery.data || [])
-                  .filter((job: any) => !activeEntry || job.id !== activeEntry.jobId)
-                  .map((job: any) => (
-                    <SelectItem key={job.id} value={job.id.toString()}>
-                      {getDisplayName(job)}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-end">
-            {activeEntry ? (
-              <div className="flex w-full gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  disabled={!jobId || switchJobMutation.isPending}
-                  onClick={() =>
-                    switchJobMutation.mutate({ employeeId: parseInt(employeeId), newJobId: parseInt(jobId) })
-                  }
-                >
-                  Switch
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="flex-1"
-                  onClick={() => clockOutMutation.mutate({ employeeId: parseInt(employeeId) })}
-                  disabled={clockOutMutation.isPending}
-                >
-                  <Square className="mr-2 h-4 w-4" />
-                  Clock Out
-                </Button>
-              </div>
-            ) : (
-              <Button
-                className="w-full bg-[#0c1e38] hover:bg-[#0c1e38]/90"
-                onClick={() =>
-                  employeeId &&
-                  jobId &&
-                  clockInMutation.mutate({ employeeId: parseInt(employeeId), jobId: parseInt(jobId) })
-                }
-                disabled={!employeeId || !jobId || clockInMutation.isPending}
-              >
-                <Play className="mr-2 h-4 w-4" />
-                Clock In
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {activeEntry?.clockInTime && (
-          <div className="mt-6 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-            <div>
-              <p className="text-sm text-emerald-700">
-                Currently clocked in on <strong>{activeJob ? getDisplayName(activeJob) : `Job #${activeEntry.jobId}`}</strong>
-              </p>
-              <p className="text-xs text-emerald-600">Started at {new Date(activeEntry.clockInTime).toLocaleTimeString()}</p>
-            </div>
-            <LiveTimer startIso={activeEntry.clockInTime} />
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-}
 
 export default function TimeTracking() {
 
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [selectedJob, setSelectedJob] = useState("");
+  const [isInternal, setIsInternal] = useState(false);
   const [hours, setHours] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -196,15 +35,16 @@ export default function TimeTracking() {
   const createTimeEntryMutation = trpc.timeEntries.create.useMutation();
 
   const handleCreateTimeEntry = async () => {
-    if (!selectedEmployee || !selectedJob || !hours) {
-      toast.error("Select an employee, select a job, and enter the hours worked.");
+    if (!selectedEmployee || !hours || (!selectedJob && !isInternal)) {
+      toast.error("Select an employee, pick a job (or mark it internal/admin time), and enter the hours worked.");
       return;
     }
 
     try {
       await createTimeEntryMutation.mutateAsync({
         employeeId: parseInt(selectedEmployee),
-        jobId: parseInt(selectedJob),
+        jobId: selectedJob ? parseInt(selectedJob) : undefined,
+        isInternalCost: isInternal,
         date: new Date().toISOString().slice(0, 10),
         hoursWorked: parseFloat(hours),
         isManualEntry: true,
@@ -214,6 +54,7 @@ export default function TimeTracking() {
       setHours("");
       setNotes("");
       setSelectedJob("");
+      setIsInternal(false);
       timeEntriesQuery.refetch();
     } catch (error) {
       showErrorToast(error, "The time entry could not be saved. Check the employee, job, and hours, then try again.");
@@ -261,8 +102,6 @@ export default function TimeTracking() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-6 py-8">
-        <ClockInOutPanel />
-
         {/* Create Time Entry Form */}
         <Card className="mb-8 border-slate-200 bg-white shadow-sm">
           <div className="p-6">
@@ -290,11 +129,11 @@ export default function TimeTracking() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-900">
-                  Job *
+                  {isInternal ? "Job" : "Job *"}
                 </label>
-                <Select value={selectedJob} onValueChange={setSelectedJob}>
+                <Select value={selectedJob} onValueChange={setSelectedJob} disabled={isInternal}>
                   <SelectTrigger className="mt-1 border-slate-200">
-                    <SelectValue placeholder="Select job" />
+                    <SelectValue placeholder={isInternal ? "Not tied to a job" : "Select job"} />
                   </SelectTrigger>
                   <SelectContent>
                     {jobs.map((job: any) => (
@@ -304,6 +143,18 @@ export default function TimeTracking() {
                     ))}
                   </SelectContent>
                 </Select>
+                <label className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={isInternal}
+                    onChange={(e) => {
+                      setIsInternal(e.target.checked);
+                      if (e.target.checked) setSelectedJob("");
+                    }}
+                    className="h-3.5 w-3.5 rounded border-slate-300"
+                  />
+                  Internal / admin time (not tied to a job)
+                </label>
               </div>
 
               <div>
@@ -401,7 +252,8 @@ export default function TimeTracking() {
                           <td className="px-6 py-4 text-sm text-slate-600">
                             {(() => {
                               const job = jobs.find((j: any) => j.id === entry.jobId);
-                              return job ? getDisplayName(job) : `Job #${entry.jobId}`;
+                              if (job) return getDisplayName(job);
+                              return entry.jobId ? `Job #${entry.jobId}` : "General Hours";
                             })()}
                           </td>
                           <td className="px-6 py-4 text-sm font-medium text-slate-900">

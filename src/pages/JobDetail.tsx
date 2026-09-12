@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -34,14 +35,16 @@ const statusColors: Record<string, { bg: string; text: string }> = {
   quote: { bg: "bg-blue-100", text: "text-blue-700" },
   approval: { bg: "bg-yellow-100", text: "text-yellow-700" },
   deposit: { bg: "bg-purple-100", text: "text-purple-700" },
-  job_created: { bg: "bg-indigo-100", text: "text-indigo-700" },
+  created: { bg: "bg-indigo-100", text: "text-indigo-700" },
   scheduled: { bg: "bg-cyan-100", text: "text-cyan-700" },
   in_progress: { bg: "bg-orange-100", text: "text-orange-700" },
-  waiting: { bg: "bg-yellow-100", text: "text-yellow-700" },
+  waiting_customer: { bg: "bg-yellow-100", text: "text-yellow-700" },
+  waiting_parts: { bg: "bg-amber-100", text: "text-amber-700" },
   completed: { bg: "bg-emerald-100", text: "text-emerald-700" },
-  invoice: { bg: "bg-blue-100", text: "text-blue-700" },
-  collection: { bg: "bg-purple-100", text: "text-purple-700" },
+  final_invoice: { bg: "bg-blue-100", text: "text-blue-700" },
+  customer_collection: { bg: "bg-purple-100", text: "text-purple-700" },
   closed: { bg: "bg-slate-100", text: "text-slate-700" },
+  cancelled: { bg: "bg-red-100", text: "text-red-700" },
 };
 
 const priorityColors: Record<string, string> = {
@@ -58,23 +61,38 @@ export default function JobDetail() {
   const { getDisplayName } = useJobDisplayName();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [notifyTechnician, setNotifyTechnician] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const [formData, setFormData] = useState({
     status: "",
     priority: "",
     description: "",
+    dueDate: "",
     estimatedLaborHours: "",
     quoteId: "",
+    assignedUserId: "",
   });
 
   const jobQuery = trpc.jobs.getById.useQuery(jobId || 0, {
     enabled: !!jobId,
   });
+  const staffUsersQuery = trpc.administration.staffUsers.useQuery();
   const quotesQuery = trpc.quotes.list.useQuery(
     jobQuery.data ? { customerId: (jobQuery.data as any).customerId } : undefined,
     { enabled: !!jobQuery.data }
   );
 
   const updateMutation = trpc.jobs.update.useMutation();
+  const cancelMutation = trpc.jobs.cancel.useMutation({
+    onSuccess: () => {
+      toast.success("Job cancelled");
+      setIsCancelling(false);
+      setCancelReason("");
+      jobQuery.refetch();
+    },
+    onError: (err) => showErrorToast(err),
+  });
 
   useEffect(() => {
     if (jobQuery.data) {
@@ -82,8 +100,10 @@ export default function JobDetail() {
         status: (jobQuery.data as any)?.status || "",
         priority: (jobQuery.data as any)?.priority || "",
         description: (jobQuery.data as any)?.description || "",
+        dueDate: (jobQuery.data as any)?.dueDate || "",
         estimatedLaborHours: (jobQuery.data as any)?.estimatedLaborHours?.toString() || "",
         quoteId: (jobQuery.data as any)?.quoteId?.toString() || "",
+        assignedUserId: (jobQuery.data as any)?.assignedUserId?.toString() || "",
       });
     }
   }, [jobQuery.data]);
@@ -96,10 +116,14 @@ export default function JobDetail() {
         status: formData.status as any,
         priority: formData.priority as any,
         description: formData.description || undefined,
+        dueDate: formData.dueDate || undefined,
+        assignedUserId: formData.assignedUserId ? parseInt(formData.assignedUserId) : null,
         estimatedLaborHours: formData.estimatedLaborHours ? parseFloat(formData.estimatedLaborHours) : undefined,
         quoteId: formData.quoteId ? parseInt(formData.quoteId) : null,
+        notifyTechnician,
       });
       setIsEditing(false);
+      setNotifyTechnician(false);
     } catch (error) {
       console.error("Error updating job:", error);
     }
@@ -143,39 +167,57 @@ export default function JobDetail() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       {/* Header */}
       <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-2xl px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLocation("/jobs")}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-semibold text-slate-900">
-                  {jobQuery.data ? getDisplayName(jobQuery.data as any) : `Job #${jobId}`}
-                </h1>
-                <p className="mt-1 text-sm text-slate-600">Job Details</p>
-              </div>
+        <div className="mx-auto max-w-5xl px-6 py-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation("/jobs")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-2xl font-semibold text-slate-900">
+                {jobQuery.data ? getDisplayName(jobQuery.data as any) : `Job #${jobId}`}
+              </h1>
+              <p className="mt-1 text-sm text-slate-600">Job Details</p>
             </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             {!isEditing ? (
-              <div className="flex gap-2">
+              <>
                 <QRCodeButton jobId={jobId!} />
                 <CreateInvoiceButton jobId={jobId!} />
-                <SyncToXeroButton jobId={jobId} xeroInvoiceRef={(job as any)?.xeroInvoiceRef} />
+                {(job as any)?.status !== "closed" && (job as any)?.status !== "cancelled" && (
+                  <Button
+                    variant="outline"
+                    className="border-red-300 text-red-700 hover:bg-red-50"
+                    onClick={() => setIsCancelling(true)}
+                  >
+                    Cancel Job
+                  </Button>
+                )}
                 <Button
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="ml-auto bg-[#0c1e38] hover:bg-[#0c1e38]/90"
                   onClick={() => setIsEditing(true)}
                 >
                   Edit
                 </Button>
-              </div>
+              </>
             ) : (
-              <div className="flex gap-2">
+              <>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={notifyTechnician}
+                    onChange={(e) => setNotifyTechnician(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  Notify technician
+                </label>
                 <Button
                   variant="outline"
+                  className="ml-auto"
                   onClick={() => setIsEditing(false)}
                 >
                   Cancel
@@ -188,14 +230,47 @@ export default function JobDetail() {
                   <Save className="mr-2 h-4 w-4" />
                   Save
                 </Button>
-              </div>
+              </>
             )}
           </div>
         </div>
       </div>
 
+      <Dialog open={isCancelling} onOpenChange={setIsCancelling}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this job?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            The customer and any assigned technician will be notified. This can't be undone from here.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-slate-900">Reason (optional)</label>
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Why is this job being cancelled?"
+              className="mt-1 border-slate-200"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCancelling(false)}>
+              Keep Job
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!jobId || cancelMutation.isPending}
+              onClick={() => jobId && cancelMutation.mutate({ id: jobId, reason: cancelReason.trim() || undefined })}
+            >
+              {cancelMutation.isPending ? "Cancelling..." : "Cancel Job"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Main Content */}
-      <div className="mx-auto max-w-2xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-6 py-8">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Status */}
           <Card className="border-slate-200 bg-white shadow-sm">
@@ -207,17 +282,20 @@ export default function JobDetail() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="inspection">Inspection</SelectItem>
-                    <SelectItem value="quote">Quote</SelectItem>
-                    <SelectItem value="approval">Approval</SelectItem>
-                    <SelectItem value="deposit">Deposit</SelectItem>
-                    <SelectItem value="job_created">Job Created</SelectItem>
+                    {/* Pre-job stages (Inspection/Quote/Approval/Deposit) and
+                        post-completion accounting stages (Final Invoice/
+                        Customer Collection) were removed here — they don't
+                        apply to a job that already exists, and offering them
+                        let staff move a real job into a meaningless state.
+                        Cancelling has its own "Cancel Job" button above,
+                        which records a reason and notifies everyone; it's
+                        deliberately not an option in this list. */}
+                    <SelectItem value="created">Created</SelectItem>
                     <SelectItem value="scheduled">Scheduled</SelectItem>
                     <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="waiting">Waiting</SelectItem>
+                    <SelectItem value="waiting_customer">Waiting on Customer</SelectItem>
+                    <SelectItem value="waiting_parts">Waiting on Parts</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="invoice">Invoice</SelectItem>
-                    <SelectItem value="collection">Collection</SelectItem>
                     <SelectItem value="closed">Closed</SelectItem>
                   </SelectContent>
                 </Select>
@@ -277,6 +355,46 @@ export default function JobDetail() {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
+                    Due Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={formData.dueDate}
+                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                    className="mt-1 border-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900">
+                    Assigned To
+                  </label>
+                  <Select
+                    value={formData.assignedUserId || "unassigned"}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, assignedUserId: value === "unassigned" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger className="mt-1 border-slate-200">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {(staffUsersQuery.data || []).map((u: any) => (
+                        <SelectItem key={u.id} value={u.id.toString()}>
+                          {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    The staff member who owns this job's paperwork — separate from which technician
+                    does the physical work. Shows on their personal Today's Agenda and Calendar.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900">
                     Estimated Labor Hours
                   </label>
                   <Input
@@ -328,6 +446,12 @@ export default function JobDetail() {
                       {formatDate((job as any)?.dueDate)}
                     </p>
                   </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Assigned To</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-900">
+                      {(staffUsersQuery.data || []).find((u: any) => u.id === (job as any)?.assignedUserId)?.name || "Unassigned"}
+                    </p>
+                  </div>
                 </div>
 
                 {(job as any)?.description && (
@@ -366,66 +490,57 @@ export default function JobDetail() {
           </div>
         </Card>
 
-        <Card className="mt-6 border-slate-200 bg-white shadow-sm">
-          <div className="p-6">
-            <TechnicianAssignment jobId={jobId!} />
-          </div>
-        </Card>
+        <Tabs defaultValue="technicians" className="mt-6 w-full">
+          <TabsList className="grid h-auto w-full grid-cols-3 sm:grid-cols-5">
+            <TabsTrigger value="technicians">Technicians</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="antifouling">Antifouling</TabsTrigger>
+            <TabsTrigger value="costs">Costs</TabsTrigger>
+            <TabsTrigger value="photos">Photos</TabsTrigger>
+          </TabsList>
 
-        <Card className="mt-6 border-slate-200 bg-white shadow-sm">
-          <div className="p-6">
-            <TasksSection jobId={jobId!} />
-          </div>
-        </Card>
+          <TabsContent value="technicians">
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <div className="p-6">
+                <TechnicianAssignment jobId={jobId!} />
+              </div>
+            </Card>
+          </TabsContent>
 
-        <Card className="mt-6 border-slate-200 bg-white shadow-sm">
-          <div className="p-6">
-            <AntifoulingSection jobId={jobId!} />
-          </div>
-        </Card>
+          <TabsContent value="tasks">
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <div className="p-6">
+                <TasksSection jobId={jobId!} />
+              </div>
+            </Card>
+          </TabsContent>
 
-        <Card className="mt-6 border-slate-200 bg-white shadow-sm">
-          <div className="p-6">
-            <JobCostsSection jobId={jobId!} />
-          </div>
-        </Card>
+          <TabsContent value="antifouling">
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <div className="p-6">
+                <AntifoulingSection jobId={jobId!} />
+              </div>
+            </Card>
+          </TabsContent>
 
-        <Card className="mt-6 border-slate-200 bg-white shadow-sm">
-          <div className="p-6">
-            <PhotoGallery entity={{ type: "job", id: jobId! }} />
-          </div>
-        </Card>
+          <TabsContent value="costs">
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <div className="p-6">
+                <JobCostsSection jobId={jobId!} />
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="photos">
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <div className="p-6">
+                <PhotoGallery entity={{ type: "job", id: jobId! }} />
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
-  );
-}
-
-function SyncToXeroButton({ jobId, xeroInvoiceRef }: { jobId: number | null; xeroInvoiceRef?: string | null }) {
-  const utils = trpc.useUtils();
-  const syncMutation = trpc.jobs.syncToXero.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Synced to Xero — invoice ${data.xeroInvoiceRef}`);
-      if (jobId) utils.jobs.getById.invalidate(jobId);
-    },
-    onError: (err) => showErrorToast(err),
-  });
-
-  if (xeroInvoiceRef) {
-    return (
-      <Badge variant="secondary" className="self-center">
-        Xero: {xeroInvoiceRef}
-      </Badge>
-    );
-  }
-
-  return (
-    <Button
-      variant="outline"
-      onClick={() => jobId && syncMutation.mutate({ jobId })}
-      disabled={!jobId || syncMutation.isPending}
-    >
-      {syncMutation.isPending ? "Syncing..." : "Sync to Xero"}
-    </Button>
   );
 }
 
@@ -550,6 +665,9 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
     onError: (err) => showErrorToast(err),
   });
 
+  const job = jobQuery.data as any;
+  const hasUninvoicedApprovedWork = job?.additionalWorkApproved && !job?.additionalWorkInvoicedAt;
+
   if (invoiceQuery.data) {
     return (
       <Badge variant="secondary" className="self-center">
@@ -614,25 +732,42 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
   }
 
   return (
-    <div className="flex gap-2">
-      <Button
-        variant="outline"
-        onClick={handleCreate}
-        disabled={createMutation.isPending}
-      >
-        {createMutation.isPending ? "Sending..." : "Create & Send Invoice"}
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        title="Edit amount before sending"
-        onClick={() => {
-          setEditedAmount(quoteAmount ? quoteAmount.toFixed(2) : "");
-          setIsEditingAmount(true);
-        }}
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
+    <div className="flex flex-col gap-2">
+      {hasUninvoicedApprovedWork && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-semibold text-amber-900">Customer approved extra work — include it in this invoice</p>
+          <p className="mt-1 text-xs text-amber-800">{job.additionalWorkNotes}</p>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          disabled={createMutation.isPending}
+          onClick={() => {
+            if (hasUninvoicedApprovedWork) {
+              setEditedAmount(quoteAmount ? quoteAmount.toFixed(2) : "");
+              setAdjustmentReason(job.additionalWorkNotes || "");
+              setIsEditingAmount(true);
+            } else {
+              handleCreate();
+            }
+          }}
+        >
+          {createMutation.isPending ? "Sending..." : "Create & Send Invoice"}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Edit amount before sending"
+          onClick={() => {
+            setEditedAmount(quoteAmount ? quoteAmount.toFixed(2) : "");
+            setAdjustmentReason(hasUninvoicedApprovedWork ? job.additionalWorkNotes || "" : "");
+            setIsEditingAmount(true);
+          }}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

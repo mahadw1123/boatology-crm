@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { ENV } from "./env";
 import * as db from "../db";
+import { captureSystemError } from "./monitoring";
 
 const XERO_AUTH_URL = "https://login.xero.com/identity/connect/authorize";
 const XERO_TOKEN_URL = "https://identity.xero.com/connect/token";
@@ -26,7 +27,12 @@ export function getXeroAuthUrl(state: string) {
     response_type: "code",
     client_id: ENV.xeroClientId,
     redirect_uri: ENV.xeroRedirectUri,
-    scope: "openid profile email accounting.contacts accounting.invoices offline_access",
+    // accounting.settings.read grants read access to the chart of accounts
+    // (needed to look up a real revenue account code instead of guessing
+    // one) — Quotes and Invoices scopes alone don't cover the Accounts
+    // endpoint, which is why a connection made before this was added gets
+    // a 401 from Xero on that specific call until it's reconnected.
+    scope: "openid profile email accounting.contacts accounting.invoices accounting.settings.read offline_access",
     state,
   });
   return `${XERO_AUTH_URL}?${params.toString()}`;
@@ -210,75 +216,42 @@ async function findOrCreateXeroContact(
   return contactId;
 }
 
+let cachedRevenueAccountCode: string | null = null;
+
 /**
- * Creates a Xero Quote for an internal quote, using its real line items.
+ * Looks up a real, active revenue account from the connected Xero org,
+ * instead of assuming account code "200" (Xero's common default) exists —
+ * it doesn't in every org, and a hardcoded code silently breaks the moment
+ * a business archives or renumbers their chart of accounts. Cached for the
+ * life of the process since an org's revenue account rarely changes.
  */
-export async function createXeroQuoteForQuote(quoteId: number) {
-  const tokens = await getValidTokens();
-  const quote = await db.getQuoteById(quoteId);
-  if (!quote) throw new Error("Quote not found");
-  const customer = await db.getCustomerById(quote.customerId);
-  if (!customer) throw new Error("Customer not found for this quote");
+async function resolveRevenueAccountCode(headers: Record<string, string>): Promise<string> {
+  if (cachedRevenueAccountCode) return cachedRevenueAccountCode;
 
-  const headers = {
-    Authorization: `Bearer ${tokens.accessToken}`,
-    "Xero-tenant-id": tokens.tenantId!,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-
-  const contactId = await findOrCreateXeroContact(headers, customer);
-
-  const rawLineItems = Array.isArray(quote.lineItems) ? quote.lineItems : [];
-  const lineItems =
-    rawLineItems.length > 0
-      ? rawLineItems.map((item: any) => ({
-          Description: item.description || "Service",
-          Quantity: item.quantity || 1,
-          UnitAmount: item.unitPrice || 0,
-          AccountCode: "200",
-        }))
-      : [
-          {
-            Description: quote.notes || `Quote ${quote.quoteNumber}`,
-            Quantity: 1,
-            UnitAmount: quote.totalAmount || 0,
-            AccountCode: "200",
-          },
-        ];
-
-  const quoteRes = await fetch(`${XERO_API_BASE}/Quotes`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      Quotes: [
-        {
-          Contact: { ContactID: contactId },
-          LineItems: lineItems,
-          Date: new Date().toISOString().slice(0, 10),
-          ExpiryDate: quote.expiryDate || undefined,
-          Status: "SENT",
-          Reference: quote.quoteNumber,
-          Title: `Quote ${quote.quoteNumber}`,
-          Summary: quote.notes || undefined,
-        },
-      ],
-    }),
-  });
-
-  if (!quoteRes.ok) {
-    throw new Error(`Failed to create Xero quote: ${await quoteRes.text()}`);
+  const res = await fetch(`${XERO_API_BASE}/Accounts?where=${encodeURIComponent('Type=="REVENUE" AND Status=="ACTIVE"')}`, { headers });
+  if (!res.ok) {
+    throw new Error(`Could not look up a revenue account in Xero: ${await res.text()}`);
   }
-
-  const quoteJson = await quoteRes.json();
-  const quoteNumber = quoteJson.Quotes?.[0]?.QuoteNumber as string | undefined;
-  const xeroQuoteId = quoteJson.Quotes?.[0]?.QuoteID as string | undefined;
-  const ref = quoteNumber || xeroQuoteId || "unknown";
-
-  await db.updateQuote(quoteId, { xeroQuoteRef: ref });
-  return { xeroQuoteRef: ref };
+  const json = await res.json();
+  const accounts = (json.Accounts || []) as Array<{ Code?: string; Name?: string }>;
+  // Prefer an account literally named "Sales" if there are several — the
+  // conventional default — otherwise take the first active revenue account.
+  const preferred = accounts.find((a) => a.Name?.toLowerCase() === "sales") || accounts[0];
+  if (!preferred?.Code) {
+    throw new Error(
+      "No active revenue account was found in your connected Xero organisation. Add or unarchive a Revenue-type account in Xero, then try syncing again."
+    );
+  }
+  cachedRevenueAccountCode = preferred.Code;
+  return preferred.Code;
 }
 
+/**
+ * Creates a Xero Quote for an internal quote, using its real line items.
+ * Idempotent: if this quote already has a xeroQuoteRef, returns it instead
+ * of creating a second Quote in Xero — a re-click (or a retried request)
+ * must never duplicate the Xero-side record.
+ */
 /**
  * Pulls a simple revenue summary from Xero's live Invoices, for the
  * Analytics page. Read-only — does not write anything back to Xero.
@@ -324,70 +297,97 @@ export async function getXeroRevenueSummary() {
 /**
  * Creates (or finds) a Xero contact for the customer, then raises an ACCREC
  * invoice for the job, and returns the Xero invoice number to store against
- * the job record.
+ * the job record. Idempotent: if this job already has a xeroInvoiceRef,
+ * returns it instead of creating a second Xero-side invoice.
  */
-export async function createXeroInvoiceForJob(jobId: number) {
-  const tokens = await getValidTokens();
-  const job = await db.getJobById(jobId);
-  if (!job) throw new Error("Job not found");
-  const customer = await db.getCustomerById(job.customerId);
-  if (!customer) throw new Error("Customer not found for this job");
-
-  const headers = {
-    Authorization: `Bearer ${tokens.accessToken}`,
-    "Xero-tenant-id": tokens.tenantId!,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  };
-
-  const contactId = await findOrCreateXeroContact(headers, customer);
-
-  // Use the real quote line items when this job came from a quote.
-  const linkedQuote = job.quoteId ? await db.getQuoteById(job.quoteId) : null;
-  const rawLineItems = linkedQuote && Array.isArray(linkedQuote.lineItems) ? linkedQuote.lineItems : [];
-
-  const lineItems =
-    rawLineItems.length > 0
-      ? rawLineItems.map((item: any) => ({
-          Description: item.description || "Service",
-          Quantity: item.quantity || 1,
-          UnitAmount: item.unitPrice || 0,
-          AccountCode: "200",
-        }))
-      : [
-          {
-            Description: job.description || `Job ${job.jobNumber}`,
-            Quantity: 1,
-            UnitAmount: job.estimatedLaborHours ? job.estimatedLaborHours * 120 : 1,
-            AccountCode: "200",
-          },
-        ];
-
-  const invoiceRes = await fetch(`${XERO_API_BASE}/Invoices`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      Invoices: [
-        {
-          Type: "ACCREC",
-          Contact: { ContactID: contactId },
-          LineItems: lineItems,
-          Status: "AUTHORISED",
-          Reference: job.jobNumber,
-        },
-      ],
-    }),
-  });
-
-  if (!invoiceRes.ok) {
-    throw new Error(`Failed to create Xero invoice: ${await invoiceRes.text()}`);
+export async function createXeroInvoiceForInvoice(invoiceId: number) {
+  const existing = await db.getInvoiceById(invoiceId);
+  if (!existing) throw new Error("Invoice not found");
+  if (existing.xeroInvoiceRef) {
+    return { xeroInvoiceRef: existing.xeroInvoiceRef, alreadySynced: true as const };
   }
 
-  const invoiceJson = await invoiceRes.json();
-  const invoiceNumber = invoiceJson.Invoices?.[0]?.InvoiceNumber as string | undefined;
-  const invoiceId = invoiceJson.Invoices?.[0]?.InvoiceID as string | undefined;
-  const ref = invoiceNumber || invoiceId || "unknown";
+  await db.updateInvoice(invoiceId, { xeroSyncStatus: "syncing", xeroLastSyncError: null });
 
-  await db.updateJob(jobId, { xeroInvoiceRef: ref });
-  return { xeroInvoiceRef: ref };
+  try {
+    const tokens = await getValidTokens();
+    const invoice = existing;
+    const customer = await db.getCustomerById(invoice.customerId);
+    if (!customer) throw new Error("Customer not found for this invoice");
+
+    const headers = {
+      Authorization: `Bearer ${tokens.accessToken}`,
+      "Xero-tenant-id": tokens.tenantId!,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+
+    const contactId = await findOrCreateXeroContact(headers, customer);
+    const accountCode = await resolveRevenueAccountCode(headers);
+
+    // Use the real quote line items when this invoice came from one —
+    // otherwise fall back to a single line covering the invoice subtotal.
+    const linkedQuote = invoice.quoteId ? await db.getQuoteById(invoice.quoteId) : null;
+    const rawLineItems = linkedQuote && Array.isArray(linkedQuote.lineItems) ? linkedQuote.lineItems : [];
+    const job = invoice.jobId ? await db.getJobById(invoice.jobId) : null;
+
+    const lineItems =
+      rawLineItems.length > 0
+        ? rawLineItems.map((item: any) => ({
+            Description: item.description || "Service",
+            Quantity: item.quantity || 1,
+            UnitAmount: item.unitPrice || 0,
+            AccountCode: accountCode,
+          }))
+        : [
+            {
+              Description: job?.description || `Invoice ${invoice.invoiceNumber}`,
+              Quantity: 1,
+              UnitAmount: invoice.subtotal,
+              AccountCode: accountCode,
+            },
+          ];
+
+    // An AUTHORISED invoice is rejected by Xero without both dates — 14-day
+    // trade terms as a reasonable default; Boatology doesn't track its own
+    // per-invoice due-date/terms concept yet to source this from instead.
+    const invoiceDate = new Date();
+    const dueDate = new Date(invoiceDate.getTime() + 14 * 86400000);
+    const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+
+    const invoiceRes = await fetch(`${XERO_API_BASE}/Invoices`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        Invoices: [
+          {
+            Type: "ACCREC",
+            Contact: { ContactID: contactId },
+            LineItems: lineItems,
+            Status: "AUTHORISED",
+            Reference: invoice.invoiceNumber,
+            Date: isoDate(invoiceDate),
+            DueDate: isoDate(dueDate),
+          },
+        ],
+      }),
+    });
+
+    if (!invoiceRes.ok) {
+      throw new Error(`Failed to create Xero invoice: ${await invoiceRes.text()}`);
+    }
+
+    const invoiceJson = await invoiceRes.json();
+    const invoiceNumber = invoiceJson.Invoices?.[0]?.InvoiceNumber as string | undefined;
+    const xeroInvoiceId = invoiceJson.Invoices?.[0]?.InvoiceID as string | undefined;
+    const ref = invoiceNumber || xeroInvoiceId || "unknown";
+
+    await db.updateInvoice(invoiceId, { xeroInvoiceRef: ref, xeroSyncStatus: "synced", xeroLastSyncError: null });
+    return { xeroInvoiceRef: ref, alreadySynced: false as const };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Xero sync failed";
+    await db.updateInvoice(invoiceId, { xeroSyncStatus: "failed", xeroLastSyncError: message });
+    captureSystemError(error, { source: "background", route: "xero.createXeroInvoiceForInvoice", context: { invoiceId } });
+    throw error;
+  }
 }

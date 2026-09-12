@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
@@ -26,6 +27,8 @@ import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errors";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
+import { TechnicianSidebar } from "@/components/TechnicianSidebar";
+import { MaterialsPanel } from "@/pages/Materials";
 
 type DayForecast = {
   date: string;
@@ -75,6 +78,7 @@ export default function Calendar() {
   const [newAppointmentOpen, setNewAppointmentOpen] = useState(false);
   const [newAppointmentDate, setNewAppointmentDate] = useState<string | null>(null);
   const [dayViewDate, setDayViewDate] = useState<string | null>(null);
+  const [quickViewJobId, setQuickViewJobId] = useState<number | null>(null);
 
   const notesQuery = trpc.calendarNotes.list.useQuery();
   const utils = trpc.useUtils();
@@ -209,7 +213,11 @@ export default function Calendar() {
             {dayJobs.slice(0, 2).map((job: any) => (
               <Badge
                 key={job.id}
-                className={`${statusColors[job?.status]?.bg} ${statusColors[job?.status]?.text} text-xs border-0 block truncate`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuickViewJobId(job.id);
+                }}
+                className={`${statusColors[job?.status]?.bg} ${statusColors[job?.status]?.text} block cursor-pointer truncate border-0 text-xs hover:opacity-80`}
               >
                 {getDisplayName(job)}
               </Badge>
@@ -257,13 +265,27 @@ export default function Calendar() {
       if (!job.dueDate) return false;
       const due = new Date(job.dueDate);
       const daysAway = Math.round((due.getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000);
-      return daysAway >= 0 && daysAway <= 7 && job.status !== "closed" && job.status !== "completed";
+      return daysAway >= 0 && daysAway <= 7 && job.status !== "closed" && job.status !== "completed" && job.status !== "cancelled";
     })
     .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
+  // Jobs the user has manually pulled into this section even though their
+  // due date isn't within the next 7 days — e.g. planning ahead for a job
+  // that starts later, or one whose due date hasn't been set yet.
+  const [manualPlanJobIds, setManualPlanJobIds] = useState<number[]>([]);
+  const [addJobPickerOpen, setAddJobPickerOpen] = useState(false);
+  const [pickedJobId, setPickedJobId] = useState("");
+
+  const jobsForPlanSection = [
+    ...jobsDueThisWeek,
+    ...jobs.filter(
+      (j: any) => manualPlanJobIds.includes(j.id) && !jobsDueThisWeek.some((d: any) => d.id === j.id)
+    ),
+  ];
+
   const jobPlanQuery = trpc.jobPlan.listForJobs.useQuery(
-    jobsDueThisWeek.map((j: any) => j.id),
-    { enabled: jobsDueThisWeek.length > 0 }
+    jobsForPlanSection.map((j: any) => j.id),
+    { enabled: jobsForPlanSection.length > 0 }
   );
   const [planFormJobId, setPlanFormJobId] = useState<number | null>(null);
   const [planDate, setPlanDate] = useState("");
@@ -281,6 +303,7 @@ export default function Calendar() {
   });
 
   const [deletePlanEntryTarget, setDeletePlanEntryTarget] = useState<any>(null);
+  const [materialsOpen, setMaterialsOpen] = useState(false);
   const deletePlanEntryMutation = trpc.jobPlan.delete.useMutation({
     onSuccess: () => {
       toast.success("Removed");
@@ -294,10 +317,21 @@ export default function Calendar() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className={isTechnician ? "flex min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50" : "min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50"}>
+      {isTechnician && <TechnicianSidebar active="calendar" onMaterialsClick={() => setMaterialsOpen(true)} />}
+      <div className={isTechnician ? "flex-1 pb-16 md:pb-0 md:pl-56" : ""}>
       {/* Header */}
       <div className="border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-6 py-8">
+          {isTechnician && (
+            <button
+              onClick={() => navigate("/technician-home")}
+              className="mb-3 flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 md:hidden"
+            >
+              <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+              Back to Today
+            </button>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Calendar</h1>
@@ -356,6 +390,13 @@ export default function Calendar() {
           </Card>
         )}
 
+        <Tabs defaultValue="calendar" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:w-80">
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
+            <TabsTrigger value="job-plans">Week's Job Plans</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="calendar" className="mt-4">
         {/* 7-Day Weather Strip */}
         <Card className="mb-6 border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
@@ -526,23 +567,76 @@ export default function Calendar() {
             <div className="grid grid-cols-7 gap-0 border border-slate-200">{renderMonthView()}</div>
           </div>
         </Card>
+          </TabsContent>
 
+          <TabsContent value="job-plans" className="mt-4">
         {/* Day-by-day job plans for the week ahead */}
-        <div className="mt-8">
-          <h2 className="mb-1 text-lg font-semibold text-slate-900">This Week's Job Plans</h2>
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">This Week's Job Plans</h2>
+            {!addJobPickerOpen && (
+              <Button size="sm" variant="outline" onClick={() => setAddJobPickerOpen(true)}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Add a job to this week's plan
+              </Button>
+            )}
+          </div>
           <p className="mb-4 text-sm text-slate-500">
             A day-by-day plan for jobs due within the next 7 days — added by your team, not
             auto-generated. Add a day for whatever needs to happen, in whatever order makes sense
-            for the job.
+            for the job. Not due this week yet? Use "Add a job to this week's plan" to pull any
+            open job in here anyway.
           </p>
 
-          {jobsDueThisWeek.length === 0 ? (
+          {addJobPickerOpen && (
+            <Card className="mb-4 border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center gap-2 p-3">
+                <select
+                  value={pickedJobId}
+                  onChange={(e) => setPickedJobId(e.target.value)}
+                  className="h-9 flex-1 min-w-[12rem] rounded-md border border-slate-200 px-2 text-sm"
+                >
+                  <option value="">Select a job…</option>
+                  {jobs
+                    .filter(
+                      (j: any) =>
+                        j.status !== "closed" &&
+                        j.status !== "completed" &&
+                        j.status !== "cancelled" &&
+                        !jobsForPlanSection.some((existing: any) => existing.id === j.id)
+                    )
+                    .map((j: any) => (
+                      <option key={j.id} value={j.id}>
+                        {getDisplayName(j)} — {j.description || "No description"}
+                      </option>
+                    ))}
+                </select>
+                <Button
+                  size="sm"
+                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  disabled={!pickedJobId}
+                  onClick={() => {
+                    setManualPlanJobIds((ids) => [...ids, parseInt(pickedJobId)]);
+                    setPickedJobId("");
+                    setAddJobPickerOpen(false);
+                  }}
+                >
+                  Add
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setAddJobPickerOpen(false); setPickedJobId(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {jobsForPlanSection.length === 0 ? (
             <Card className="border-slate-200 bg-white shadow-sm">
               <div className="p-8 text-center text-sm text-slate-500">No jobs due in the next 7 days.</div>
             </Card>
           ) : (
             <div className="space-y-4">
-              {jobsDueThisWeek.map((job: any) => {
+              {jobsForPlanSection.map((job: any) => {
                 const entries = (jobPlanQuery.data || [])
                   .filter((e: any) => e.jobId === job.id)
                   .sort((a: any, b: any) => a.date.localeCompare(b.date));
@@ -673,7 +767,16 @@ export default function Calendar() {
               ))}
           </div>
         </div>
+          </TabsContent>
+        </Tabs>
       </div>
+      </div>
+
+      <Dialog open={materialsOpen} onOpenChange={setMaterialsOpen}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <MaterialsPanel />
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!noteDialogDate} onOpenChange={(open) => !open && setNoteDialogDate(null)}>
         <DialogContent>
@@ -761,8 +864,22 @@ export default function Calendar() {
             setNewAppointmentDate(dayViewDate);
             setNewAppointmentOpen(true);
           }}
+          onSelectJob={(jobId) => setQuickViewJobId(jobId)}
         />
       )}
+
+      <JobQuickViewDialog
+        job={quickViewJobId ? jobs.find((j: any) => j.id === quickViewJobId) : null}
+        getDisplayName={getDisplayName}
+        statusColors={statusColors}
+        isTechnician={isTechnician}
+        onOpenChange={(open) => !open && setQuickViewJobId(null)}
+        onViewFullJob={() => {
+          if (!quickViewJobId) return;
+          setQuickViewJobId(null);
+          navigate(isTechnician ? `/qr/${quickViewJobId}` : `/jobs/${quickViewJobId}`);
+        }}
+      />
 
       {canManageCalendar && (
         <NewAppointmentDialog
@@ -806,6 +923,7 @@ function DayViewPopup({
   getDisplayName,
   canCreateAppointment,
   onNewAppointment,
+  onSelectJob,
 }: {
   date: string;
   onOpenChange: (open: boolean) => void;
@@ -815,6 +933,7 @@ function DayViewPopup({
   getDisplayName: (job: any) => string;
   canCreateAppointment: boolean;
   onNewAppointment: () => void;
+  onSelectJob: (jobId: number) => void;
 }) {
   const jobsById = new Map(jobs.map((j) => [j.id, j]));
   const employeesById = new Map(employees.map((e: any) => [e.id, e]));
@@ -863,7 +982,11 @@ function DayViewPopup({
                 const job = jobsById.get(appt.jobId);
                 const tech = appt.employeeId ? employeesById.get(appt.employeeId) : null;
                 return (
-                  <div key={appt.id} className="rounded-lg bg-amber-50 px-3 py-2 text-sm">
+                  <div
+                    key={appt.id}
+                    onClick={() => job && onSelectJob(job.id)}
+                    className={`rounded-lg bg-amber-50 px-3 py-2 text-sm ${job ? "cursor-pointer hover:bg-amber-100" : ""}`}
+                  >
                     <p className="font-medium text-slate-900">{job ? getDisplayName(job) : `Job #${appt.jobId}`}</p>
                     {tech && <p className="text-xs text-slate-500">{tech.name}</p>}
                   </div>
@@ -887,7 +1010,11 @@ function DayViewPopup({
                         const job = jobsById.get(appt.jobId);
                         const tech = appt.employeeId ? employeesById.get(appt.employeeId) : null;
                         return (
-                          <div key={appt.id} className="rounded-lg border border-[#2d4160]/30 bg-blue-50 px-3 py-2 text-sm">
+                          <div
+                            key={appt.id}
+                            onClick={() => job && onSelectJob(job.id)}
+                            className={`rounded-lg border border-[#2d4160]/30 bg-blue-50 px-3 py-2 text-sm ${job ? "cursor-pointer hover:bg-blue-100" : ""}`}
+                          >
                             <div className="flex items-center justify-between">
                               <p className="font-medium text-slate-900">{job ? getDisplayName(job) : `Job #${appt.jobId}`}</p>
                               <span className="text-xs text-slate-500">
@@ -911,6 +1038,59 @@ function DayViewPopup({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Lightweight popup for "what is this job" straight from the calendar,
+ * without leaving the page — clicking a job badge or day-view entry opens
+ * this instead of navigating away. "View Full Job" is the escape hatch for
+ * anything deeper (tasks, materials, invoicing). */
+function JobQuickViewDialog({
+  job,
+  getDisplayName,
+  statusColors,
+  isTechnician,
+  onOpenChange,
+  onViewFullJob,
+}: {
+  job: any;
+  getDisplayName: (job: any) => string;
+  statusColors: Record<string, { bg: string; text: string }>;
+  isTechnician: boolean;
+  onOpenChange: (open: boolean) => void;
+  onViewFullJob: () => void;
+}) {
+  if (!job) return null;
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{getDisplayName(job)}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Badge className={`${statusColors[job.status]?.bg} ${statusColors[job.status]?.text} border-0`}>
+              {job.status?.replace(/_/g, " ")}
+            </Badge>
+            {job.dueDate && (
+              <span className="text-xs text-slate-500">
+                Due {new Date(job.dueDate).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+            )}
+          </div>
+          {job.description && <p className="text-sm text-slate-600">{job.description}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={onViewFullJob}>
+            {isTechnician ? "Open Job" : "View Full Job"}
           </Button>
         </DialogFooter>
       </DialogContent>

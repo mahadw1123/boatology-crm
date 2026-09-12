@@ -1,0 +1,1 @@
+ALTER TABLE `jobAssignments` ADD `viewedAt` text;

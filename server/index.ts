@@ -12,9 +12,10 @@ import { runMigrations } from "./migrate";
 import { getXeroAuthUrl, handleXeroCallback, isXeroConfigured } from "./_core/xero";
 import { requireAuthUser } from "./_core/requireAuthUser";
 import { constructWebhookEvent } from "./_core/stripe";
+import { applyStripePaymentSuccess } from "./_core/paymentReconciliation";
 import { sendEmail, emailTemplates } from "./_core/email";
 import { startScheduler } from "./_core/scheduler";
-import { runBackup, listBackups, BACKUPS_DIR } from "./_core/backup";
+import { createDatabaseSnapshot } from "./_core/backup";
 import * as db from "./db";
 import { parse as parseCookieHeader } from "cookie";
 import crypto from "crypto";
@@ -219,77 +220,25 @@ app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async
     };
     const invoiceId = intent.metadata?.invoiceId ? Number(intent.metadata.invoiceId) : null;
     if (invoiceId) {
-      const invoice = await db.getInvoiceById(invoiceId);
-      if (!invoice) {
+      const result = await applyStripePaymentSuccess(invoiceId, intent);
+      if (result.outcome === "not_found") {
         console.error(`[Stripe webhook] PaymentIntent ${intent.id} references missing invoice ${invoiceId}.`);
         await db.releaseStripeWebhookEvent(event.id);
         res.status(400).json({ error: "Unknown invoice" });
         return;
       }
-      const expectedAmount = Math.round(invoice.totalDue * 100);
-      const expectedCurrency = (invoice.currency || "aud").toLowerCase();
-      if (invoice.stripePaymentIntentId !== intent.id || intent.amount_received !== expectedAmount || intent.currency.toLowerCase() !== expectedCurrency) {
-        console.error(`[Stripe webhook] Refusing mismatched payment for invoice ${invoiceId}.`, {
-          expectedIntent: invoice.stripePaymentIntentId,
-          receivedIntent: intent.id,
-          expectedAmount,
-          receivedAmount: intent.amount_received,
-          expectedCurrency,
-          receivedCurrency: intent.currency,
-        });
+      if (result.outcome === "mismatch") {
+        console.error(`[Stripe webhook] Refusing mismatched payment for invoice ${invoiceId}: ${result.reason}`);
         await db.releaseStripeWebhookEvent(event.id);
         res.status(400).json({ error: "Payment does not match invoice" });
         return;
       }
-      if (invoice.status === "sent") {
-        await db.updateInvoice(invoiceId, {
-          status: "paid",
-          paymentMethod: "stripe",
-          paidAt: new Date().toISOString(),
-        });
+      if (result.outcome === "applied") {
         console.log(`[Stripe webhook] Invoice ${invoiceId} marked paid.`);
-
-        const updatedInvoice = await db.getInvoiceById(invoiceId);
-        if (updatedInvoice) {
-          // Notifications and receipts are useful side effects, but they must
-          // never cause a successfully recorded payment to be retried. A
-          // provider or notification failure is logged for staff follow-up
-          // while the financial transition remains final and idempotent.
-          try {
-            const staff = await db.getStaffUsers();
-            for (const s of staff) {
-              await db.createNotification({
-                userId: s.id,
-                type: "system",
-                title: `Invoice ${updatedInvoice.invoiceNumber} paid`,
-                message: `$${updatedInvoice.totalDue.toFixed(2)} received via Stripe.`,
-                relatedEntityType: "invoice",
-                relatedEntityId: updatedInvoice.id,
-              });
-            }
-          } catch (notificationError) {
-            console.error("[Stripe webhook] Payment notification creation failed:", notificationError);
-          }
-          try {
-            const customer = await db.getCustomerById(updatedInvoice.customerId);
-            if (customer?.email) {
-              await sendEmail({
-                to: customer.email,
-                subject: `Payment received — invoice ${updatedInvoice.invoiceNumber}`,
-                html: emailTemplates.paymentReceipt(customer.name, updatedInvoice.invoiceNumber || "", updatedInvoice.totalDue, "Stripe"),
-              });
-            }
-          } catch (emailError) {
-            console.error("[Stripe webhook] Payment receipt email failed:", emailError);
-          }
-        }
-      } else if (invoice.status !== "paid") {
-        // A late or replayed success event must never resurrect a voided,
-        // refunded, or reversed invoice. Record the event as handled, but
-        // leave the CRM's terminal financial state untouched for staff review.
-        console.error(
-          `[Stripe webhook] PaymentIntent ${intent.id} succeeded while invoice ${invoiceId} was ${invoice.status}; refusing an automatic transition to paid.`
-        );
+      } else if (result.outcome === "no_transition") {
+        // Already paid (idempotent no-op) or a terminal state (void/
+        // refunded/reversed) that a late success event must never resurrect.
+        console.error(`[Stripe webhook] PaymentIntent ${intent.id} succeeded for invoice ${invoiceId}: ${result.reason}`);
       }
     }
   }
@@ -680,80 +629,24 @@ app.post("/api/uploads", requireUploadAuth, uploadLimiter, handleSingleUpload, a
 app.get("/api/admin/download-database", async (req, res) => {
   const user = await requireAuthUser(req);
   if (!user) {
-    apiError(res, 401, "Your session has expired. Sign in again before downloading a backup.", "Sign in", "/");
+    apiError(res, 401, "Your session has expired. Sign in again before downloading the database.", "Sign in", "/");
     return;
   }
   if (user.role !== "admin") {
-    apiError(res, 403, "Only administrators can download database backups. Return to a page available for your account.", "Dashboard", "/");
+    apiError(res, 403, "Only administrators can download the database. Return to a page available for your account.", "Dashboard", "/");
     return;
   }
   try {
-    const result = await runBackup();
-    const snapshotPath = path.join(result.folder, "boatology.db");
-    if (!result.dbBackedUp || !fs.existsSync(snapshotPath)) {
-      apiError(res, 500, "The database snapshot could not be created. Check Administration → Settings and the server logs.", "Administration", "/administration");
-      return;
-    }
+    const snapshotPath = await createDatabaseSnapshot();
     const filename = `boatology-backup-${new Date().toISOString().slice(0, 10)}.db`;
-    res.download(snapshotPath, filename);
+    res.download(snapshotPath, filename, (err) => {
+      fs.rm(snapshotPath, { force: true }, () => {});
+      if (err) console.error("Database download failed to send:", err);
+    });
   } catch (error) {
-    console.error("Database download snapshot failed:", error);
-    apiError(res, 500, "The backup could not be prepared. Return to Administration → Settings and try again.", "Administration", "/administration");
+    console.error("Database snapshot failed:", error);
+    apiError(res, 500, "The database file could not be prepared. Try again; contact an administrator if it continues.", "Administration", "/administration");
   }
-});
-
-app.get("/api/admin/backups", async (req, res) => {
-  const user = await requireAuthUser(req);
-  if (!user) {
-    apiError(res, 401, "Your session has expired. Sign in again to view backups.", "Sign in", "/");
-    return;
-  }
-  if (user.role !== "admin") {
-    apiError(res, 403, "Only administrators can view backups. Return to a page available for your account.", "Dashboard", "/");
-    return;
-  }
-  res.json({ backups: listBackups() });
-});
-
-app.post("/api/admin/backups/run", async (req, res) => {
-  const user = await requireAuthUser(req);
-  if (!user) {
-    apiError(res, 401, "Your session has expired. Sign in again before creating a backup.", "Sign in", "/");
-    return;
-  }
-  if (user.role !== "admin") {
-    apiError(res, 403, "Only administrators can create backups. Return to a page available for your account.", "Dashboard", "/");
-    return;
-  }
-  try {
-    const result = await runBackup();
-    res.json(result);
-  } catch (error) {
-    console.error("Manual backup trigger failed:", error);
-    apiError(res, 500, "The backup could not be created. Return to Administration → Settings and try again; check the server logs if it continues.", "Administration", "/administration");
-  }
-});
-
-app.get("/api/admin/backups/:name/database", async (req, res) => {
-  const user = await requireAuthUser(req);
-  if (!user) {
-    apiError(res, 401, "Your session has expired. Sign in again before downloading a backup.", "Sign in", "/");
-    return;
-  }
-  if (user.role !== "admin") {
-    apiError(res, 403, "Only administrators can download backups. Return to a page available for your account.", "Dashboard", "/");
-    return;
-  }
-  // Defense-in-depth against a manipulated :name param resolving outside
-  // the backups directory — matches the same pattern used for uploaded
-  // files.
-  const safeName = path.basename(req.params.name);
-  const dbPath = path.join(BACKUPS_DIR, safeName, "boatology.db");
-  if (!dbPath.startsWith(BACKUPS_DIR) || !fs.existsSync(dbPath)) {
-    apiError(res, 404, "This backup no longer exists. Return to Administration → Settings and refresh the backup list.", "Administration", "/administration");
-    return;
-  }
-  res.download(dbPath, `boatology-backup-${safeName}.db`);
 });
 
 app.get("/api/reports/morning-briefing.pdf", async (req, res) => {
@@ -798,6 +691,7 @@ app.get("/api/reports/morning-briefing.pdf", async (req, res) => {
   section(`Invoices Outstanding (${data.invoicesUnpaid.length})`, data.invoicesUnpaid.map((i) => `${i.invoiceNumber} — $${i.amount.toFixed(2)}`));
   section(`Low Stock (${data.lowStock.length})`, data.lowStock.map((i) => `${i.name} — ${i.currentStock}/${i.minimumStock}`));
   section(`Material Requests Pending (${data.pendingMaterialRequests.length})`, data.pendingMaterialRequests.map((r) => `${r.quantity}x ${r.materialName} (${r.urgency})`));
+  section(`Task Centre — Unassigned (${data.unassignedTasks.length})`, data.unassignedTasks.map((t) => `${t.title} (${t.priority || "no priority"})`));
 
   doc.end();
 });

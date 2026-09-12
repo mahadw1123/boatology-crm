@@ -3,10 +3,25 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Save } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useRoute, useSearch } from "wouter";
 import { toast } from "sonner";
 import { LineItemsEditor, type LineItem } from "@/components/LineItemsEditor";
 import { PhotoGallery } from "@/components/PhotoGallery";
@@ -19,11 +34,13 @@ const statusColors: Record<string, { bg: string; text: string }> = {
   accepted: { bg: "bg-emerald-100", text: "text-emerald-700" },
   rejected: { bg: "bg-red-100", text: "text-red-700" },
   expired: { bg: "bg-slate-100", text: "text-slate-700" },
+  superseded: { bg: "bg-slate-100", text: "text-slate-500" },
 };
 
 export default function QuoteDetail() {
   const [, params] = useRoute("/quotes/:id");
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const quoteId = params?.id ? parseInt(params.id) : null;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -32,12 +49,15 @@ export default function QuoteDetail() {
     partsCost: "",
     totalAmount: "",
     notes: "",
+    expiryDate: "",
+    assignedUserId: "",
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
 
   const quoteQuery = trpc.quotes.getById.useQuery(quoteId || 0, {
     enabled: !!quoteId,
   });
+  const staffUsersQuery = trpc.administration.staffUsers.useQuery();
 
   const updateMutation = trpc.quotes.update.useMutation();
   const lineItemsTotal = lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
@@ -46,6 +66,20 @@ export default function QuoteDetail() {
   const hasBreakdown = lineItems.length > 0 || formData.laborCost.trim() !== "" || formData.partsCost.trim() !== "";
   const calculatedTotal = Math.round((lineItemsTotal + labourAmount + partsAmount) * 100) / 100;
 
+  // A freshly created revision lands here straight from "Create Revision"
+  // (via setLocation, not a full page load) — open it directly in edit
+  // mode so the price/line-item fields are visible immediately instead of
+  // requiring an extra click on "Edit" to find them. Keyed on quoteId (not
+  // just run once on mount) since QuoteDetail stays mounted across this
+  // client-side navigation — a lazy useState initializer would only have
+  // read the URL on the very first quote this component ever showed.
+  useEffect(() => {
+    if (new URLSearchParams(search).get("edit") === "1") {
+      setIsEditing(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteId]);
+
   useEffect(() => {
     if (quoteQuery.data) {
       setFormData({
@@ -53,6 +87,8 @@ export default function QuoteDetail() {
         partsCost: quoteQuery.data.partsCost?.toString() || "",
         totalAmount: quoteQuery.data.totalAmount?.toString() || "",
         notes: quoteQuery.data.notes || "",
+        expiryDate: (quoteQuery.data as any).expiryDate || "",
+        assignedUserId: (quoteQuery.data as any).assignedUserId?.toString() || "",
       });
       const rawItems = Array.isArray((quoteQuery.data as any).lineItems)
         ? (quoteQuery.data as any).lineItems
@@ -86,6 +122,8 @@ export default function QuoteDetail() {
             ? parseFloat(formData.totalAmount)
             : undefined,
         notes: formData.notes || undefined,
+        expiryDate: formData.expiryDate || undefined,
+        assignedUserId: formData.assignedUserId ? parseInt(formData.assignedUserId) : null,
       });
       toast.success("Quote updated");
       setIsEditing(false);
@@ -167,7 +205,7 @@ export default function QuoteDetail() {
             {!isEditing ? (
               <div className="flex gap-2">
                 <SendQuoteButton quoteId={quoteId} status={(quote as any)?.status} />
-                <SyncQuoteToXeroButton quoteId={quoteId} xeroQuoteRef={(quote as any)?.xeroQuoteRef} />
+                <CreateRevisionButton quoteId={quoteId} status={(quote as any)?.status} />
                 <Button
                   className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
                   onClick={() => setIsEditing(true)}
@@ -209,6 +247,11 @@ export default function QuoteDetail() {
               >
                 {(quote as any)?.status?.replace(/_/g, " ")}
               </Badge>
+              {(quote as any)?.status === "rejected" && (quote as any)?.rejectionReason && (
+                <p className="mt-2 text-sm text-red-600">
+                  Reason: {(quote as any).rejectionReason}
+                </p>
+              )}
             </div>
           </Card>
 
@@ -221,7 +264,26 @@ export default function QuoteDetail() {
               </p>
             </div>
           </Card>
+
+          {/* Assigned To */}
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <div className="p-6">
+              <p className="text-sm font-medium text-slate-600">Assigned To</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">
+                {(staffUsersQuery.data || []).find((u: any) => u.id === (quote as any)?.assignedUserId)?.name || "Unassigned"}
+              </p>
+            </div>
+          </Card>
         </div>
+
+        <RevisionHistory quoteId={quoteId} currentQuoteId={quoteId} />
+
+        {(quote as any)?.revisionReason && (
+          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-900">Why this revision was made</p>
+            <p className="mt-1 text-sm text-amber-800">{(quote as any).revisionReason}</p>
+          </div>
+        )}
 
         {/* Details */}
         <Card className="mt-6 border-slate-200 bg-white shadow-sm">
@@ -276,6 +338,47 @@ export default function QuoteDetail() {
                   {hasBreakdown && (
                     <p className="mt-1 text-xs text-slate-500">Calculated automatically from line items, labour, and parts.</p>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900">
+                    Due Date
+                  </label>
+                  <Input
+                    type="date"
+                    value={formData.expiryDate}
+                    onChange={(e) =>
+                      setFormData({ ...formData, expiryDate: e.target.value })
+                    }
+                    className="mt-1 border-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-900">
+                    Assigned To
+                  </label>
+                  <Select
+                    value={formData.assignedUserId || "unassigned"}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, assignedUserId: value === "unassigned" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger className="mt-1 border-slate-200">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {(staffUsersQuery.data || []).map((u: any) => (
+                        <SelectItem key={u.id} value={u.id.toString()}>
+                          {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Whoever owns following this quote up — shows on their personal Today's Agenda.
+                  </p>
                 </div>
 
                 <div>
@@ -356,42 +459,6 @@ export default function QuoteDetail() {
   );
 }
 
-function SyncQuoteToXeroButton({
-  quoteId,
-  xeroQuoteRef,
-}: {
-  quoteId: number | null;
-  xeroQuoteRef?: string | null;
-}) {
-  const utils = trpc.useUtils();
-  const syncMutation = trpc.quotes.syncToXero.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Synced to Xero — quote ${data.xeroQuoteRef}`);
-      if (quoteId) utils.quotes.getById.invalidate(quoteId);
-    },
-    onError: (err) => showErrorToast(err),
-  });
-
-  if (xeroQuoteRef) {
-    return (
-      <Badge variant="secondary" className="self-center">
-        Xero: {xeroQuoteRef}
-      </Badge>
-    );
-  }
-
-  return (
-    <Button
-      variant="outline"
-      onClick={() => quoteId && syncMutation.mutate({ quoteId })}
-      disabled={!quoteId || syncMutation.isPending}
-    >
-      {syncMutation.isPending ? "Syncing..." : "Sync to Xero"}
-    </Button>
-  );
-}
-
-
 function SendQuoteButton({ quoteId, status }: { quoteId: number | null; status?: string }) {
   const utils = trpc.useUtils();
   const updateMutation = trpc.quotes.update.useMutation({
@@ -416,5 +483,91 @@ function SendQuoteButton({ quoteId, status }: { quoteId: number | null; status?:
     >
       {updateMutation.isPending ? "Sending..." : "Send Quote to Customer"}
     </Button>
+  );
+}
+
+function CreateRevisionButton({ quoteId, status }: { quoteId: number | null; status?: string }) {
+  const [, setLocation] = useLocation();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const revisionMutation = trpc.quotes.createRevision.useMutation({
+    onSuccess: (revision: any) => {
+      toast.success(`Revision created — now editing ${revision.quoteNumber}`);
+      if (revision?.id) setLocation(`/quotes/${revision.id}?edit=1`);
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  // Draft quotes can just be edited directly — revisions exist to preserve
+  // history once a quote has actually gone out to the customer.
+  if (!status || status === "draft") return null;
+
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        Create Revision
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Why is this quote changing?</DialogTitle>
+            <DialogDescription>
+              Shown to the customer alongside the revised quote, so a price or scope change never
+              arrives unexplained.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Added antifoul application after inspection found hull fouling."
+            rows={3}
+            className="border-slate-200"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              onClick={() => quoteId && revisionMutation.mutate({ quoteId, reason: reason.trim() })}
+              disabled={!quoteId || !reason.trim() || revisionMutation.isPending}
+            >
+              {revisionMutation.isPending ? "Creating..." : "Create Revision"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function RevisionHistory({ quoteId, currentQuoteId }: { quoteId: number | null; currentQuoteId: number | null }) {
+  const [, setLocation] = useLocation();
+  const revisionsQuery = trpc.quotes.getRevisions.useQuery(quoteId || 0, { enabled: !!quoteId });
+  const revisions = revisionsQuery.data as any[] | undefined;
+
+  if (!revisions || revisions.length < 2) return null;
+
+  return (
+    <Card className="mt-6 border-slate-200 bg-white shadow-sm">
+      <div className="p-6">
+        <h3 className="font-medium text-slate-900">Revision History</h3>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {revisions.map((rev) => (
+            <button
+              key={rev.id}
+              onClick={() => setLocation(`/quotes/${rev.id}`)}
+              className={`rounded-full border px-3 py-1 text-sm ${
+                rev.id === currentQuoteId
+                  ? "border-[#0c1e38] bg-[#0c1e38] text-white"
+                  : "border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Rev {rev.revisionNumber || 1} — {rev.quoteNumber} ({rev.status.replace(/_/g, " ")})
+            </button>
+          ))}
+        </div>
+      </div>
+    </Card>
   );
 }

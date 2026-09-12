@@ -197,6 +197,83 @@
       "when": 1787767272738,
       "tag": "0027_error_monitoring",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1788473428230,
+      "tag": "0028_keen_iron_patriot",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1788479993252,
+      "tag": "0029_fresh_senator_kelly",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1788482688783,
+      "tag": "0030_solid_beast",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1788735737912,
+      "tag": "0031_polite_captain_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1788738046132,
+      "tag": "0032_workable_guardian",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1788741952112,
+      "tag": "0033_first_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1788794536127,
+      "tag": "0034_stale_magik",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1788881062215,
+      "tag": "0035_tough_retro_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1788883257795,
+      "tag": "0036_wet_risque",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1788885198943,
+      "tag": "0037_left_darkstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1788905601451,
+      "tag": "0038_fuzzy_greymalkin",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,7 @@ export default function Quotes() {
   const [, setLocation] = useLocation();
   const quotesQuery = trpc.quotes.list.useQuery();
   const customersQuery = trpc.customers.list.useQuery();
+  const staffUsersQuery = trpc.administration.staffUsers.useQuery();
   const customersById = new Map((customersQuery.data || []).map((c: any) => [c.id, c]));
   const utils = trpc.useUtils();
 
@@ -41,6 +42,14 @@ export default function Quotes() {
       showErrorToast(err);
       setDeleteTarget(null);
     },
+  });
+
+  const assignMutation = trpc.quotes.update.useMutation({
+    onSuccess: () => {
+      toast.success("Assignment updated");
+      utils.quotes.list.invalidate();
+    },
+    onError: (err) => showErrorToast(err),
   });
 
   const quotes = quotesQuery.data || [];
@@ -137,6 +146,9 @@ export default function Quotes() {
                       Amount
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                      Assigned To
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
@@ -163,12 +175,37 @@ export default function Quotes() {
                           {formatCurrency(Number(quote.totalAmount || 0))}
                         </span>
                       </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <select
+                          value={quote.assignedUserId?.toString() || ""}
+                          onChange={(e) =>
+                            assignMutation.mutate({
+                              id: quote.id,
+                              assignedUserId: e.target.value ? parseInt(e.target.value) : null,
+                            })
+                          }
+                          className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs"
+                        >
+                          <option value="">Unassigned</option>
+                          {(staffUsersQuery.data || []).map((u: any) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="px-6 py-4">
                         <Badge
+                          title={quote.status === "rejected" ? quote.rejectionReason || undefined : undefined}
                           className={`${statusColors[quote.status]?.bg} ${statusColors[quote.status]?.text} border-0`}
                         >
                           {quote.status.replace(/_/g, " ")}
                         </Badge>
+                        {quote.status === "rejected" && quote.rejectionReason && (
+                          <p className="mt-1 max-w-[220px] truncate text-xs text-red-600" title={quote.rejectionReason}>
+                            {quote.rejectionReason}
+                          </p>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         {formatDate(quote.expiryDate)}

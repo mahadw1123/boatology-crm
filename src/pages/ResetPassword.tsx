@@ -4,14 +4,14 @@ import { trpc } from "@/lib/trpc";
 import { BoatologyLogo } from "@/components/BoatologyLogo";
 import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
-import { useLocation, Link } from "wouter";
+import { useSearch, Link } from "wouter";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errors";
 
 export default function ResetPassword() {
   const companyNameQuery = trpc.administration.companyName.useQuery();
-  const [location] = useLocation();
-  const token = new URLSearchParams(location.split("?")[1] || "").get("token") || "";
+  const search = useSearch();
+  const token = new URLSearchParams(search).get("token") || "";
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -51,8 +51,8 @@ export default function ResetPassword() {
             <p className="mt-2 text-sm text-ink-light">
               This link is missing its reset token. Request a new one from the sign-in page.
             </p>
-            <Link href="/forgot-password">
-              <a className="mt-6 inline-block text-sm text-ocean hover:underline">Request a new link</a>
+            <Link href="/forgot-password" className="mt-6 inline-block text-sm text-ocean hover:underline">
+              Request a new link
             </Link>
           </div>
         ) : success ? (
@@ -62,10 +62,8 @@ export default function ResetPassword() {
             </div>
             <h1 className="text-lg font-semibold text-ink">Password updated</h1>
             <p className="mt-2 text-sm text-ink-light">You can now sign in with your new password.</p>
-            <Link href="/login">
-              <a className="mt-6 inline-block">
-                <Button className="bg-navy hover:bg-navy-700">Go to Sign In</Button>
-              </a>
+            <Link href="/login" className="mt-6 inline-block">
+              <Button className="bg-navy hover:bg-navy-700">Go to Sign In</Button>
             </Link>
           </div>
         ) : (

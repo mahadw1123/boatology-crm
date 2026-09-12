@@ -22,7 +22,9 @@ type ImportEntity =
   | "vessels"
   | "quotes"
   | "jobs"
-  | "invoices";
+  | "invoices"
+  | "materialRequests"
+  | "timeEntries";
 
 const ENTITY_CONFIG: Record<ImportEntity, { label: string; columns: string[]; note: string }> = {
   customers: {
@@ -64,6 +66,16 @@ const ENTITY_CONFIG: Record<ImportEntity, { label: string; columns: string[]; no
     label: "Invoices",
     columns: ["customerEmail", "jobNumber", "quoteNumber", "invoiceNumber", "invoiceType", "subtotal", "totalDue", "currency", "status", "paymentMethod", "paidAt"],
     note: "Historical imports do not create Stripe payments or send invoice emails.",
+  },
+  materialRequests: {
+    label: "Material Requests",
+    columns: ["jobNumber", "materialName", "quantity", "urgency", "supplier", "reason"],
+    note: "Import jobs first. Each request must match a job by jobId or an exact jobNumber.",
+  },
+  timeEntries: {
+    label: "Time Entries",
+    columns: ["employeeEmail", "employeeName", "jobNumber", "date", "clockInTime", "clockOutTime", "hoursWorked", "notes"],
+    note: "Import employees (and jobs, if linking) first. Each entry must match an employee by employeeId, employeeEmail, or an exact employeeName.",
   },
 };
 

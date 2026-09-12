@@ -1,11 +1,20 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useJobDisplayName } from "@/lib/jobNaming";
-import { CheckCircle, Clock, FileText, XCircle, Star, CreditCard, LogOut } from "lucide-react";
+import { CheckCircle, Clock, FileText, XCircle, Star, CreditCard, LogOut, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { InvoicePaymentDialog } from "@/components/InvoicePaymentDialog";
@@ -31,11 +40,24 @@ export default function CustomerPortal() {
   const [activeTab, setActiveTab] = useState(invoiceIdFromLink ? "invoices" : "quotes");
   const [selectedQuote, setSelectedQuote] = useState<number | null>(quoteIdFromLink);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [contactOpen, setContactOpen] = useState(false);
+  const [declineWorkJobId, setDeclineWorkJobId] = useState<number | null>(null);
+  const [declineWorkReason, setDeclineWorkReason] = useState("");
 
   const quotesQuery = trpc.quotes.list.useQuery();
   const jobsQuery = trpc.jobs.list.useQuery();
+  const agendaQuery = trpc.agenda.today.useQuery();
   const updateQuoteMutation = trpc.quotes.update.useMutation();
   const utils = trpc.useUtils();
+  const respondToExtraWorkMutation = trpc.jobs.respondToAdditionalWork.useMutation({
+    onSuccess: (_, variables) => {
+      toast.success(variables.approved ? "Approved — the technician will pick it back up" : "Declined");
+      setDeclineWorkJobId(null);
+      setDeclineWorkReason("");
+      utils.jobs.list.invalidate();
+    },
+    onError: (err) => showErrorToast(err),
+  });
   const { getDisplayName } = useJobDisplayName();
 
   const quotes = quotesQuery.data || [];
@@ -70,6 +92,7 @@ export default function CustomerPortal() {
     accepted: { bg: "bg-green-100", text: "text-green-700" },
     rejected: { bg: "bg-red-100", text: "text-red-700" },
     expired: { bg: "bg-slate-100", text: "text-slate-700" },
+    superseded: { bg: "bg-slate-100", text: "text-slate-500" },
   };
 
   const jobStatusColors: Record<string, { bg: string; text: string }> = {
@@ -85,6 +108,7 @@ export default function CustomerPortal() {
     invoice: { bg: "bg-blue-100", text: "text-blue-700" },
     collection: { bg: "bg-purple-100", text: "text-purple-700" },
     closed: { bg: "bg-slate-100", text: "text-slate-700" },
+    cancelled: { bg: "bg-red-100", text: "text-red-700" },
   };
 
   const handleApproveQuote = async (quoteId: number) => {
@@ -149,6 +173,13 @@ export default function CustomerPortal() {
             <span className="text-sm font-semibold tracking-wide text-white">{companyNameQuery.data?.name || "Boatology"}</span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setContactOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Contact Us
+            </button>
             <span className="text-sm text-white/70">{user?.name}</span>
             <button
               onClick={() => logout()}
@@ -162,13 +193,22 @@ export default function CustomerPortal() {
       </div>
 
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="relative overflow-hidden border-b border-slate-200">
+        <video
+          className="absolute inset-0 h-full w-full object-cover"
+          src="/media/customer-portal-hero.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+        <div className="absolute inset-0 bg-[#0c1e38]/70" />
+        <div className="relative mx-auto max-w-7xl px-6 py-14">
           <div>
-            <h1 className="text-3xl font-semibold text-slate-900">
+            <h1 className="text-3xl font-semibold text-white">
               Customer Portal
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-white/80">
               View quotes and track your jobs
             </p>
           </div>
@@ -184,6 +224,34 @@ export default function CustomerPortal() {
               Contact the office and ask an administrator to open Administration → Users, verify your identity,
               and link this login to your customer record. Quotes, jobs, and invoices will appear after that step.
             </p>
+          </Card>
+        )}
+        {agendaQuery.data && agendaQuery.data.length > 0 && (
+          <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+            <div className="p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Needs Your Attention</h2>
+              <div className="mt-3 space-y-1.5">
+                {(agendaQuery.data as any[]).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      if (item.linkType === "invoice") setActiveTab("invoices");
+                      else if (item.linkType === "job") setActiveTab("jobs");
+                      else if (item.linkType === "quote") {
+                        setActiveTab("quotes");
+                        setSelectedQuote(item.linkId);
+                      }
+                    }}
+                    className={`block w-full rounded-lg px-3 py-2 text-left text-sm font-medium hover:opacity-80 ${
+                      item.urgency === "urgent" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {item.title}
+                  </button>
+                ))}
+              </div>
+            </div>
           </Card>
         )}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -225,6 +293,19 @@ export default function CustomerPortal() {
                         {(quote as any)?.status?.replace(/_/g, " ")}
                       </Badge>
                     </div>
+
+                    {quote.revisionReason && (
+                      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-sm font-medium text-amber-900">
+                          This quote was updated
+                          {(() => {
+                            const parent = quotes.find((q: any) => q.id === quote.parentQuoteId);
+                            return parent ? ` from ${parent.quoteNumber}` : "";
+                          })()}
+                        </p>
+                        <p className="mt-1 text-sm text-amber-800">{quote.revisionReason}</p>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
@@ -412,6 +493,40 @@ export default function CustomerPortal() {
                       </div>
                     )}
 
+                    {job.additionalWorkRequested && !job.additionalWorkApproved && !job.additionalWorkDeclined && (
+                      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                        <p className="text-sm font-semibold text-amber-900">Extra work needs your approval</p>
+                        <p className="mt-1 text-sm text-amber-800">{job.additionalWorkNotes}</p>
+                        <p className="mt-2 text-xs text-amber-700">
+                          Work on this job is paused until you respond.
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                            disabled={respondToExtraWorkMutation.isPending}
+                            onClick={() => respondToExtraWorkMutation.mutate({ jobId: job.id, approved: true })}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={respondToExtraWorkMutation.isPending}
+                            onClick={() => setDeclineWorkJobId(job.id)}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {job.additionalWorkDeclined && (
+                      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm font-medium text-slate-900">You declined the extra work requested</p>
+                        <p className="mt-1 text-sm text-slate-600">{job.additionalWorkDeclineReason}</p>
+                      </div>
+                    )}
+
                     <div className="mt-4">
                       <PhotoGallery entity={{ type: "job", id: job.id }} readOnly />
                     </div>
@@ -426,7 +541,126 @@ export default function CustomerPortal() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <ContactUsDialog open={contactOpen} onOpenChange={setContactOpen} />
+
+      <Dialog open={declineWorkJobId !== null} onOpenChange={(open) => !open && setDeclineWorkJobId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline the extra work</DialogTitle>
+            <DialogDescription>Let us know why so we can follow up with you directly.</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={declineWorkReason}
+            onChange={(e) => setDeclineWorkReason(e.target.value)}
+            placeholder="e.g. I'd like to discuss the cost first..."
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeclineWorkJobId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={respondToExtraWorkMutation.isPending || !declineWorkReason.trim()}
+              onClick={() =>
+                declineWorkJobId != null &&
+                respondToExtraWorkMutation.mutate({ jobId: declineWorkJobId, approved: false, declineReason: declineWorkReason.trim() })
+              }
+            >
+              {respondToExtraWorkMutation.isPending ? "Sending..." : "Decline"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function ContactUsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { user } = useAuth();
+  const [name, setName] = useState(user?.name || "");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState(user?.email || "");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setName(user?.name || "");
+      setEmail(user?.email || "");
+    }
+  }, [open, user?.name, user?.email]);
+
+  const sendMutation = trpc.customerMessages.create.useMutation({
+    onSuccess: () => {
+      toast.success("Message sent — we'll be in touch shortly");
+      setPhone("");
+      setMessage("");
+      onOpenChange(false);
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const handleSubmit = () => {
+    if (!name.trim() || !message.trim()) return;
+    sendMutation.mutate({
+      name: name.trim(),
+      phone: phone.trim() || undefined,
+      email: email.trim() || undefined,
+      message: message.trim(),
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Send us a message</DialogTitle>
+          <DialogDescription>We'll get back to you as soon as we can.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-900">
+              Name <span className="text-red-500">(Required)</span>
+            </label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 border-slate-200" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-900">Phone Number</label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1 border-slate-200" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-900">Email</label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 border-slate-200" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-900">
+              How can we help? <span className="text-red-500">(Required)</span>
+            </label>
+            <Textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value.slice(0, 600))}
+              rows={4}
+              placeholder="Please let us know what's on your mind. Have a question for us? Ask away."
+              className="mt-1 border-slate-200"
+            />
+            <p className="mt-1 text-right text-xs text-slate-400">{message.length} of 600 max characters</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            onClick={handleSubmit}
+            disabled={!name.trim() || !message.trim() || sendMutation.isPending}
+          >
+            {sendMutation.isPending ? "Sending..." : "Submit"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

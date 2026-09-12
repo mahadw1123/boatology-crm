@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { Clock, MapPin, User, Wrench } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, CalendarRange, Clock, MapPin, User } from "lucide-react";
 import { useLocation } from "wouter";
 
 const statusColors: Record<string, { bg: string; text: string }> = {
@@ -27,13 +27,13 @@ const priorityColors: Record<string, { bg: string; text: string }> = {
   urgent: { bg: "bg-red-100", text: "text-red-700" },
 };
 
-const sections: { key: string; label: string; emptyText: string }[] = [
-  { key: "overdue", label: "Overdue", emptyText: "Nothing overdue." },
-  { key: "today", label: "Today", emptyText: "Nothing due today." },
-  { key: "tomorrow", label: "Tomorrow", emptyText: "Nothing due tomorrow." },
-  { key: "thisWeek", label: "This Week", emptyText: "Nothing else due this week." },
-  { key: "nextWeek", label: "Next Week", emptyText: "Nothing due next week." },
-  { key: "upcoming", label: "Upcoming", emptyText: "Nothing further out yet." },
+const sections: { key: string; label: string; emptyText: string; icon: any; tone: string }[] = [
+  { key: "overdue", label: "Overdue", emptyText: "Nothing overdue.", icon: AlertTriangle, tone: "text-red-600" },
+  { key: "today", label: "Today", emptyText: "Nothing due today.", icon: CalendarDays, tone: "text-orange-600" },
+  { key: "tomorrow", label: "Tomorrow", emptyText: "Nothing due tomorrow.", icon: CalendarClock, tone: "text-blue-600" },
+  { key: "thisWeek", label: "This Week", emptyText: "Nothing else due this week.", icon: CalendarRange, tone: "text-slate-500" },
+  { key: "nextWeek", label: "Next Week", emptyText: "Nothing due next week.", icon: CalendarRange, tone: "text-slate-500" },
+  { key: "upcoming", label: "Upcoming", emptyText: "Nothing further out yet.", icon: Clock, tone: "text-slate-500" },
 ];
 
 export default function Timeline() {
@@ -59,12 +59,30 @@ export default function Timeline() {
         {timelineQuery.isLoading ? (
           <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
         ) : (
+          <>
+            {/* Summary */}
+            <div className="mb-8 grid grid-cols-3 gap-3 sm:grid-cols-6">
+              {sections.map((section) => {
+                const count = ((buckets as any)[section.key] || []).length;
+                const Icon = section.icon;
+                return (
+                  <Card key={section.key} className="border-slate-200 bg-white p-3 text-center shadow-sm">
+                    <Icon className={`mx-auto h-4 w-4 ${section.tone}`} />
+                    <p className={`mt-1 text-xl font-bold ${count > 0 ? section.tone : "text-slate-300"}`}>{count}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{section.label}</p>
+                  </Card>
+                );
+              })}
+            </div>
+
           <div className="space-y-8">
             {sections.map((section) => {
               const events = (buckets as any)[section.key] || [];
+              const Icon = section.icon;
               return (
                 <div key={section.key}>
                   <div className="mb-3 flex items-center gap-2">
+                    <Icon className={`h-4 w-4 ${section.tone}`} />
                     <h2 className="font-semibold text-slate-900">{section.label}</h2>
                     {events.length > 0 && (
                       <Badge variant="secondary" className="text-xs">
@@ -123,6 +141,7 @@ export default function Timeline() {
               );
             })}
           </div>
+          </>
         )}
       </div>
     </div>

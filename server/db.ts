@@ -1,10 +1,11 @@
-import { eq, and, desc, asc, like, isNull, gte } from "drizzle-orm";
+import { eq, and, desc, asc, like, isNull, isNotNull, gte, lt } from "drizzle-orm";
 import crypto from "crypto";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
 import { ENV } from "./_core/env";
+import { QUOTE_SENT_STATUS, assertQuoteIsSent } from "./_core/quoteStatus";
 import {
   users,
   customers,
@@ -27,6 +28,8 @@ import {
   invoices,
   jobPlanEntries,
   jobCosts,
+  businessExpenses,
+  customerMessages,
   tasks,
   inventoryItems,
   materialRequests,
@@ -186,6 +189,10 @@ export async function relinkUserToCustomer(userId: number, customerId: number | 
   await db.update(users).set({ customerId }).where(eq(users.id, userId));
 }
 
+export async function relinkUserToEmployee(userId: number, employeeId: number | null) {
+  await db.update(users).set({ employeeId }).where(eq(users.id, userId));
+}
+
 // ============================================================================
 // VESSEL QUERIES
 // ============================================================================
@@ -276,14 +283,14 @@ export function rejectQuoteIfSent(quoteId: number, customerId: number, rejection
       | undefined;
     if (!quote) throw new Error("QUOTE_NOT_FOUND");
     if (quote.customerId !== customerId) throw new Error("QUOTE_FORBIDDEN");
-    if (quote.status !== "sent") throw new Error("QUOTE_NOT_SENT");
+    assertQuoteIsSent(quote.status);
 
     const result = sqlite.prepare(`
       UPDATE quotes
       SET status = 'rejected', rejectionReason = ?, rejectedAt = strftime('%Y-%m-%dT%H:%M:%fZ','now'),
           updatedAt = strftime('%Y-%m-%dT%H:%M:%fZ','now')
-      WHERE id = ? AND customerId = ? AND status = 'sent'
-    `).run(rejectionReason, quoteId, customerId);
+      WHERE id = ? AND customerId = ? AND status = ?
+    `).run(rejectionReason, quoteId, customerId, QUOTE_SENT_STATUS);
     if (result.changes !== 1) throw new Error("QUOTE_NOT_SENT");
   });
   reject();
@@ -291,14 +298,14 @@ export function rejectQuoteIfSent(quoteId: number, customerId: number, rejection
 
 /** Atomically accepts a customer quote and creates its deposit invoice, so the
  * CRM cannot show an accepted quote without the payment record required next. */
-export async function acceptQuoteAndEnsureDeposit(quoteId: number, customerId: number, depositAmount: number) {
+export async function acceptQuoteAndEnsureDeposit(quoteId: number, customerId: number, depositAmount: number, depositPercentage: number) {
   const transaction = sqlite.transaction(() => {
-    const quote = sqlite.prepare("SELECT id, customerId, status FROM quotes WHERE id = ?").get(quoteId) as
-      | { id: number; customerId: number; status: string }
+    const quote = sqlite.prepare("SELECT id, customerId, status, assignedUserId FROM quotes WHERE id = ?").get(quoteId) as
+      | { id: number; customerId: number; status: string; assignedUserId: number | null }
       | undefined;
     if (!quote) throw new Error("QUOTE_NOT_FOUND");
     if (quote.customerId !== customerId) throw new Error("QUOTE_FORBIDDEN");
-    if (quote.status !== "sent") throw new Error("QUOTE_NOT_SENT");
+    assertQuoteIsSent(quote.status);
 
     let invoiceId = (sqlite.prepare(
       "SELECT id FROM invoices WHERE quoteId = ? AND invoiceType = 'deposit' LIMIT 1"
@@ -317,10 +324,10 @@ export async function acceptQuoteAndEnsureDeposit(quoteId: number, customerId: n
       const invoiceNumber = `${prefix}${String(max + 1).padStart(4, "0")}`;
       const result = sqlite.prepare(`
         INSERT INTO invoices
-          (jobId, customerId, quoteId, invoiceNumber, invoiceType, subtotal, totalDue, status, emailStatus, lastEmailAttemptAt)
+          (jobId, customerId, quoteId, invoiceNumber, invoiceType, subtotal, totalDue, depositPercentageUsed, status, emailStatus, lastEmailAttemptAt, assignedUserId)
         VALUES
-          (NULL, ?, ?, ?, 'deposit', ?, ?, 'draft', 'pending', strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-      `).run(customerId, quoteId, invoiceNumber, depositAmount, depositAmount);
+          (NULL, ?, ?, ?, 'deposit', ?, ?, ?, 'draft', 'pending', strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?)
+      `).run(customerId, quoteId, invoiceNumber, depositAmount, depositAmount, depositPercentage, quote.assignedUserId);
       invoiceId = Number(result.lastInsertRowid);
     }
 
@@ -438,6 +445,15 @@ export async function getEmployeeById(id: number) {
   return result.length > 0 ? result[0] : null;
 }
 
+/** Every login account linked to this employee — the reverse of
+ * `users.employeeId`. Normally exactly one, but nothing stops an admin
+ * from relinking a second account to the same employee (e.g. mid
+ * handover), and a job-assignment notification should still reach
+ * whichever accounts are actually in use rather than an arbitrary one. */
+export async function getUsersByEmployeeId(employeeId: number) {
+  return await db.select().from(users).where(eq(users.employeeId, employeeId));
+}
+
 export async function updateEmployee(id: number, data: Partial<typeof employees.$inferInsert>) {
   await db.update(employees).set(data).where(eq(employees.id, id));
 }
@@ -476,12 +492,32 @@ export async function getJobAssignmentsWithEmployee(jobId: number) {
   return rows;
 }
 
+export async function getJobAssignmentById(assignmentId: number) {
+  const result = await db.select().from(jobAssignments).where(eq(jobAssignments.id, assignmentId)).limit(1);
+  return result[0];
+}
+
 export async function unassignJobFromEmployee(assignmentId: number) {
   await db.delete(jobAssignments).where(eq(jobAssignments.id, assignmentId));
 }
 
 export async function getAllJobAssignments() {
   return await db.select().from(jobAssignments);
+}
+
+export async function getJobAssignmentsForEmployee(employeeId: number) {
+  return await db.select().from(jobAssignments).where(eq(jobAssignments.employeeId, employeeId));
+}
+
+/** Stamps the moment a technician actually opens a job they're assigned
+ * to — a no-op if they're not assigned to it, or already viewed it (first
+ * view only, so a later re-open doesn't keep sliding the timestamp
+ * forward and hiding a genuinely new assignment). */
+export async function markJobAssignmentViewed(jobId: number, employeeId: number) {
+  await db
+    .update(jobAssignments)
+    .set({ viewedAt: new Date().toISOString() })
+    .where(and(eq(jobAssignments.jobId, jobId), eq(jobAssignments.employeeId, employeeId), isNull(jobAssignments.viewedAt)));
 }
 
 // ============================================================================
@@ -547,7 +583,7 @@ export async function getEmployeeJobCounts() {
   for (const a of allAssignments) {
     const job = jobById.get(a.jobId);
     if (!job) continue;
-    if (job.status === "closed" || job.status === "completed") continue;
+    if (job.status === "closed" || job.status === "completed" || job.status === "cancelled") continue;
     counts.set(a.employeeId, (counts.get(a.employeeId) || 0) + 1);
   }
   return counts;
@@ -596,11 +632,29 @@ export async function updateTimeEntry(id: number, data: Partial<typeof timeEntri
   await db.update(timeEntries).set(data).where(eq(timeEntries.id, id));
 }
 
+/** Every time entry that's still "clocked in" (real clockInTime, no
+ * clockOutTime yet) and has been for at least `maxHours` — used by the
+ * scheduled auto-clock-out sweep so a forgotten clock-out doesn't quietly
+ * inflate that job's labour cost for days on end. */
+export async function getStaleActiveTimeEntries(maxHours: number) {
+  const cutoff = new Date(Date.now() - maxHours * 60 * 60 * 1000).toISOString();
+  return await db
+    .select()
+    .from(timeEntries)
+    .where(and(isNull(timeEntries.clockOutTime), isNotNull(timeEntries.clockInTime), lt(timeEntries.clockInTime, cutoff)));
+}
+
 export async function getActiveTimeEntry(employeeId: number) {
   const rows = await db
     .select()
     .from(timeEntries)
-    .where(and(eq(timeEntries.employeeId, employeeId), isNull(timeEntries.clockOutTime)))
+    // clockOutTime IS NULL alone isn't enough to mean "currently clocked
+    // in" — a manually-logged hours entry (general/internal hours, CSV
+    // import) also has no clockOutTime but never had a clockInTime either.
+    // Without this check, clockOut/switchJob could pick one of those up as
+    // the "active" session and compute hoursWorked from `new Date(null)`
+    // (the 1970 epoch), producing a multi-decade hours figure.
+    .where(and(eq(timeEntries.employeeId, employeeId), isNull(timeEntries.clockOutTime), isNotNull(timeEntries.clockInTime)))
     .orderBy(desc(timeEntries.createdAt))
     .limit(1);
   return rows.length > 0 ? rows[0] : null;
@@ -834,8 +888,24 @@ export async function getSettings() {
 export async function getDepositPercentage(): Promise<number> {
   const all = await getSettings();
   const setting = all.find((s) => s.key === "deposit_percentage");
-  const parsed = setting?.value ? parseFloat(setting.value) : NaN;
-  return !isNaN(parsed) && parsed > 0 && parsed <= 100 ? parsed : 30;
+  // An admin explicitly setting this to 0 means "no deposit required" and
+  // must be honored — only an unset/missing/invalid value falls back to the
+  // 30% default. `setting.value` being the string "0" is truthy, but
+  // `parseFloat("0")` is falsy, so the fallback check below tests the parsed
+  // number's validity directly rather than truthiness of the raw string.
+  if (setting?.value === undefined || setting.value === null || setting.value === "") return 30;
+  const parsed = parseFloat(setting.value);
+  return !isNaN(parsed) && parsed >= 0 && parsed <= 100 ? parsed : 30;
+}
+
+/** How many days a job can sit in "waiting_parts" before Today's Agenda
+ * flags it — admin-configurable in Administration → Settings, defaulting
+ * to a week if never set. */
+export async function getWaitingPartsAlertDays(): Promise<number> {
+  const all = await getSettings();
+  const setting = all.find((s) => s.key === "waiting_parts_alert_days");
+  const parsed = setting?.value ? parseInt(setting.value, 10) : NaN;
+  return !isNaN(parsed) && parsed > 0 ? parsed : 7;
 }
 
 export async function upsertSetting(key: string, value: string, description?: string) {
@@ -955,7 +1025,23 @@ export async function logAuditEvent(data: typeof auditLog.$inferInsert) {
   await db.insert(auditLog).values(data);
 }
 
-export async function getAuditLog() {
+export async function getAuditLog(filters?: {
+  userId?: number;
+  action?: string;
+  entityType?: string;
+  search?: string;
+  fromDate?: string;
+}) {
+  const conditions = [];
+  if (filters?.userId) conditions.push(eq(auditLog.userId, filters.userId));
+  if (filters?.action) conditions.push(eq(auditLog.action, filters.action));
+  if (filters?.entityType) conditions.push(eq(auditLog.entityType, filters.entityType));
+  if (filters?.fromDate) conditions.push(gte(auditLog.createdAt, filters.fromDate));
+  if (filters?.search) conditions.push(like(auditLog.action, `%${filters.search}%`));
+
+  if (conditions.length > 0) {
+    return await db.select().from(auditLog).where(and(...conditions)).orderBy(desc(auditLog.createdAt)).limit(200);
+  }
   return await db.select().from(auditLog).orderBy(desc(auditLog.createdAt)).limit(200);
 }
 
@@ -1208,6 +1294,76 @@ export async function deleteJobCost(id: number) {
 }
 
 // ============================================================================
+// BUSINESS EXPENSES (general overhead — rent, subscriptions, insurance, etc.)
+// ============================================================================
+
+export async function createBusinessExpense(data: {
+  category: "rent" | "utilities" | "insurance" | "subscription" | "supplies" | "equipment" | "other";
+  description: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  createdBy?: number;
+}) {
+  const result = await db.insert(businessExpenses).values(data).returning();
+  return result[0];
+}
+
+export async function getBusinessExpenses() {
+  return await db.select().from(businessExpenses).orderBy(desc(businessExpenses.date), desc(businessExpenses.createdAt));
+}
+
+export async function deleteBusinessExpense(id: number) {
+  await db.delete(businessExpenses).where(eq(businessExpenses.id, id));
+}
+
+export async function getBusinessExpenseSummary() {
+  const all = await getBusinessExpenses();
+  const totalAmount = all.reduce((sum, e) => sum + e.amount, 0);
+  const byCategory = new Map<string, number>();
+  for (const e of all) {
+    byCategory.set(e.category, (byCategory.get(e.category) || 0) + e.amount);
+  }
+  return {
+    totalAmount,
+    byCategory: Array.from(byCategory.entries()).map(([category, amount]) => ({ category, amount })),
+  };
+}
+
+// ============================================================================
+// CUSTOMER MESSAGES ("Contact Us" popup on the Customer Portal)
+// ============================================================================
+
+export async function createCustomerMessage(data: {
+  customerId: number;
+  name: string;
+  phone?: string;
+  email?: string;
+  message: string;
+}) {
+  const result = await db.insert(customerMessages).values(data).returning();
+  return result[0];
+}
+
+export async function getCustomerMessages() {
+  return await db.select().from(customerMessages).orderBy(desc(customerMessages.createdAt));
+}
+
+export async function getCustomerMessagesForCustomer(customerId: number) {
+  return await db.select().from(customerMessages).where(eq(customerMessages.customerId, customerId)).orderBy(desc(customerMessages.createdAt));
+}
+
+export async function getCustomerMessageById(id: number) {
+  const result = await db.select().from(customerMessages).where(eq(customerMessages.id, id)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function resolveCustomerMessage(id: number, resolvedBy: number) {
+  await db.update(customerMessages).set({ status: "resolved", resolvedBy, resolvedAt: new Date().toISOString() }).where(eq(customerMessages.id, id));
+  return await getCustomerMessageById(id);
+}
+
+// ============================================================================
 // TASKS (real sub-units of work within a job)
 // ============================================================================
 
@@ -1268,6 +1424,7 @@ export async function createInventoryItem(data: {
   minimumStock?: number;
   unitCost?: number;
   notes?: string;
+  assignedUserId?: number | null;
 }) {
   const result = await db.insert(inventoryItems).values(data).returning();
   return result[0];
@@ -1315,6 +1472,7 @@ export async function createMaterialRequest(data: {
   supplier?: string;
   reason?: string;
   requestedBy?: number;
+  assignedUserId?: number;
 }) {
   const result = await db.insert(materialRequests).values(data).returning();
   return result[0];
@@ -1377,9 +1535,12 @@ export async function createStaffTask(data: {
   priority?: "low" | "medium" | "high" | "urgent";
   linkedJobId?: number;
   linkedCustomerId?: number;
+  linkedQuoteId?: number;
+  linkedInvoiceId?: number;
   estimatedMinutes?: number;
   blockedByTaskId?: number;
   autoGenerated?: boolean;
+  ruleKey?: string;
   createdBy?: number;
 }) {
   const result = await db.insert(staffTasks).values(data).returning();
@@ -1410,23 +1571,25 @@ export async function deleteStaffTask(id: number) {
 
 export async function getMorningBriefingData() {
   const todayStr = new Date().toISOString().slice(0, 10);
-  const [jobs, quotes, invoices, inventory, materialReqs, customers] = await Promise.all([
+  const [jobs, quotes, invoices, inventory, materialReqs, customers, allStaffTasks] = await Promise.all([
     getJobs(),
     getQuotes(),
     getAllInvoices(),
     getInventoryItems(),
     getMaterialRequests(),
     getCustomers(),
+    getStaffTasks(),
   ]);
   const customersById = new Map(customers.map((c) => [c.id, c]));
 
-  const jobsOverdue = jobs.filter((j) => j.dueDate && j.dueDate < todayStr && j.status !== "completed" && j.status !== "closed");
-  const jobsToday = jobs.filter((j) => j.dueDate === todayStr && j.status !== "completed" && j.status !== "closed");
+  const jobsOverdue = jobs.filter((j) => j.dueDate && j.dueDate < todayStr && j.status !== "completed" && j.status !== "closed" && j.status !== "cancelled");
+  const jobsToday = jobs.filter((j) => j.dueDate === todayStr && j.status !== "completed" && j.status !== "closed" && j.status !== "cancelled");
   const quotesAwaiting = quotes.filter((q) => q.status === "sent");
   const depositsUnpaid = invoices.filter((i) => i.invoiceType === "deposit" && !["paid", "void", "refunded"].includes(i.status));
   const invoicesUnpaid = invoices.filter((i) => !["paid", "void", "refunded"].includes(i.status) && i.invoiceType !== "deposit");
   const lowStock = inventory.filter((i) => i.currentStock <= i.minimumStock);
   const pendingMaterialRequests = materialReqs.filter((r) => r.status === "pending");
+  const unassignedTasks = allStaffTasks.filter((t) => t.ownerId == null && t.status !== "completed" && t.status !== "cancelled");
 
   return {
     generatedAt: new Date().toISOString(),
@@ -1437,6 +1600,7 @@ export async function getMorningBriefingData() {
     invoicesUnpaid: invoicesUnpaid.map((i) => ({ invoiceNumber: i.invoiceNumber, amount: i.totalDue })),
     lowStock: lowStock.map((i) => ({ name: i.name, currentStock: i.currentStock, minimumStock: i.minimumStock })),
     pendingMaterialRequests: pendingMaterialRequests.map((r) => ({ materialName: r.materialName, quantity: r.quantity, urgency: r.urgency })),
+    unassignedTasks: unassignedTasks.map((t) => ({ title: t.title, priority: t.priority })),
   };
 }
 
@@ -1573,7 +1737,7 @@ export async function getUpcomingServicesData() {
   const [jobs, customers] = await Promise.all([getJobs(), getCustomers()]);
   const customersById = new Map(customers.map((c) => [c.id, c]));
   const upcoming = jobs.filter(
-    (j) => j.dueDate && j.dueDate >= todayStr && j.dueDate <= twoWeeksOutStr && j.status !== "completed" && j.status !== "closed"
+    (j) => j.dueDate && j.dueDate >= todayStr && j.dueDate <= twoWeeksOutStr && j.status !== "completed" && j.status !== "closed" && j.status !== "cancelled"
   );
   return {
     generatedAt: new Date().toISOString(),
@@ -1618,9 +1782,13 @@ export async function getWorkshopCapacityData() {
     getEmployees("technician"), getAllTimeEntries(), getAllJobAssignments(), getJobs(),
   ]);
   const activeEmployeeIds = new Set(allTimeEntries.filter((e) => !e.clockOutTime).map((e) => e.employeeId));
-  const activeJobs = jobs.filter((j) => j.status !== "completed" && j.status !== "closed");
+  const activeJobs = jobs.filter((j) => j.status !== "completed" && j.status !== "closed" && j.status !== "cancelled");
+  const activeJobIds = new Set(activeJobs.map((j) => j.id));
   const jobCountByEmployee = new Map<number, number>();
-  for (const a of assignments) jobCountByEmployee.set(a.employeeId, (jobCountByEmployee.get(a.employeeId) || 0) + 1);
+  for (const a of assignments) {
+    if (!activeJobIds.has(a.jobId)) continue;
+    jobCountByEmployee.set(a.employeeId, (jobCountByEmployee.get(a.employeeId) || 0) + 1);
+  }
 
   return {
     generatedAt: new Date().toISOString(),
@@ -1791,7 +1959,7 @@ export function resetPasswordWithToken(tokenHash: string, passwordHash: string) 
 // ============================================================================
 
 export type SystemErrorInput = {
-  source: "server" | "browser" | "payment" | "email" | "background";
+  source: "server" | "browser" | "payment" | "email" | "background" | "backup";
   severity?: "warning" | "error" | "fatal";
   message: string;
   stack?: string | null;

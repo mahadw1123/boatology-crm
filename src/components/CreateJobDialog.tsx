@@ -93,17 +93,18 @@ export function CreateJobDialog({
     customerId: "",
     vesselId: "",
     quoteId: "",
-    jobNumber: "",
     description: "",
     priority: "medium",
     estimatedLaborHours: "",
     dueDate: "",
+    employeeId: "",
   });
   const [quickCreateCustomerOpen, setQuickCreateCustomerOpen] = useState(false);
   const [quickCreateVesselOpen, setQuickCreateVesselOpen] = useState(false);
 
   const customersQuery = trpc.customers.list.useQuery();
   const vesselsQuery = trpc.vessels.list.useQuery();
+  const techniciansQuery = trpc.employees.list.useQuery({ role: "technician" });
   const utils = trpc.useUtils();
   const customerVessels = (vesselsQuery.data || []).filter(
     (v: any) => v.customerId === parseInt(formData.customerId || "0")
@@ -113,32 +114,24 @@ export function CreateJobDialog({
     { enabled: !!formData.customerId }
   );
   const createMutation = trpc.jobs.create.useMutation();
-
-  // Suggest a fresh, unlikely-to-collide job number each time the dialog
-  // opens — staff can still edit it, same pattern as the quote dialog.
-  useEffect(() => {
-    if (open && !formData.jobNumber) {
-      const year = new Date().getFullYear();
-      const suffix = Math.floor(1000 + Math.random() * 9000);
-      setFormData((prev) => ({ ...prev, jobNumber: `J-${year}-${suffix}` }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  const assignMutation = trpc.jobs.assignTechnician.useMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.customerId || !formData.jobNumber) {
-      toast.error("Customer and job number are required");
+    if (!formData.customerId) {
+      toast.error("Customer is required");
       return;
     }
 
     try {
-      await createMutation.mutateAsync({
+      // The job number is generated server-side, sequentially (J-2026-0001,
+      // J-2026-0002, ...) — never client-supplied, so it can't be edited
+      // into a duplicate or a gap in the sequence.
+      const job = await createMutation.mutateAsync({
         customerId: parseInt(formData.customerId),
         vesselId: formData.vesselId ? parseInt(formData.vesselId) : undefined,
         quoteId: formData.quoteId ? parseInt(formData.quoteId) : undefined,
-        jobNumber: formData.jobNumber,
         description: formData.description || undefined,
         priority: formData.priority as any,
         estimatedLaborHours: formData.estimatedLaborHours
@@ -146,16 +139,28 @@ export function CreateJobDialog({
           : undefined,
         dueDate: formData.dueDate || undefined,
       });
-      toast.success("Job created successfully");
+
+      if (formData.employeeId) {
+        try {
+          await assignMutation.mutateAsync({ jobId: job.id, employeeId: parseInt(formData.employeeId) });
+        } catch (assignError) {
+          // The job itself was created successfully — don't let a failed
+          // assignment look like the whole thing failed. Surface it
+          // separately so staff know to assign the technician from Jobs.
+          showErrorToast(assignError, "Job created, but the technician could not be assigned. Assign them from the job page.");
+        }
+      }
+
+      toast.success(`Job ${job.jobNumber} created successfully`);
       setFormData({
         customerId: "",
         vesselId: "",
         quoteId: "",
-        jobNumber: "",
         description: "",
         priority: "medium",
         estimatedLaborHours: "",
         dueDate: "",
+        employeeId: "",
       });
       onOpenChange(false);
       onSuccess?.();
@@ -264,21 +269,6 @@ export function CreateJobDialog({
 
           <div>
             <label className="block text-sm font-medium text-slate-900">
-              Job Number *
-            </label>
-            <Input
-              required
-              value={formData.jobNumber}
-              onChange={(e) =>
-                setFormData({ ...formData, jobNumber: e.target.value })
-              }
-              placeholder="J-2024-001"
-              className="mt-1 border-slate-200"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-900">
               Description
             </label>
             <Textarea
@@ -351,6 +341,31 @@ export function CreateJobDialog({
               }
               className="mt-1 border-slate-200"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-900">
+              Assign Technician (optional)
+            </label>
+            <Select
+              value={formData.employeeId}
+              onValueChange={(value) => setFormData({ ...formData, employeeId: value })}
+            >
+              <SelectTrigger className="mt-1 border-slate-200">
+                <SelectValue placeholder="Assign later from the job page" />
+              </SelectTrigger>
+              <SelectContent>
+                {(techniciansQuery.data || []).length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-slate-500">No technicians yet</div>
+                ) : (
+                  (techniciansQuery.data || []).map((tech: any) => (
+                    <SelectItem key={tech.id} value={tech.id.toString()}>
+                      {tech.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

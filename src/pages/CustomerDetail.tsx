@@ -97,7 +97,7 @@ export default function CustomerDetail() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       {/* Header */}
       <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-2xl px-6 py-6">
+        <div className="mx-auto max-w-6xl px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -144,7 +144,8 @@ export default function CustomerDetail() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-2xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-slate-200 bg-white shadow-sm">
           <div className="p-6">
             {isEditing ? (
@@ -294,10 +295,18 @@ export default function CustomerDetail() {
           </div>
         </Card>
 
-        {/* Related Vessels */}
-        <div className="mt-8">
+        {/* Contact Us messages — sits beside Contact Info so the two things
+            admin most needs to see never require scrolling to reach. */}
+        {customerId && <CustomerMessagesSection customerId={customerId} />}
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        {/* Related Vessels, with Communication Log directly beneath — kept
+            in the same column as each other so this whole page fits
+            together without a separate full-width section to scroll to. */}
+        <div>
           <h2 className="text-lg font-semibold text-slate-900">Vessels</h2>
-          <Card className="mt-4 border-slate-200 bg-white shadow-sm">
+          <Card className="mt-4 max-h-72 overflow-y-auto border-slate-200 bg-white shadow-sm">
             {vesselsQuery.isLoading ? (
               <div className="p-6 text-center text-slate-500">Loading...</div>
             ) : customerVessels.length === 0 ? (
@@ -321,12 +330,15 @@ export default function CustomerDetail() {
               </div>
             )}
           </Card>
+
+          <h2 className="mt-6 text-lg font-semibold text-slate-900">Communication Log</h2>
+          <CommunicationLog customerId={customerId!} />
         </div>
 
         {/* Related Quotes */}
-        <div className="mt-8">
+        <div>
           <h2 className="text-lg font-semibold text-slate-900">Quotes</h2>
-          <Card className="mt-4 border-slate-200 bg-white shadow-sm">
+          <Card className="mt-4 max-h-72 overflow-y-auto border-slate-200 bg-white shadow-sm">
             {quotesQuery.isLoading ? (
               <div className="p-6 text-center text-slate-500">Loading...</div>
             ) : (quotesQuery.data || []).length === 0 ? (
@@ -355,14 +367,124 @@ export default function CustomerDetail() {
             )}
           </Card>
         </div>
-
-        {/* Communication Log */}
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold text-slate-900">Communication Log</h2>
-          <CommunicationLog customerId={customerId!} />
-        </div>
+      </div>
       </div>
     </div>
+  );
+}
+
+function CustomerMessagesSection({ customerId }: { customerId: number }) {
+  const utils = trpc.useUtils();
+  const messagesQuery = trpc.customerMessages.listForCustomer.useQuery(customerId);
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
+
+  const resolveMutation = trpc.customerMessages.resolve.useMutation({
+    onSuccess: () => {
+      toast.success("Marked resolved");
+      utils.customerMessages.listForCustomer.invalidate(customerId);
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const replyMutation = trpc.customerMessages.reply.useMutation({
+    onSuccess: () => {
+      toast.success("Reply sent");
+      setReplyingTo(null);
+      setReplyText("");
+      utils.customerMessages.listForCustomer.invalidate(customerId);
+      // The reply also writes a Communication Log entry — refresh that
+      // query too so it shows up without a manual page reload.
+      utils.customers.getById.invalidate(customerId);
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const messages = messagesQuery.data || [];
+  const unresolved = messages.filter((m: any) => m.status === "new");
+
+  return (
+    <Card className="border-slate-200 bg-white shadow-sm">
+      <div className="p-6">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-slate-900">Messages</h2>
+          {unresolved.length > 0 && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+              {unresolved.length} new
+            </span>
+          )}
+        </div>
+        <p className="mb-4 mt-1 text-sm text-slate-600">Sent via the "Contact Us" button on their customer portal.</p>
+        {messages.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-500">No messages yet.</p>
+        ) : (
+          <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+            {messages.map((m: any) => (
+              <div
+                key={m.id}
+                className={`rounded-lg border p-4 ${m.status === "new" ? "border-amber-200 bg-amber-50" : "border-slate-200"}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-900">{m.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {[m.phone, m.email].filter(Boolean).join(" · ") || "No contact details given"} —{" "}
+                      {new Date(m.createdAt).toLocaleString("en-AU")}
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{m.message}</p>
+                    {m.status === "resolved" && m.resolvedAt && (
+                      <p className="mt-2 text-xs text-emerald-600">Resolved {new Date(m.resolvedAt).toLocaleString("en-AU")}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-1.5">
+                    {replyingTo !== m.id && (
+                      <Button size="sm" variant="outline" onClick={() => { setReplyingTo(m.id); setReplyText(""); }}>
+                        Reply
+                      </Button>
+                    )}
+                    {m.status === "new" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => resolveMutation.mutate({ id: m.id })}
+                        disabled={resolveMutation.isPending}
+                      >
+                        Mark Resolved
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {replyingTo === m.id && (
+                  <div className="mt-3 border-t border-slate-200 pt-3">
+                    <Textarea
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder={`Reply to ${m.name} by email...`}
+                      rows={3}
+                      className="border-slate-200 bg-white"
+                    />
+                    <div className="mt-2 flex justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setReplyingTo(null)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                        disabled={!replyText.trim() || replyMutation.isPending}
+                        onClick={() => replyMutation.mutate({ id: m.id, reply: replyText.trim() })}
+                      >
+                        {replyMutation.isPending ? "Sending..." : "Send Reply"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -458,7 +580,7 @@ function CommunicationLog({ customerId }: { customerId: number }) {
         {entries.length === 0 && !isAdding ? (
           <p className="mt-4 text-sm text-slate-500">No communication logged yet.</p>
         ) : (
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 max-h-72 space-y-3 overflow-y-auto pr-1">
             {entries.map((entry, i) => (
               <div key={i} className="flex gap-3 border-l-2 border-slate-100 pl-3">
                 <div className="flex-1">

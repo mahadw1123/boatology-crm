@@ -29,7 +29,7 @@ function safeContext(value: unknown, depth = 0): unknown {
 export function captureSystemError(
   error: unknown,
   details: {
-    source?: "server" | "browser" | "payment" | "email" | "background";
+    source?: "server" | "browser" | "payment" | "email" | "background" | "backup";
     severity?: "warning" | "error" | "fatal";
     route?: string | null;
     userId?: number | null;
@@ -59,6 +59,34 @@ export function captureSystemError(
           relatedEntityId: recorded.id,
         }))))
         .catch((notificationError) => console.error("[Monitoring] Failed to create administrator notification:", notificationError));
+
+      // An in-app notification only reaches someone already logged into the
+      // CRM — if the app itself is down, or nobody happens to be looking,
+      // a fatal error was previously invisible to anyone outside it. This
+      // is the one rung of alerting above that. Dynamically imported
+      // (rather than a top-level import) specifically to avoid a circular
+      // import: email.ts itself calls captureSystemError on its own
+      // send failures.
+      if (details.severity === "fatal") {
+        void (async () => {
+          try {
+            const { sendEmail } = await import("./email");
+            const staff = await db.getStaffUsers();
+            for (const member of staff) {
+              if (!member.email) continue;
+              await sendEmail({
+                to: member.email,
+                subject: `{{COMPANY_NAME}} — a fatal error just happened`,
+                html: `<p>Something serious went wrong and needs a human to look at it:</p>
+                       <p style="margin:16px 0;padding:12px 16px;background:#F5F7FA;border-radius:8px;font-family:monospace;font-size:13px;">${recorded.message.slice(0, 500)}</p>
+                       <p>Open Administration → System Errors in the CRM for the full detail.</p>`,
+              }).catch((emailError) => console.error("[Monitoring] Failed to send fatal-error alert email:", emailError));
+            }
+          } catch (alertError) {
+            console.error("[Monitoring] Fatal-error external alert failed:", alertError);
+          }
+        })();
+      }
     }
 
     return recorded;

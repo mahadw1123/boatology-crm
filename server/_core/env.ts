@@ -2,22 +2,21 @@ import "dotenv/config";
 import path from "path";
 
 // A single directory everything that needs to survive a restart can live
-// under — the database file, uploaded files, and backups. This matters
-// specifically for hosts like Render, where a service's filesystem is
-// ephemeral by default (wiped on every redeploy, restart, and — on free
-// tiers — when the service spins down from inactivity) unless a
-// persistent disk is attached at one specific mount path. Without this,
-// there was no single directory such a disk could actually cover, since
-// the database, uploads, and backups each lived in their own separate
-// spot. When unset, everything defaults to exactly where it already lived
-// before this existed, so local development is unaffected.
+// under — the database file and uploaded files. This matters specifically
+// for hosts like Render, where a service's filesystem is ephemeral by
+// default (wiped on every redeploy, restart, and — on free tiers — when
+// the service spins down from inactivity) unless a persistent disk is
+// attached at one specific mount path. Without this, there was no single
+// directory such a disk could actually cover, since the database and
+// uploads each lived in their own separate spot. When unset, everything
+// defaults to exactly where it already lived before this existed, so
+// local development is unaffected.
 const persistentDataDir = process.env.PERSISTENT_DATA_DIR || null;
 
 export const ENV = {
   port: Number(process.env.PORT) || 4000,
   databaseUrl: process.env.DATABASE_URL || (persistentDataDir ? path.join(persistentDataDir, "boatology.db") : "./data/boatology.db"),
   persistentDataDir,
-  backupDir: process.env.BACKUP_DIR || null,
   jwtSecret: process.env.JWT_SECRET || "dev-secret-change-me-in-production-please",
   nodeEnv: process.env.NODE_ENV || "development",
   isProd: process.env.NODE_ENV === "production",

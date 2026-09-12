@@ -12,6 +12,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { Package, Plus, Search, Trash2, AlertTriangle, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -37,7 +44,9 @@ function ItemFormDialog({
     minimumStock: "0",
     unitCost: "",
     notes: "",
+    assignedUserId: "",
   });
+  const staffUsersQuery = trpc.administration.staffUsers.useQuery();
 
   useEffect(() => {
     if (item) {
@@ -50,9 +59,10 @@ function ItemFormDialog({
         minimumStock: item.minimumStock?.toString() || "0",
         unitCost: item.unitCost?.toString() || "",
         notes: item.notes || "",
+        assignedUserId: item.assignedUserId?.toString() || "",
       });
     } else {
-      setForm({ name: "", partNumber: "", supplier: "", unit: "", currentStock: "0", minimumStock: "0", unitCost: "", notes: "" });
+      setForm({ name: "", partNumber: "", supplier: "", unit: "", currentStock: "0", minimumStock: "0", unitCost: "", notes: "", assignedUserId: "" });
     }
   }, [item, open]);
 
@@ -87,6 +97,7 @@ function ItemFormDialog({
       unitCost: form.unitCost ? parseFloat(form.unitCost) : undefined,
       minimumStock: parseFloat(form.minimumStock) || 0,
       notes: form.notes || undefined,
+      assignedUserId: form.assignedUserId ? parseInt(form.assignedUserId) : null,
     };
     if (item) {
       updateMutation.mutate({ id: item.id, ...payload });
@@ -145,6 +156,26 @@ function ItemFormDialog({
             <label className="block text-sm font-medium text-slate-900">Notes</label>
             <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="mt-1 border-slate-200" />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-900">Assigned To</label>
+            <Select
+              value={form.assignedUserId || "unassigned"}
+              onValueChange={(value) => setForm({ ...form, assignedUserId: value === "unassigned" ? "" : value })}
+            >
+              <SelectTrigger className="mt-1 border-slate-200">
+                <SelectValue placeholder="Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {(staffUsersQuery.data || []).map((u: any) => (
+                  <SelectItem key={u.id} value={u.id.toString()}>
+                    {u.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-slate-500">Who's responsible for keeping this item stocked.</p>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -167,9 +198,18 @@ export default function Inventory() {
 
   const itemsQuery = trpc.inventory.list.useQuery();
   const utils = trpc.useUtils();
+  const staffUsersQuery = trpc.administration.staffUsers.useQuery();
 
   const adjustMutation = trpc.inventory.adjustStock.useMutation({
     onSuccess: () => utils.inventory.list.invalidate(),
+    onError: (err) => showErrorToast(err),
+  });
+
+  const assignMutation = trpc.inventory.update.useMutation({
+    onSuccess: () => {
+      toast.success("Assignment updated");
+      utils.inventory.list.invalidate();
+    },
     onError: (err) => showErrorToast(err),
   });
 
@@ -263,6 +303,7 @@ export default function Inventory() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Supplier</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Stock</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Assigned To</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500">Actions</th>
                 </tr>
               </thead>
@@ -304,6 +345,25 @@ export default function Inventory() {
                         ) : (
                           <Badge className="border-0 bg-emerald-100 text-emerald-700">In stock</Badge>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        <select
+                          value={item.assignedUserId?.toString() || ""}
+                          onChange={(e) =>
+                            assignMutation.mutate({
+                              id: item.id,
+                              assignedUserId: e.target.value ? parseInt(e.target.value) : null,
+                            })
+                          }
+                          className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs"
+                        >
+                          <option value="">Unassigned</option>
+                          {(staffUsersQuery.data || []).map((u: any) => (
+                            <option key={u.id} value={u.id}>
+                              {u.name}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Button

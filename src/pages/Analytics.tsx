@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DownloadButton } from "@/components/DownloadButton";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -73,125 +74,133 @@ export default function Analytics() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-6 py-8">
-        {/* Key Metrics */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-slate-200 bg-white shadow-sm">
-            <div className="p-6">
-              <p className="text-sm font-medium text-slate-600">Total Quotes</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {quoteStatsQuery.isLoading ? "—" : quoteStats?.total || 0}
-              </p>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid h-auto w-full grid-cols-2 md:h-10 md:grid-cols-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="health">Health &amp; Operations</TabsTrigger>
+            <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsTrigger value="payments">Payments &amp; Revenue</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="mt-6">
+            {/* Key Metrics */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <div className="p-6">
+                  <p className="text-sm font-medium text-slate-600">Total Quotes</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {quoteStatsQuery.isLoading ? "—" : quoteStats?.total || 0}
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <div className="p-6">
+                  <p className="text-sm font-medium text-slate-600">Acceptance Rate</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {quoteStatsQuery.isLoading ? "—" : `${quoteStats?.acceptanceRate || 0}%`}
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <div className="p-6">
+                  <p className="text-sm font-medium text-slate-600">Active Jobs</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {jobStatsQuery.isLoading ? "—" : jobStats?.inProgress || 0}
+                  </p>
+                </div>
+              </Card>
+
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <div className="p-6">
+                  <p className="text-sm font-medium text-slate-600">Completed Jobs</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    {jobStatsQuery.isLoading ? "—" : jobStats?.completed || 0}
+                  </p>
+                </div>
+              </Card>
             </div>
-          </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm">
-            <div className="p-6">
-              <p className="text-sm font-medium text-slate-600">Acceptance Rate</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {quoteStatsQuery.isLoading ? "—" : `${quoteStats?.acceptanceRate || 0}%`}
-              </p>
+            {/* Charts */}
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              {/* Quote Distribution */}
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-200 px-6 py-4">
+                  <h2 className="flex items-center gap-2 font-semibold text-slate-900">
+                    <TrendingUp className="h-5 w-5 text-[#2d4160]" />
+                    Quote Performance
+                  </h2>
+                </div>
+                <div className="p-6">
+                  {quoteStatsQuery.isLoading ? (
+                    <div className="h-64 bg-slate-100 animate-pulse rounded" />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={260}>
+                      <PieChart>
+                        <Pie
+                          data={quoteChartData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, value }) => `${name}: ${value}`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {quoteChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </Card>
+
+              {/* Job Status */}
+              <Card className="border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-200 px-6 py-4">
+                  <h2 className="flex items-center gap-2 font-semibold text-slate-900">
+                    <TrendingUp className="h-5 w-5 text-[#2d4160]" />
+                    Job Status
+                  </h2>
+                </div>
+                <div className="p-6">
+                  {jobStatsQuery.isLoading ? (
+                    <div className="h-64 bg-slate-100 animate-pulse rounded" />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={260}>
+                      <BarChart data={jobChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" fill="#2d4160" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </Card>
             </div>
-          </Card>
+          </TabsContent>
 
-          <Card className="border-slate-200 bg-white shadow-sm">
-            <div className="p-6">
-              <p className="text-sm font-medium text-slate-600">Active Jobs</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {jobStatsQuery.isLoading ? "—" : jobStats?.inProgress || 0}
-              </p>
-            </div>
-          </Card>
+          <TabsContent value="health" className="mt-6">
+            <BusinessHealthSection />
+            <WeeklyOperationsSummarySection />
+          </TabsContent>
 
-          <Card className="border-slate-200 bg-white shadow-sm">
-            <div className="p-6">
-              <p className="text-sm font-medium text-slate-600">Completed Jobs</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {jobStatsQuery.isLoading ? "—" : jobStats?.completed || 0}
-              </p>
-            </div>
-          </Card>
-        </div>
+          <TabsContent value="team" className="mt-6">
+            <WeeklyProductivitySection />
+            <JobCompletionSection />
+          </TabsContent>
 
-        {/* Charts */}
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          {/* Quote Distribution */}
-          <Card className="border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                <TrendingUp className="h-5 w-5 text-[#2d4160]" />
-                Quote Performance
-              </h2>
-            </div>
-            <div className="p-6">
-              {quoteStatsQuery.isLoading ? (
-                <div className="h-64 bg-slate-100 animate-pulse rounded" />
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={quoteChartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}: ${value}`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {quoteChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </Card>
-
-          {/* Job Status */}
-          <Card className="border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-6 py-4">
-              <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                <TrendingUp className="h-5 w-5 text-[#2d4160]" />
-                Job Status
-              </h2>
-            </div>
-            <div className="p-6">
-              {jobStatsQuery.isLoading ? (
-                <div className="h-64 bg-slate-100 animate-pulse rounded" />
-              ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={jobChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="#2d4160" />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Xero Revenue */}
-        <XeroRevenueSection />
-
-        {/* Weekly Productivity */}
-        <WeeklyProductivitySection />
-
-        {/* Job Completion */}
-        <JobCompletionSection />
-
-        {/* Customer Payment Status */}
-        <PaymentStatusSection />
-
-        {/* Weekly Operations Summary */}
-        {/* Business Health */}
-        <BusinessHealthSection />
-
-        <WeeklyOperationsSummarySection />
+          <TabsContent value="payments" className="mt-6">
+            <XeroRevenueSection />
+            <PaymentStatusSection />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

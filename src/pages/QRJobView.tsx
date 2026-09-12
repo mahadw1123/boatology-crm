@@ -2,8 +2,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { RequestMaterialDialog } from "@/components/RequestMaterialDialog";
+import { ManualHoursCard } from "@/components/ManualHoursCard";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { trpc } from "@/lib/trpc";
 import { useJobDisplayName } from "@/lib/jobNaming";
@@ -16,8 +25,6 @@ import {
   MapPin,
   ArrowLeft,
   StickyNote,
-  Play,
-  Square,
   FileText,
   Package,
 } from "lucide-react";
@@ -54,6 +61,7 @@ const jobStatusColors: Record<string, { bg: string; text: string }> = {
   final_invoice: { bg: "bg-blue-100", text: "text-blue-700" },
   customer_collection: { bg: "bg-purple-100", text: "text-purple-700" },
   closed: { bg: "bg-slate-100", text: "text-slate-700" },
+  cancelled: { bg: "bg-red-100", text: "text-red-700" },
 };
 
 export default function QRJobView() {
@@ -72,14 +80,24 @@ export default function QRJobView() {
   const customer = customerQuery.data as any;
   const tasksQuery = trpc.tasks.listForJob.useQuery(jobId || 0, { enabled: !!jobId });
   const employeesQuery = trpc.employees.list.useQuery();
-  const emergencyContactQuery = trpc.administration.emergencyContact.useQuery();
   const materialRequestsQuery = trpc.materialRequests.listForJob.useQuery(jobId || 0, { enabled: !!jobId });
   const inventoryQuery = trpc.inventory.list.useQuery();
-  const activeTimeEntryQuery = trpc.timeEntries.activeEntry.useQuery(user?.employeeId || 0, { enabled: !!user?.employeeId });
   const [materialRequestTaskId, setMaterialRequestTaskId] = useState<number | null>(null);
   const [noteTaskId, setNoteTaskId] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
   const [expandedNotesId, setExpandedNotesId] = useState<number | null>(null);
+  const [extraWorkOpen, setExtraWorkOpen] = useState(false);
+  const [extraWorkNotes, setExtraWorkNotes] = useState("");
+
+  const requestExtraWorkMutation = trpc.jobs.requestAdditionalWork.useMutation({
+    onSuccess: () => {
+      toast.success("Sent to the customer for approval");
+      setExtraWorkOpen(false);
+      setExtraWorkNotes("");
+      utils.jobs.getById.invalidate(jobId || 0);
+    },
+    onError: (err) => showErrorToast(err),
+  });
 
   const startMutation = trpc.tasks.start.useMutation({ onSuccess: () => utils.tasks.listForJob.invalidate(jobId || 0) });
   const pauseMutation = trpc.tasks.pause.useMutation({ onSuccess: () => utils.tasks.listForJob.invalidate(jobId || 0) });
@@ -98,34 +116,23 @@ export default function QRJobView() {
     },
     onError: (err) => showErrorToast(err),
   });
-  const switchJobMutation = trpc.timeEntries.switchJob.useMutation({
-    onSuccess: () => {
-      toast.success("Clocked in to this job");
-      utils.timeEntries.activeEntry.invalidate(user?.employeeId || 0);
-    },
-    onError: (err) => showErrorToast(err),
-  });
-  const clockInMutation = trpc.timeEntries.clockIn.useMutation({
-    onSuccess: () => {
-      toast.success("Clocked in");
-      utils.timeEntries.activeEntry.invalidate(user?.employeeId || 0);
-    },
-    onError: (err) => showErrorToast(err),
-  });
-  const clockOutMutation = trpc.timeEntries.clockOut.useMutation({
-    onSuccess: () => {
-      toast.success("Clocked out");
-      utils.timeEntries.activeEntry.invalidate(user?.employeeId || 0);
-    },
-    onError: (err) => showErrorToast(err),
-  });
-
   if (!jobId) {
     return <div className="p-6 text-center text-sm text-slate-500">Invalid QR code.</div>;
   }
 
   if (jobQuery.isLoading) {
     return <div className="p-6 text-center text-sm text-slate-500">Loading job...</div>;
+  }
+
+  if (jobQuery.isError) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-sm text-red-600">Couldn't load this job — check your connection and try again.</p>
+        <Button size="sm" variant="outline" className="mt-3" onClick={() => jobQuery.refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
   if (!job) {
@@ -158,55 +165,12 @@ export default function QRJobView() {
         <Badge className={`${jobStatusColors[job.status]?.bg} ${jobStatusColors[job.status]?.text} mt-3 border-0`}>
           {job.status?.replace(/_/g, " ")}
         </Badge>
-        {emergencyContactQuery.data?.phone && (
-          <a
-            href={`tel:${emergencyContactQuery.data.phone}`}
-            className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-red-600 py-2 text-sm font-semibold"
-          >
-            Emergency Contact
-          </a>
-        )}
       </div>
 
       {/* Labour Time */}
       {user?.employeeId && (
         <div className="px-4 pt-4">
-          <Card className="border-slate-200 bg-white p-4">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Labour Time</h2>
-            {activeTimeEntryQuery.data?.jobId === jobId ? (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-emerald-700">Clocked in on this job</p>
-                <Button size="sm" variant="outline" onClick={() => clockOutMutation.mutate({ employeeId: user.employeeId! })}>
-                  <Square className="mr-1.5 h-3.5 w-3.5" />
-                  Clock Out
-                </Button>
-              </div>
-            ) : activeTimeEntryQuery.data ? (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-amber-700">Currently clocked into a different job</p>
-                <Button
-                  size="sm"
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
-                  onClick={() => switchJobMutation.mutate({ employeeId: user.employeeId!, newJobId: jobId })}
-                >
-                  <Play className="mr-1.5 h-3.5 w-3.5" />
-                  Switch to This Job
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">Not clocked in</p>
-                <Button
-                  size="sm"
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
-                  onClick={() => clockInMutation.mutate({ employeeId: user.employeeId!, jobId })}
-                >
-                  <Play className="mr-1.5 h-3.5 w-3.5" />
-                  Clock In
-                </Button>
-              </div>
-            )}
-          </Card>
+          <ManualHoursCard employeeId={user.employeeId} jobId={jobId} />
         </div>
       )}
 
@@ -234,6 +198,71 @@ export default function QRJobView() {
         </Card>
       </div>
 
+      {/* Extra work approval */}
+      <div className="px-4 pt-4">
+        <Card className="border-slate-200 bg-white p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Extra Work</h2>
+            {!job.additionalWorkRequested && (
+              <Button size="sm" variant="outline" onClick={() => setExtraWorkOpen(true)}>
+                Request Approval
+              </Button>
+            )}
+          </div>
+          {job.additionalWorkRequested && !job.additionalWorkApproved && !job.additionalWorkDeclined && (
+            <div className="mt-2 rounded-lg bg-amber-50 p-3">
+              <p className="text-sm font-medium text-amber-900">Waiting on the customer to approve</p>
+              <p className="mt-1 text-sm text-amber-800">{job.additionalWorkNotes}</p>
+            </div>
+          )}
+          {job.additionalWorkApproved && (
+            <div className="mt-2 rounded-lg bg-emerald-50 p-3">
+              <p className="text-sm font-medium text-emerald-900">Approved — go ahead</p>
+              <p className="mt-1 text-sm text-emerald-800">{job.additionalWorkNotes}</p>
+            </div>
+          )}
+          {job.additionalWorkDeclined && (
+            <div className="mt-2 rounded-lg bg-red-50 p-3">
+              <p className="text-sm font-medium text-red-900">Declined by the customer</p>
+              <p className="mt-1 text-sm text-red-800">{job.additionalWorkDeclineReason}</p>
+              <Button size="sm" variant="outline" className="mt-2" onClick={() => setExtraWorkOpen(true)}>
+                Request Again
+              </Button>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <Dialog open={extraWorkOpen} onOpenChange={setExtraWorkOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Request Approval for Extra Work</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            Describe what extra work is needed and why — this is shown directly to the customer, and the
+            job pauses until they respond.
+          </p>
+          <Textarea
+            value={extraWorkNotes}
+            onChange={(e) => setExtraWorkNotes(e.target.value)}
+            placeholder="e.g. Found corroded wiring behind the panel that needs replacing before we can continue..."
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtraWorkOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              disabled={requestExtraWorkMutation.isPending || !extraWorkNotes.trim()}
+              onClick={() => requestExtraWorkMutation.mutate({ jobId: jobId!, notes: extraWorkNotes.trim() })}
+            >
+              {requestExtraWorkMutation.isPending ? "Sending..." : "Send to Customer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Contacts */}
       <div className="px-4 pt-4">
         <Card className="border-slate-200 bg-white p-4">
@@ -249,12 +278,12 @@ export default function QRJobView() {
                   {customer.phone && (
                     <>
                       <a href={`tel:${customer.phone}`}>
-                        <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0" aria-label={`Call ${customer.name}`}>
                           <Phone className="h-3.5 w-3.5" />
                         </Button>
                       </a>
                       <a href={`sms:${customer.phone}`}>
-                        <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0" aria-label={`Text ${customer.name}`}>
                           <MessageSquare className="h-3.5 w-3.5" />
                         </Button>
                       </a>
@@ -262,7 +291,7 @@ export default function QRJobView() {
                   )}
                   {customer.email && (
                     <a href={`mailto:${customer.email}`}>
-                      <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                      <Button size="sm" variant="outline" className="h-11 w-11 p-0" aria-label={`Email ${customer.name}`}>
                         <Mail className="h-3.5 w-3.5" />
                       </Button>
                     </a>
@@ -280,12 +309,12 @@ export default function QRJobView() {
                   {officeContact.phone && (
                     <>
                       <a href={`tel:${officeContact.phone}`}>
-                        <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0" aria-label={`Call ${officeContact.name}`}>
                           <Phone className="h-3.5 w-3.5" />
                         </Button>
                       </a>
                       <a href={`sms:${officeContact.phone}`}>
-                        <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0" aria-label={`Text ${officeContact.name}`}>
                           <MessageSquare className="h-3.5 w-3.5" />
                         </Button>
                       </a>
@@ -293,7 +322,7 @@ export default function QRJobView() {
                   )}
                   {officeContact.email && (
                     <a href={`mailto:${officeContact.email}`}>
-                      <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                      <Button size="sm" variant="outline" className="h-11 w-11 p-0" aria-label={`Email ${officeContact.name}`}>
                         <Mail className="h-3.5 w-3.5" />
                       </Button>
                     </a>
@@ -383,13 +412,13 @@ export default function QRJobView() {
                       <div className="flex gap-1.5">
                         <Button
                           size="sm"
-                          className="h-7 bg-[#0c1e38] text-xs hover:bg-[#0c1e38]/90"
+                          className="h-11 text-xs"
                           disabled={!noteText.trim() || addNoteMutation.isPending}
                           onClick={() => addNoteMutation.mutate({ id: task.id, note: noteText.trim() })}
                         >
                           Save Note
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setNoteTaskId(null); setNoteText(""); }}>
+                        <Button size="sm" variant="ghost" className="h-11 text-xs" onClick={() => { setNoteTaskId(null); setNoteText(""); }}>
                           Cancel
                         </Button>
                       </div>
@@ -398,18 +427,18 @@ export default function QRJobView() {
                     task.status !== "completed" && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {task.status !== "in_progress" && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => startMutation.mutate({ id: task.id })}>
+                          <Button size="sm" variant="outline" className="h-11 text-xs" onClick={() => startMutation.mutate({ id: task.id })}>
                             {task.status === "paused" ? "Resume" : "Start"}
                           </Button>
                         )}
                         {task.status === "in_progress" && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => pauseMutation.mutate({ id: task.id })}>
+                          <Button size="sm" variant="outline" className="h-11 text-xs" onClick={() => pauseMutation.mutate({ id: task.id })}>
                             Pause
                           </Button>
                         )}
                         <Button
                           size="sm"
-                          className="h-7 bg-[#0c1e38] text-xs hover:bg-[#0c1e38]/90"
+                          className="h-11 text-xs"
                           onClick={() => completeMutation.mutate({ id: task.id })}
                         >
                           Complete
@@ -417,12 +446,12 @@ export default function QRJobView() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 text-xs"
+                          className="h-11 text-xs"
                           onClick={() => setMaterialRequestTaskId(task.id)}
                         >
                           Request Material
                         </Button>
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setNoteTaskId(task.id)}>
+                        <Button size="sm" variant="outline" className="h-11 text-xs" onClick={() => setNoteTaskId(task.id)}>
                           <StickyNote className="mr-1 h-3 w-3" />
                           Add Note
                         </Button>
