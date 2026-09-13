@@ -1495,11 +1495,22 @@ const quotesRouter = router({
     if (ctx.user.role === "customer" && ctx.user.customerId !== quote.customerId) {
       throw new TRPCError({ code: "FORBIDDEN" });
     }
+    // getById already applies both of these rules — this endpoint returns
+    // the same underlying quote records via a different path (the revision
+    // chain) and had neither check, so a technician not actually on this
+    // job could look up any quote id's full, unredacted revision history.
+    if (ctx.user.role === "technician" && !(await technicianCanAccessQuote(ctx.user.employeeId, quote.id))) {
+      throw new TRPCError({ code: "FORBIDDEN" });
+    }
     const rootId = quote.parentQuoteId ?? quote.id;
     const allQuotes = await db.getQuotes();
-    return allQuotes
+    const chain = allQuotes
       .filter((q) => q.id === rootId || q.parentQuoteId === rootId)
       .sort((a, b) => (a.revisionNumber || 1) - (b.revisionNumber || 1));
+    if (ctx.user.role === "customer") {
+      return chain.filter((q) => q.status !== "draft" && q.status !== "pending_approval");
+    }
+    return ctx.user.role === "technician" ? chain.map((q) => technicianQuoteView(q)) : chain;
   }),
 
   update: protectedProcedure
@@ -2071,14 +2082,38 @@ const jobsRouter = router({
             throw new TRPCError({ code: "BAD_REQUEST", message: "That vessel does not belong to this job's customer." });
           }
         }
-        if (data.quoteId !== undefined && data.quoteId !== null) {
+        if (data.quoteId !== undefined && data.quoteId !== null && data.quoteId !== existingJob.quoteId) {
           const quote = await db.getQuoteById(data.quoteId);
           if (!quote || quote.customerId !== existingJob.customerId) {
             throw new TRPCError({ code: "BAD_REQUEST", message: "That quote does not belong to this job's customer." });
           }
+          // A job was only ever allowed to be created against a quote whose
+          // deposit is paid (see jobs.create / getJobEligibility) — changing
+          // quoteId on an existing job later must satisfy the exact same
+          // rule, or that gate is just a one-time check that can be
+          // sidestepped by editing the job afterward instead.
+          const eligibility = await getJobEligibility(data.quoteId);
+          if (!eligibility.eligible) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: eligibility.reasons.join(" ") });
+          }
         }
         if (data.status !== undefined) {
           assertValidJobStatusTransition(existingJob.status, data.status);
+        }
+        if (data.status === "closed") {
+          // "Closed" means the job is genuinely finished, including
+          // financially — otherwise it's just "completed" with an
+          // outstanding invoice waiting to be chased, and closing it would
+          // let that invoice quietly stop showing up as work still owed.
+          // A job with no invoice at all (no charge) or a void/refunded one
+          // isn't blocked — only a real invoice still awaiting payment is.
+          const jobInvoice = await db.getInvoiceByJob(id);
+          if (jobInvoice && !["paid", "void", "refunded", "reversed"].includes(jobInvoice.status)) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `This job's invoice (${jobInvoice.invoiceNumber}) hasn't been paid yet. Close it once payment is received, or void the invoice first.`,
+            });
+          }
         }
         const enteringCompleted = data.status === "completed" && existingJob.status !== "completed";
         const patch: Record<string, unknown> = { ...data };
@@ -2261,6 +2296,13 @@ const jobsRouter = router({
 
         if (input.fromAssignmentId) {
           const oldAssignment = await db.getJobAssignmentById(input.fromAssignmentId);
+          // Without this, a crafted request naming a real assignment that
+          // actually belongs to a different job could remove that other
+          // job's assignment instead — the two ids were never checked
+          // against each other.
+          if (oldAssignment && oldAssignment.jobId !== input.jobId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "That assignment does not belong to this job." });
+          }
           await db.unassignJobFromEmployee(input.fromAssignmentId);
           if (oldAssignment) {
             await notifyTechnicianOfJob(
@@ -2600,12 +2642,33 @@ const employeesRouter = router({
       await db.deleteEmployee(input.id);
       return { success: true } as const;
     } catch (error) {
-      console.error("Error deleting employee:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Couldn't delete this employee — they may still be linked to jobs or time entries.",
-      });
+      const message = error instanceof Error ? error.message : "Couldn't delete this employee — they may still be linked to jobs or time entries. Deactivate instead.";
+      throw new TRPCError({ code: "BAD_REQUEST", message });
     }
+  }),
+
+  // Removes login and future work eligibility while keeping every past job,
+  // time entry, schedule, and audit record attributable to them — the
+  // correct response to "this person left", where hard deletion would
+  // either be blocked (real history exists) or destroy that history.
+  deactivate: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    if (!hasRole(ctx.user.role, "ADMIN")) throw new TRPCError({ code: "FORBIDDEN" });
+    const employee = await db.getEmployeeById(input.id);
+    if (!employee) throw new TRPCError({ code: "NOT_FOUND" });
+    await db.deactivateEmployee(input.id);
+    const linkedUsers = await db.getUsersByEmployeeId(input.id);
+    for (const u of linkedUsers) await db.deactivateUser(u.id);
+    return await db.getEmployeeById(input.id);
+  }),
+
+  reactivate: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    if (!hasRole(ctx.user.role, "ADMIN")) throw new TRPCError({ code: "FORBIDDEN" });
+    const employee = await db.getEmployeeById(input.id);
+    if (!employee) throw new TRPCError({ code: "NOT_FOUND" });
+    await db.reactivateEmployee(input.id);
+    // Reactivating the employee record doesn't automatically restore their
+    // login — that's a separate, deliberate decision (administration.reactivateUser).
+    return await db.getEmployeeById(input.id);
   }),
 });
 
@@ -2931,6 +2994,18 @@ const schedulesRouter = router({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
       try {
+        // Nothing in the schema stops an insert with an id for a job or
+        // employee that doesn't exist (no foreign keys) — verify both
+        // before creating anything, rather than ending up with a schedule
+        // that shows on the calendar pointing at nothing real.
+        const job = await db.getJobById(input.jobId);
+        if (!job) throw new TRPCError({ code: "BAD_REQUEST", message: "That job doesn't exist." });
+        if (input.employeeId) {
+          const employee = await db.getEmployeeById(input.employeeId);
+          if (!employee) throw new TRPCError({ code: "BAD_REQUEST", message: "That employee doesn't exist." });
+          if (!employee.isActive) throw new TRPCError({ code: "BAD_REQUEST", message: "That employee is deactivated and can't be scheduled." });
+        }
+
         // A conflict is a warning, not a hard block — a technician
         // legitimately covering two nearby jobs back-to-back (or a
         // deliberate overlap) shouldn't be prevented from being scheduled,
@@ -2945,7 +3020,6 @@ const schedulesRouter = router({
         }
 
         const schedule = await db.createSchedule(input);
-        const job = await db.getJobById(input.jobId);
         if (job) {
           const customer = await db.getCustomerById(job.customerId);
           if (customer?.email) {
@@ -2954,6 +3028,7 @@ const schedulesRouter = router({
         }
         return { ...schedule, conflictWarning };
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
         console.error("Error creating schedule:", error);
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
@@ -3141,7 +3216,10 @@ const materialRequestsRouter = router({
         jobId: z.number(),
         inventoryItemId: z.number().optional(),
         materialName: z.string().min(1),
-        quantity: z.number().default(1),
+        // A zero or negative quantity here isn't just meaningless — approval
+        // deducts it from stock as `adjustInventoryStock(id, -quantity)`, so
+        // a negative request would silently *add* stock instead of removing it.
+        quantity: z.number().positive().max(100000).default(1),
         urgency: z.enum(["low", "normal", "high", "urgent"]).optional(),
         supplier: z.string().optional(),
         reason: z.string().optional(),
@@ -3207,35 +3285,19 @@ const materialRequestsRouter = router({
       // Approval IS the purchase order here — no separate PO entity, this
       // record is the audit trail — and it automatically creates the
       // matching Job Cost so approved material spend is never re-entered.
-      let unitCost = 0;
-      if (request.inventoryItemId) {
-        const item = await db.getInventoryItemById(request.inventoryItemId);
-        unitCost = item?.unitCost || 0;
-        // The request references a real catalog item — deduct the
-        // approved quantity from stock using the same, already-tested
-        // adjustment function the Inventory page itself uses (floors at
-        // zero, never goes negative).
-        await db.adjustInventoryStock(request.inventoryItemId, -request.quantity);
+      // The claim, stock deduction, and cost entry all happen atomically in
+      // one transaction (see approveMaterialRequestAtomically) — two people
+      // approving the same request within milliseconds of each other can no
+      // longer both succeed and double-deduct stock.
+      const claimResult = db.approveMaterialRequestAtomically(
+        input.id,
+        ctx.user.id,
+        input.assignedUserId ?? ctx.user.id
+      );
+      if (!claimResult.claimed) {
+        throw new TRPCError({ code: "CONFLICT", message: "This request has already been processed." });
       }
-      await db.createJobCost({
-        jobId: request.jobId,
-        category: "material",
-        description: request.materialName,
-        quantity: request.quantity,
-        unitCost,
-        totalCost: Math.round(request.quantity * unitCost * 100) / 100,
-        supplier: request.supplier || undefined,
-        createdBy: ctx.user.id,
-      });
-
-      const updated = await db.updateMaterialRequest(input.id, {
-        status: "approved",
-        approvedBy: ctx.user.id,
-        approvedAt: new Date().toISOString(),
-        // Whoever approves is responsible for ordering it unless they hand
-        // that off to someone else explicitly.
-        assignedUserId: input.assignedUserId ?? ctx.user.id,
-      });
+      const updated = await db.getMaterialRequestById(input.id);
 
       // Close out the auto-created "approve this" task now that it's done.
       const relatedTasks = await db.getStaffTasks();
@@ -5783,17 +5845,29 @@ const invoicesRouter = router({
       if (!hasRole(ctx.user.role, "ADMIN_MANAGEMENT")) throw new TRPCError({ code: "FORBIDDEN" });
       const invoice = await db.getInvoiceById(input.invoiceId);
       if (!invoice) throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found." });
-      if (invoice.status !== "paid") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Only a paid invoice can be marked refunded." });
+      // A previous partial refund leaves the invoice in "partially_refunded",
+      // not "paid" — it must still be refundable again (up to what's left),
+      // otherwise the very first partial refund permanently blocks every
+      // subsequent one on the same invoice.
+      if (invoice.status !== "paid" && invoice.status !== "partially_refunded") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Only a paid (or already partially refunded) invoice can be refunded." });
       }
-      if (input.amount > invoice.totalDue + 0.01) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Refund amount can't exceed the invoice total." });
+      // Refunds accumulate — a second $100 refund on an invoice already
+      // refunded $100 must be checked and recorded against the $800
+      // actually still at risk, not against the original $1,000 total.
+      const previouslyRefunded = invoice.refundedAmount || 0;
+      const totalRefunded = previouslyRefunded + input.amount;
+      if (totalRefunded > invoice.totalDue + 0.01) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Refund amount can't exceed what's left to refund ($${(invoice.totalDue - previouslyRefunded).toFixed(2)}).`,
+        });
       }
-      const isFull = input.amount >= invoice.totalDue - 0.01;
+      const isFull = totalRefunded >= invoice.totalDue - 0.01;
       await db.updateInvoice(input.invoiceId, {
-        status: "refunded",
+        status: isFull ? "refunded" : "partially_refunded",
         refundStatus: isFull ? "full" : "partial",
-        refundedAmount: input.amount,
+        refundedAmount: totalRefunded,
         refundedAt: new Date().toISOString(),
         refundReason: input.reason.trim(),
         refundedBy: ctx.user.id,
@@ -5804,7 +5878,7 @@ const invoicesRouter = router({
           action: "mark_refunded_manually",
           entityType: "invoice",
           entityId: input.invoiceId,
-          changes: JSON.stringify({ amount: input.amount, reason: input.reason.trim(), full: isFull }),
+          changes: JSON.stringify({ amount: input.amount, totalRefunded, reason: input.reason.trim(), full: isFull }),
           ipAddress: ctx.req?.ip || null,
         });
       } catch (auditError) {
@@ -5817,7 +5891,7 @@ const invoicesRouter = router({
           await db.createNotification({
             userId: s.id,
             type: "system",
-            title: `Invoice ${invoice.invoiceNumber} refunded`,
+            title: `Invoice ${invoice.invoiceNumber} ${isFull ? "refunded" : "partially refunded"}`,
             message: `$${input.amount.toFixed(2)} refund recorded by ${ctx.user.name || "a staff member"}: ${input.reason.trim()}`,
             relatedEntityType: "invoice",
             relatedEntityId: invoice.id,
@@ -5874,6 +5948,20 @@ const invoicesRouter = router({
           code: "BAD_REQUEST",
           message: "Only draft invoices can be deleted. Keep sent, paid, refunded, or reversed invoices for the financial audit trail.",
         });
+      }
+      // A deposit invoice can legitimately sit in "draft" while its quote is
+      // already accepted — e.g. it was created but the confirmation email
+      // failed to send. Deleting it here would leave that quote permanently
+      // accepted with no deposit invoice at all and no way to recreate one
+      // through the normal acceptance flow (it only ever runs once).
+      if (invoice.invoiceType === "deposit" && invoice.quoteId) {
+        const linkedQuote = await db.getQuoteById(invoice.quoteId);
+        if (linkedQuote?.status === "accepted") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "This is the deposit invoice for an accepted quote and can't be deleted. If it failed to send, resend it instead of deleting it.",
+          });
+        }
       }
       if (invoice.stripePaymentIntentId) {
         await cancelPaymentIntent(invoice.stripePaymentIntentId);
@@ -6189,7 +6277,7 @@ const analyticsRouter = router({
       const techniciansAvailable = employees.length - activeEmployeeIds.size;
 
       const revenueThisWeek = invoices
-        .filter((i) => i.status === "paid" && i.paidAt && i.paidAt.slice(0, 10) >= weekAgoStr)
+        .filter((i) => (i.status === "paid" || i.status === "partially_refunded") && i.paidAt && i.paidAt.slice(0, 10) >= weekAgoStr)
         .reduce((sum, i) => sum + Math.max(0, i.totalDue - (i.refundedAmount || 0)), 0);
 
       // Projected: the 70%+ still expected on jobs that only have a deposit
@@ -6290,7 +6378,7 @@ const analyticsRouter = router({
       jobProfitability.sort((a, b) => a.grossProfit - b.grossProfit); // worst first — the ones that need attention
 
       const revenueThisWeek = invoices
-        .filter((i) => i.status === "paid" && i.paidAt && i.paidAt.slice(0, 10) >= weekAgoStr)
+        .filter((i) => (i.status === "paid" || i.status === "partially_refunded") && i.paidAt && i.paidAt.slice(0, 10) >= weekAgoStr)
         .reduce((sum, i) => sum + Math.max(0, i.totalDue - (i.refundedAmount || 0)), 0);
       const costsThisWeek = allJobCosts
         .filter((c) => c.createdAt.slice(0, 10) >= weekAgoStr)
@@ -6381,6 +6469,40 @@ const administrationRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
     }),
+
+  // Revokes login without deleting anything — every past job, quote,
+  // invoice, and audit entry stays attributed to this account. The very
+  // next authenticated request on their existing session is rejected
+  // (isActive is checked on every request, and the session version bump
+  // invalidates the token itself too), and future login attempts fail.
+  deactivateUser: protectedProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input, ctx }) => {
+    if (!hasRole(ctx.user.role, "ADMIN")) throw new TRPCError({ code: "FORBIDDEN" });
+    if (input.userId === ctx.user.id) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "You can't deactivate your own account." });
+    }
+    const targetUser = await db.getUserById(input.userId);
+    if (!targetUser) throw new TRPCError({ code: "NOT_FOUND", message: "The selected user no longer exists. Refresh Administration → Users." });
+    await db.deactivateUser(input.userId);
+    try {
+      await db.logAuditEvent({ userId: ctx.user.id, action: "deactivate_user", entityType: "user", entityId: input.userId, changes: null, ipAddress: ctx.req?.ip || null });
+    } catch (auditError) {
+      console.error("Failed to write audit log:", auditError);
+    }
+    return { success: true } as const;
+  }),
+
+  reactivateUser: protectedProcedure.input(z.object({ userId: z.number() })).mutation(async ({ input, ctx }) => {
+    if (!hasRole(ctx.user.role, "ADMIN")) throw new TRPCError({ code: "FORBIDDEN" });
+    const targetUser = await db.getUserById(input.userId);
+    if (!targetUser) throw new TRPCError({ code: "NOT_FOUND", message: "The selected user no longer exists. Refresh Administration → Users." });
+    await db.reactivateUser(input.userId);
+    try {
+      await db.logAuditEvent({ userId: ctx.user.id, action: "reactivate_user", entityType: "user", entityId: input.userId, changes: null, ipAddress: ctx.req?.ip || null });
+    } catch (auditError) {
+      console.error("Failed to write audit log:", auditError);
+    }
+    return { success: true } as const;
+  }),
 
   relinkTechnician: protectedProcedure
     .input(z.object({ userId: z.number(), employeeId: z.number().nullable() }))
@@ -7159,6 +7281,22 @@ const importsRouter = router({
             if (!customerId) throw new Error("Customer could not be matched. Include customerId, customerEmail, or an exact customerName.");
             const jobId = resolveJob(row);
             const quoteId = resolveQuote(row);
+            // Existence alone isn't enough — a row could name a real job or
+            // quote that just belongs to a different customer entirely,
+            // producing an invoice whose own relationships contradict each
+            // other (invoice says Customer A, its quote says Customer B).
+            if (jobId != null) {
+              const linkedJob = jobList.find((j) => j.id === jobId);
+              if (linkedJob && linkedJob.customerId !== customerId) {
+                throw new Error("This row's job belongs to a different customer than the invoice's customer. Check the customerId/jobId pairing.");
+              }
+            }
+            if (quoteId != null) {
+              const linkedQuote = quoteList.find((q) => q.id === quoteId);
+              if (linkedQuote && linkedQuote.customerId !== customerId) {
+                throw new Error("This row's quote belongs to a different customer than the invoice's customer. Check the customerId/quoteId pairing.");
+              }
+            }
             const suppliedNumber = importField(row, "invoiceNumber", "invoice number");
             if (suppliedNumber && invoiceList.some((invoice) => invoice.invoiceNumber?.toLowerCase() === suppliedNumber.toLowerCase())) {
               result.push({ row: rowNumber, status: "skipped", identifier: suppliedNumber, reason: "This invoice number already exists." });

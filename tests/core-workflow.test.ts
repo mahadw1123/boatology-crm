@@ -356,6 +356,362 @@ test("task rules dedup by ruleKey and auto-resolve once the underlying condition
   assert.equal(thirdCreate, true, "a rule may create a new task once the prior one for the same key is resolved");
 });
 
+test("job status transitions are validated — arbitrary jumps are rejected, valid ones succeed", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:job-transition-admin@example.com",
+    name: "Job Transition Admin",
+    email: "job-transition-admin@example.com",
+    passwordHash: await hashPassword("Job-Transition-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Job Transition Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-TRANS-0001" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await assert.rejects(
+    () => adminCaller.jobs.update({ id: job.id, status: "closed" }),
+    (error: any) => error?.code === "BAD_REQUEST"
+  );
+  await assert.rejects(
+    () => adminCaller.jobs.update({ id: job.id, status: "cancelled" as any }),
+    "the generic update path must not accept 'cancelled' — only jobs.cancel may set it"
+  );
+
+  const scheduled = await adminCaller.jobs.update({ id: job.id, status: "scheduled" });
+  assert.equal(scheduled?.status, "scheduled");
+});
+
+test("a job can't be closed while its invoice is still unpaid", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:job-close-admin@example.com",
+    name: "Job Close Admin",
+    email: "job-close-admin@example.com",
+    passwordHash: await hashPassword("Job-Close-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Job Close Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-CLOSE-0001" });
+  await db.createInvoice({
+    customerId: customer.id,
+    jobId: job.id,
+    invoiceNumber: "INV-TEST-CLOSE-0001",
+    invoiceType: "final",
+    subtotal: 500,
+    totalDue: 500,
+    status: "sent",
+  });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await adminCaller.jobs.update({ id: job.id, status: "scheduled" });
+  await adminCaller.jobs.update({ id: job.id, status: "in_progress" });
+  await adminCaller.jobs.update({ id: job.id, status: "completed" });
+  await assert.rejects(
+    () => adminCaller.jobs.update({ id: job.id, status: "closed" }),
+    /hasn't been paid/
+  );
+});
+
+test("a sent quote's price is locked — only drafts can have financial fields edited directly", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:quote-lock-admin@example.com",
+    name: "Quote Lock Admin",
+    email: "quote-lock-admin@example.com",
+    passwordHash: await hashPassword("Quote-Lock-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Quote Lock Customer" });
+  const quote = await db.createQuote({
+    customerId: customer.id,
+    quoteNumber: "Q-TEST-LOCK-0001",
+    status: "sent",
+    totalAmount: 1000,
+    lineItems: [{ description: "Service", quantity: 1, unitPrice: 1000 }],
+  });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await assert.rejects(
+    () => adminCaller.quotes.update({ id: quote.id, totalAmount: 5000 }),
+    /price is locked/
+  );
+  const updated = await adminCaller.quotes.update({ id: quote.id, notes: "internal note" });
+  assert.equal(updated?.notes, "internal note");
+  assert.equal(updated?.totalAmount, 1000, "the price must be unchanged by the rejected edit");
+});
+
+test("staff accepting a quote on a customer's behalf creates the deposit invoice, not just a status flip", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:staff-accept-admin@example.com",
+    name: "Staff Accept Admin",
+    email: "staff-accept-admin@example.com",
+    passwordHash: await hashPassword("Staff-Accept-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Staff Accept Customer" });
+  const quote = await db.createQuote({
+    customerId: customer.id,
+    quoteNumber: "Q-TEST-STAFFACCEPT-0001",
+    status: "sent",
+    totalAmount: 1000,
+    lineItems: [{ description: "Service", quantity: 1, unitPrice: 1000 }],
+  });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  const accepted = await adminCaller.quotes.update({ id: quote.id, status: "accepted" });
+  assert.equal(accepted?.status, "accepted");
+
+  const deposit = await db.getDepositInvoiceForQuote(quote.id);
+  assert.ok(deposit, "accepting a quote through the generic staff update path must still create a deposit invoice");
+  assert.equal(deposit?.totalDue, 300);
+
+  const { getJobEligibility } = await import("../server/_core/workflow");
+  const eligibility = await getJobEligibility(quote.id);
+  assert.equal(eligibility.eligible, false, "job creation must still wait on the deposit being paid");
+});
+
+test("quote revisions are blocked once a deposit has been paid", async () => {
+  const customer = await db.createCustomer({ name: "Revision Lock Customer" });
+  const quote = await db.createQuote({
+    customerId: customer.id,
+    quoteNumber: "Q-TEST-REVLOCK-0001",
+    status: "sent",
+    totalAmount: 1000,
+    lineItems: [{ description: "Service", quantity: 1, unitPrice: 1000 }],
+  });
+  const deposit = await db.acceptQuoteAndEnsureDeposit(quote.id, customer.id, 300, 30);
+  await db.updateInvoice(deposit!.id, { status: "paid", paidAt: new Date().toISOString() });
+
+  const adminUser = await db.createUser({
+    openId: "local:revlock-admin@example.com",
+    name: "Revision Lock Admin",
+    email: "revlock-admin@example.com",
+    passwordHash: await hashPassword("Revision-Lock-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await assert.rejects(
+    () => adminCaller.quotes.createRevision({ quoteId: quote.id, reason: "customer wants to add work" }),
+    /deposit.*already been paid/i
+  );
+});
+
+test("a deposit invoice for an accepted quote can't be deleted", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:depdel-admin@example.com",
+    name: "Deposit Delete Admin",
+    email: "depdel-admin@example.com",
+    passwordHash: await hashPassword("Deposit-Delete-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Deposit Delete Customer" });
+  const quote = await db.createQuote({
+    customerId: customer.id,
+    quoteNumber: "Q-TEST-DEPDEL-0001",
+    status: "sent",
+    totalAmount: 1000,
+    lineItems: [{ description: "Service", quantity: 1, unitPrice: 1000 }],
+  });
+  const deposit = await db.acceptQuoteAndEnsureDeposit(quote.id, customer.id, 300, 30);
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await assert.rejects(
+    () => adminCaller.invoices.delete({ id: deposit!.id }),
+    /can't be deleted/
+  );
+});
+
+test("partial refunds accumulate correctly and stay refundable until fully refunded", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:refund-admin@example.com",
+    name: "Refund Admin",
+    email: "refund-admin@example.com",
+    passwordHash: await hashPassword("Refund-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Refund Customer" });
+  const invoice = await db.createInvoice({
+    customerId: customer.id,
+    invoiceNumber: "INV-TEST-REFUND-0001",
+    invoiceType: "final",
+    subtotal: 1000,
+    totalDue: 1000,
+    status: "paid",
+    paidAt: new Date().toISOString(),
+  });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  const afterFirst = await adminCaller.invoices.markRefundedManually({ invoiceId: invoice.id, amount: 100, reason: "test partial 1" });
+  assert.equal(afterFirst?.status, "partially_refunded");
+  assert.equal(afterFirst?.refundedAmount, 100);
+
+  const afterSecond = await adminCaller.invoices.markRefundedManually({ invoiceId: invoice.id, amount: 900, reason: "test partial 2" });
+  assert.equal(afterSecond?.status, "refunded");
+  assert.equal(afterSecond?.refundedAmount, 1000);
+
+  await assert.rejects(
+    () => adminCaller.invoices.markRefundedManually({ invoiceId: invoice.id, amount: 1, reason: "over-refund" }),
+    /Only a paid/
+  );
+});
+
+test("material requests reject zero or negative quantities", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:matqty-admin@example.com",
+    name: "Material Qty Admin",
+    email: "matqty-admin@example.com",
+    passwordHash: await hashPassword("Material-Qty-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Material Qty Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-MATQTY-0001" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await assert.rejects(() => adminCaller.materialRequests.create({ jobId: job.id, materialName: "Test Part", quantity: -5 }));
+  await assert.rejects(() => adminCaller.materialRequests.create({ jobId: job.id, materialName: "Test Part", quantity: 0 }));
+  const ok = await adminCaller.materialRequests.create({ jobId: job.id, materialName: "Test Part", quantity: 1 });
+  assert.ok(ok.id);
+});
+
+test("approving a material request twice only succeeds once and only deducts stock once", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:matrace-admin@example.com",
+    name: "Material Race Admin",
+    email: "matrace-admin@example.com",
+    passwordHash: await hashPassword("Material-Race-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Material Race Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-MATRACE-0001" });
+  const item = await db.createInventoryItem({ name: "Race Part", currentStock: 10, unitCost: 5 });
+  const request = await db.createMaterialRequest({ jobId: job.id, materialName: "Race Part", quantity: 4, inventoryItemId: item.id, requestedBy: adminUser.id });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  const results = await Promise.allSettled([
+    adminCaller.materialRequests.approve({ id: request.id }),
+    adminCaller.materialRequests.approve({ id: request.id }),
+  ]);
+  const succeeded = results.filter((r) => r.status === "fulfilled");
+  const failed = results.filter((r) => r.status === "rejected");
+  assert.equal(succeeded.length, 1, "exactly one concurrent approval must succeed");
+  assert.equal(failed.length, 1, "the other must be rejected as already processed");
+
+  const updatedItem = await db.getInventoryItemById(item.id);
+  assert.equal(updatedItem?.currentStock, 6, "stock must be deducted exactly once (10 - 4), not twice");
+});
+
+test("deactivating a user blocks their next login without deleting any history", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:deactivate-admin@example.com",
+    name: "Deactivate Admin",
+    email: "deactivate-admin@example.com",
+    passwordHash: await hashPassword("Deactivate-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const targetPassword = "Deactivate-Me-Password-42";
+  const targetUser = await db.createUser({
+    openId: "local:deactivate-me@example.com",
+    name: "Deactivate Me",
+    email: "deactivate-me@example.com",
+    passwordHash: await hashPassword(targetPassword),
+    loginMethod: "password",
+    role: "office_staff",
+  });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await adminCaller.administration.deactivateUser({ userId: targetUser.id });
+
+  const publicCaller = appRouter.createCaller({
+    user: null,
+    req: { ip: "127.0.0.1", headers: {} },
+    res: { cookie() {}, clearCookie() {} },
+  } as any);
+  await assert.rejects(
+    () => publicCaller.auth.login({ email: targetUser.email!, password: targetPassword }),
+    (error: any) => error?.code === "FORBIDDEN"
+  );
+
+  const reloaded = await db.getUserById(targetUser.id);
+  assert.equal(reloaded?.isActive, false);
+  assert.equal(reloaded?.name, "Deactivate Me", "the account record itself must still exist, not be deleted");
+
+  await adminCaller.administration.reactivateUser({ userId: targetUser.id });
+  const reactivated = await appRouter
+    .createCaller({ user: null, req: { ip: "127.0.0.1", headers: {} }, res: { cookie() {}, clearCookie() {} } } as any)
+    .auth.login({ email: targetUser.email!, password: targetPassword });
+  assert.equal(reactivated.id, targetUser.id);
+});
+
+test("deleting an employee with real work history is blocked; deactivating is the correct path", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:emp-delete-admin@example.com",
+    name: "Employee Delete Admin",
+    email: "emp-delete-admin@example.com",
+    passwordHash: await hashPassword("Employee-Delete-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const employee = await db.createEmployee({ name: "Has History", role: "technician" });
+  const customer = await db.createCustomer({ name: "Employee Delete Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-EMPDEL-0001" });
+  await db.assignJobToEmployee(job.id, employee.id);
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await assert.rejects(
+    () => adminCaller.employees.delete({ id: employee.id }),
+    /Deactivate/
+  );
+
+  const deactivated = await adminCaller.employees.deactivate({ id: employee.id });
+  assert.equal(deactivated?.isActive, false);
+
+  const stillThere = await db.getJobAssignments(job.id);
+  assert.equal(stillThere.length, 1, "the historical assignment must survive deactivation");
+});
+
+test("CSV invoice import rejects a row whose quote belongs to a different customer", async () => {
+  const customerA = await db.createCustomer({ name: "Import Customer A" });
+  const customerB = await db.createCustomer({ name: "Import Customer B" });
+  const quoteForB = await db.createQuote({
+    customerId: customerB.id,
+    quoteNumber: "Q-TEST-IMPORTMISMATCH-0001",
+    status: "sent",
+    totalAmount: 500,
+  });
+  const adminUser = await db.createUser({
+    openId: "local:import-admin@example.com",
+    name: "Import Admin",
+    email: "import-admin@example.com",
+    passwordHash: await hashPassword("Import-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  const result = await adminCaller.imports.bulkImport({
+    entity: "invoices",
+    rows: [
+      {
+        customerId: String(customerA.id),
+        quoteId: String(quoteForB.id),
+        subtotal: "500",
+        totalDue: "500",
+      },
+    ],
+  });
+  assert.equal(result[0].status, "failed");
+  assert.match(result[0].reason || "", /different customer/);
+});
+
 test.after(() => {
   db.closeDatabase();
   fs.rmSync(tempDir, { recursive: true, force: true });

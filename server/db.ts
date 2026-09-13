@@ -164,20 +164,27 @@ export async function addCommunicationEntry(
 }
 
 export async function deleteCustomer(id: number) {
-  const [linkedVessels, linkedQuotes, linkedJobs, linkedUsers] = await Promise.all([
+  const [linkedVessels, linkedQuotes, linkedJobs, linkedUsers, linkedInvoices, linkedDocuments] = await Promise.all([
     db.select().from(vessels).where(eq(vessels.customerId, id)),
     db.select().from(quotes).where(eq(quotes.customerId, id)),
     db.select().from(jobs).where(eq(jobs.customerId, id)),
     db.select().from(users).where(eq(users.customerId, id)),
+    db.select().from(invoices).where(eq(invoices.customerId, id)),
+    db.select().from(documents).where(eq(documents.customerId, id)),
   ]);
   if (linkedUsers.length > 0) {
     throw new Error(
       `Can't delete this customer — ${linkedUsers[0].email || linkedUsers[0].name} still has a portal login linked to this record. Deleting the customer would silently break their access instead of actually removing anything.`
     );
   }
-  if (linkedVessels.length + linkedQuotes.length + linkedJobs.length > 0) {
+  // Invoices and documents can reference a customer directly (a standalone
+  // invoice, an uploaded file with no job/quote in between) without that
+  // also showing up in the vessels/quotes/jobs counts above — without this,
+  // a customer with zero jobs but one leftover standalone invoice could
+  // still be deleted, leaving that invoice pointing at nothing.
+  if (linkedVessels.length + linkedQuotes.length + linkedJobs.length + linkedInvoices.length + linkedDocuments.length > 0) {
     throw new Error(
-      `Can't delete this customer — they still have ${linkedVessels.length} vessel(s), ${linkedQuotes.length} quote(s), and ${linkedJobs.length} job(s) on record. Remove those first.`
+      `Can't delete this customer — they still have ${linkedVessels.length} vessel(s), ${linkedQuotes.length} quote(s), ${linkedJobs.length} job(s), ${linkedInvoices.length} invoice(s), and ${linkedDocuments.length} document(s) on record. Remove those first.`
     );
   }
   await db.delete(customers).where(eq(customers.id, id));
@@ -232,13 +239,14 @@ export async function updateVessel(id: number, data: Partial<typeof vessels.$inf
 }
 
 export async function deleteVessel(id: number) {
-  const [linkedQuotes, linkedJobs] = await Promise.all([
+  const [linkedQuotes, linkedJobs, linkedDocuments] = await Promise.all([
     db.select().from(quotes).where(eq(quotes.vesselId, id)),
     db.select().from(jobs).where(eq(jobs.vesselId, id)),
+    db.select().from(documents).where(eq(documents.vesselId, id)),
   ]);
-  if (linkedQuotes.length + linkedJobs.length > 0) {
+  if (linkedQuotes.length + linkedJobs.length + linkedDocuments.length > 0) {
     throw new Error(
-      `Can't delete this vessel — it still has ${linkedQuotes.length} quote(s) and ${linkedJobs.length} job(s) on record. Remove those first.`
+      `Can't delete this vessel — it still has ${linkedQuotes.length} quote(s), ${linkedJobs.length} job(s), and ${linkedDocuments.length} document(s) on record. Remove those first.`
     );
   }
   await db.delete(vessels).where(eq(vessels.id, id));
@@ -389,11 +397,12 @@ export async function deleteJob(id: number) {
   // silently orphan it. Each represents a real record (cost entries, actual
   // technician work, an approval audit trail, technical detail) that
   // shouldn't just vanish, so they block deletion the same way invoices do.
-  const [linkedCosts, linkedTasks, linkedMaterialRequests, linkedAntifouling] = await Promise.all([
+  const [linkedCosts, linkedTasks, linkedMaterialRequests, linkedAntifouling, linkedDocuments] = await Promise.all([
     db.select().from(jobCosts).where(eq(jobCosts.jobId, id)),
     db.select().from(tasks).where(eq(tasks.jobId, id)),
     db.select().from(materialRequests).where(eq(materialRequests.jobId, id)),
     db.select().from(antifoulingDetails).where(eq(antifoulingDetails.jobId, id)),
+    db.select().from(documents).where(eq(documents.jobId, id)),
   ]);
   if (linkedCosts.length > 0) {
     throw new Error(`Can't delete this job — it has ${linkedCosts.length} cost entr${linkedCosts.length === 1 ? "y" : "ies"} recorded against it. Remove those first.`);
@@ -407,13 +416,18 @@ export async function deleteJob(id: number) {
   if (linkedAntifouling.length > 0) {
     throw new Error(`Can't delete this job — it has antifouling details recorded against it. Remove those first.`);
   }
+  if (linkedDocuments.length > 0) {
+    throw new Error(`Can't delete this job — it has ${linkedDocuments.length} document(s)/photo(s) recorded against it. Remove those first.`);
+  }
 
   await Promise.all([
     db.delete(jobAssignments).where(eq(jobAssignments.jobId, id)),
     db.delete(timeEntries).where(eq(timeEntries.jobId, id)),
-    // Calendar plan entries hold no independent value once the job is
-    // gone, unlike the records above — safe to cascade rather than block.
+    // Calendar plan entries and schedule rows hold no independent value once
+    // the job is gone, unlike the records above — safe to cascade rather
+    // than block.
     db.delete(jobPlanEntries).where(eq(jobPlanEntries.jobId, id)),
+    db.delete(schedules).where(eq(schedules.jobId, id)),
   ]);
   await db.delete(jobs).where(eq(jobs.id, id));
 }
@@ -459,7 +473,58 @@ export async function updateEmployee(id: number, data: Partial<typeof employees.
 }
 
 export async function deleteEmployee(id: number) {
+  // This previously deleted with no checks at all, leaving
+  // jobAssignments.employeeId, timeEntries.employeeId, and users.employeeId
+  // all pointing at a row that no longer existed. For an employee with real
+  // history, deactivating (see deactivateEmployee) is almost always the
+  // right call instead of deleting — this guard exists for the case where
+  // someone genuinely was added by mistake and never did anything.
+  const [linkedAssignments, linkedTimeEntries, linkedUsers] = await Promise.all([
+    db.select().from(jobAssignments).where(eq(jobAssignments.employeeId, id)),
+    db.select().from(timeEntries).where(eq(timeEntries.employeeId, id)),
+    db.select().from(users).where(eq(users.employeeId, id)),
+  ]);
+  if (linkedUsers.length > 0) {
+    throw new Error(
+      `Can't delete this employee — ${linkedUsers[0].email || linkedUsers[0].name} still has a login linked to this record. Deactivate the employee instead.`
+    );
+  }
+  if (linkedAssignments.length + linkedTimeEntries.length > 0) {
+    throw new Error(
+      `Can't delete this employee — they have ${linkedAssignments.length} job assignment(s) and ${linkedTimeEntries.length} time entr${linkedTimeEntries.length === 1 ? "y" : "ies"} on record. Deactivate the employee instead of deleting, to keep that history attributable.`
+    );
+  }
+  // Calendar schedule rows hold no independent value once the employee is
+  // gone (unlike assignments/time entries, which are real work history) —
+  // safe to cascade rather than block.
+  await db.delete(schedules).where(eq(schedules.employeeId, id));
   await db.delete(employees).where(eq(employees.id, id));
+}
+
+/** Revokes a user's ability to log in and invalidates any session already
+ * issued to them — the JWT still verifies (it's only signed, not looked up),
+ * but every protected request re-checks isActive, so the very next request
+ * on an old token is rejected the same as a bad password would be. */
+export async function deactivateUser(id: number) {
+  await db.update(users).set({ isActive: false }).where(eq(users.id, id));
+  await incrementUserSessionVersion(id);
+}
+
+export async function reactivateUser(id: number) {
+  await db.update(users).set({ isActive: true }).where(eq(users.id, id));
+}
+
+/** Deactivating the employee record (used for job assignment eligibility,
+ * technician pickers, etc.) is separate from deactivating their login
+ * (above) — an office manager might want to do one without the other, e.g.
+ * suspending login access while an employee is on leave but keeping them
+ * assignable, or the reverse. Deactivate both when someone actually leaves. */
+export async function deactivateEmployee(id: number) {
+  await db.update(employees).set({ isActive: false }).where(eq(employees.id, id));
+}
+
+export async function reactivateEmployee(id: number) {
+  await db.update(employees).set({ isActive: true }).where(eq(employees.id, id));
 }
 
 // ============================================================================
@@ -1494,6 +1559,55 @@ export async function getMaterialRequestsForJob(jobId: number) {
 export async function updateMaterialRequest(id: number, data: Partial<typeof materialRequests.$inferInsert>) {
   await db.update(materialRequests).set(data).where(eq(materialRequests.id, id));
   return await getMaterialRequestById(id);
+}
+
+/** Atomically claims a pending material request and, in the same
+ * transaction, deducts stock and records the job cost — closing the race
+ * where two people approving the same request at nearly the same moment
+ * could both read "pending" before either write lands, each deducting
+ * inventory and creating a cost entry. The conditional `WHERE status =
+ * 'pending'` means only one of two simultaneous callers can ever see
+ * `changes === 1`; the other gets `claimed: false` and should tell its user
+ * the request was already processed. */
+export function approveMaterialRequestAtomically(
+  id: number,
+  approvedBy: number,
+  assignedUserId: number
+): { claimed: boolean; unitCost: number } {
+  const transaction = sqlite.transaction(() => {
+    const request = sqlite.prepare("SELECT * FROM materialRequests WHERE id = ?").get(id) as
+      | { id: number; inventoryItemId: number | null; quantity: number; jobId: number; materialName: string; supplier: string | null }
+      | undefined;
+    if (!request) throw new Error("MATERIAL_REQUEST_NOT_FOUND");
+
+    const claim = sqlite
+      .prepare("UPDATE materialRequests SET status = 'approved', approvedBy = ?, approvedAt = strftime('%Y-%m-%dT%H:%M:%fZ','now'), assignedUserId = ? WHERE id = ? AND status = 'pending'")
+      .run(approvedBy, assignedUserId, id);
+    if (claim.changes !== 1) {
+      return { claimed: false, unitCost: 0 };
+    }
+
+    let unitCost = 0;
+    if (request.inventoryItemId) {
+      const item = sqlite.prepare("SELECT currentStock, unitCost FROM inventoryItems WHERE id = ?").get(request.inventoryItemId) as
+        | { currentStock: number; unitCost: number | null }
+        | undefined;
+      unitCost = item?.unitCost || 0;
+      const newStock = Math.max(0, Math.round(((item?.currentStock ?? 0) - request.quantity) * 1000) / 1000);
+      sqlite.prepare("UPDATE inventoryItems SET currentStock = ?, updatedAt = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?").run(newStock, request.inventoryItemId);
+    }
+
+    sqlite
+      .prepare(
+        `INSERT INTO jobCosts (jobId, category, description, quantity, unitCost, totalCost, supplier, createdBy, createdAt)
+         VALUES (?, 'material', ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))`
+      )
+      .run(request.jobId, request.materialName, request.quantity, unitCost, Math.round(request.quantity * unitCost * 100) / 100, request.supplier, approvedBy);
+
+    return { claimed: true, unitCost };
+  });
+
+  return transaction();
 }
 
 // ============================================================================

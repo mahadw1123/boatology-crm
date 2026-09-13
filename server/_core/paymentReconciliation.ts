@@ -216,31 +216,37 @@ export async function runScheduledStripeReconciliationCheck() {
     }
     mismatches++;
 
-    try {
-      const staff = await db.getStaffUsers();
-      for (const s of staff) {
-        await db.createNotification({
-          userId: s.id,
-          type: "system",
-          title: `Payment status mismatch: ${invoice.invoiceNumber}`,
-          message: `${result.detail} Stripe: ${result.stripeStatus}. Boatology: ${result.boatologyStatus}.${result.canReconcile ? " Open the invoice to reconcile." : ""}`,
-          relatedEntityType: "invoice",
-          relatedEntityId: invoice.id,
-        });
-      }
-    } catch (notificationError) {
-      console.error("[Reconciliation] Failed to notify staff of a payment mismatch:", notificationError);
-    }
-
     // Real financial risk — this becomes an actionable, CRITICAL-priority
-    // item on the Task Centre, not just a passive notification.
-    await ensureTask(ruleKey, {
+    // item on the Task Centre, not just a passive notification. ensureTask
+    // dedupes on ruleKey and returns whether it actually created a new task
+    // — checked first so the notification below only fires the moment a
+    // mismatch is first detected, not on every 30-minute sweep for as long
+    // as it stays unresolved.
+    const isNewMismatch = await ensureTask(ruleKey, {
       title: `Payment mismatch — ${invoice.invoiceNumber}`,
       description: `${result.detail} Stripe: ${result.stripeStatus}. Boatology: ${result.boatologyStatus}.`,
       priority: "urgent",
       linkedInvoiceId: invoice.id,
       linkedCustomerId: invoice.customerId,
     });
+
+    if (isNewMismatch) {
+      try {
+        const staff = await db.getStaffUsers();
+        for (const s of staff) {
+          await db.createNotification({
+            userId: s.id,
+            type: "system",
+            title: `Payment status mismatch: ${invoice.invoiceNumber}`,
+            message: `${result.detail} Stripe: ${result.stripeStatus}. Boatology: ${result.boatologyStatus}.${result.canReconcile ? " Open the invoice to reconcile." : ""}`,
+            relatedEntityType: "invoice",
+            relatedEntityId: invoice.id,
+          });
+        }
+      } catch (notificationError) {
+        console.error("[Reconciliation] Failed to notify staff of a payment mismatch:", notificationError);
+      }
+    }
   }
 
   return { checked, mismatches };

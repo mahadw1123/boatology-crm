@@ -467,7 +467,7 @@ export const invoices = sqliteTable("invoices", {
   discountAmount: real("discountAmount").default(0),
   totalDue: real("totalDue").notNull(),
   currency: text("currency").default("aud"),
-  status: text("status", { enum: ["draft", "sent", "paid", "void", "refunded", "reversed"] })
+  status: text("status", { enum: ["draft", "sent", "paid", "void", "refunded", "partially_refunded", "reversed"] })
     .default("draft")
     .notNull(),
   stripePaymentIntentId: text("stripePaymentIntentId"),

@@ -25,6 +25,7 @@ const statusColors: Record<string, { bg: string; text: string }> = {
   paid: { bg: "bg-emerald-100", text: "text-emerald-700" },
   void: { bg: "bg-slate-100", text: "text-slate-500" },
   refunded: { bg: "bg-purple-100", text: "text-purple-700" },
+  partially_refunded: { bg: "bg-purple-50", text: "text-purple-600" },
   reversed: { bg: "bg-red-100", text: "text-red-700" },
 };
 
