@@ -15,7 +15,7 @@ import { constructWebhookEvent } from "./_core/stripe";
 import { applyStripePaymentSuccess } from "./_core/paymentReconciliation";
 import { sendEmail, emailTemplates } from "./_core/email";
 import { startScheduler } from "./_core/scheduler";
-import { createDatabaseSnapshot } from "./_core/backup";
+import { createFullBackupArchive } from "./_core/backup";
 import * as db from "./db";
 import { parse as parseCookieHeader } from "cookie";
 import crypto from "crypto";
@@ -637,10 +637,13 @@ app.get("/api/admin/download-database", async (req, res) => {
     return;
   }
   try {
-    const snapshotPath = await createDatabaseSnapshot();
-    const filename = `boatology-backup-${new Date().toISOString().slice(0, 10)}.db`;
-    res.download(snapshotPath, filename, (err) => {
-      fs.rm(snapshotPath, { force: true }, () => {});
+    // Bundled with the uploads folder (photos, PDFs, signatures) — a
+    // database-only backup restores to records pointing at files that no
+    // longer exist anywhere.
+    const archivePath = await createFullBackupArchive();
+    const filename = `boatology-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+    res.download(archivePath, filename, (err) => {
+      fs.rm(archivePath, { force: true }, () => {});
       if (err) console.error("Database download failed to send:", err);
     });
   } catch (error) {

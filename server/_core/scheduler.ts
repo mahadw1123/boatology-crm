@@ -6,7 +6,7 @@ import { ENV } from "./env";
 import { runScheduledStripeReconciliationCheck } from "./paymentReconciliation";
 import { runAllTaskRules } from "./taskRules";
 import { recordHeartbeat } from "./health";
-import { createDatabaseSnapshot } from "./backup";
+import { createFullBackupArchive } from "./backup";
 import { captureSystemError } from "./monitoring";
 
 /** Email addresses that should receive the daily Morning Briefing —
@@ -134,7 +134,7 @@ const MAX_BACKUP_ATTACHMENT_BYTES = 18 * 1024 * 1024;
  * above), that's the point at which a dedicated S3-compatible upload
  * becomes worth the extra setup, not before. */
 async function runScheduledDatabaseBackup() {
-  let snapshotPath: string | null = null;
+  let archivePath: string | null = null;
   try {
     const settings = await db.getSettings();
     const recipient = settings.find((s) => s.key === "backup_recipient_email")?.value?.trim();
@@ -144,25 +144,27 @@ async function runScheduledDatabaseBackup() {
       return;
     }
 
-    snapshotPath = await createDatabaseSnapshot();
-    const stat = fs.statSync(snapshotPath);
+    // Bundled with uploads (photos, PDFs, signatures) — a database-only
+    // backup restores to records pointing at files that no longer exist.
+    archivePath = await createFullBackupArchive();
+    const stat = fs.statSync(archivePath);
     if (stat.size > MAX_BACKUP_ATTACHMENT_BYTES) {
       const error = new Error(
-        `Database snapshot is ${(stat.size / (1024 * 1024)).toFixed(1)}MB — too large to email safely. Set up an S3-compatible upload for backups instead of the email-based one.`
+        `Backup archive is ${(stat.size / (1024 * 1024)).toFixed(1)}MB — too large to email safely. Set up an S3-compatible upload for backups instead of the email-based one.`
       );
       captureSystemError(error, { source: "backup", severity: "fatal", route: "scheduled_backup" });
       await recordHeartbeat("database_backup", "failed", error.message);
       return;
     }
 
-    const content = fs.readFileSync(snapshotPath).toString("base64");
+    const content = fs.readFileSync(archivePath).toString("base64");
     const today = new Date().toISOString().slice(0, 10);
     await sendEmail({
       to: recipient,
       subject: `{{COMPANY_NAME}} database backup — ${today}`,
-      html: `<p>Attached is today's automatic database backup (${(stat.size / (1024 * 1024)).toFixed(2)}MB).</p>
+      html: `<p>Attached is today's automatic backup (${(stat.size / (1024 * 1024)).toFixed(2)}MB) — the database plus every uploaded photo, PDF, and signature on file.</p>
              <p>Keep these somewhere safe outside your email inbox too if you can — this email is the off-server copy, not the only one that should exist.</p>`,
-      attachments: [{ filename: `boatology-backup-${today}.db`, content }],
+      attachments: [{ filename: `boatology-backup-${today}.zip`, content }],
     });
 
     console.log(`[Scheduler] Database backup emailed to ${recipient} (${(stat.size / (1024 * 1024)).toFixed(2)}MB).`);
@@ -172,11 +174,11 @@ async function runScheduledDatabaseBackup() {
     captureSystemError(error, { source: "backup", severity: "fatal", route: "scheduled_backup" });
     await recordHeartbeat("database_backup", "failed", error instanceof Error ? error.message : "Unknown error");
   } finally {
-    if (snapshotPath) {
+    if (archivePath) {
       try {
-        fs.unlinkSync(snapshotPath);
+        fs.unlinkSync(archivePath);
       } catch (cleanupError) {
-        console.error("[Scheduler] Failed to remove temporary backup snapshot:", cleanupError);
+        console.error("[Scheduler] Failed to remove temporary backup archive:", cleanupError);
       }
     }
   }

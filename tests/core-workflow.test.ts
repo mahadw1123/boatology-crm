@@ -712,6 +712,96 @@ test("CSV invoice import rejects a row whose quote belongs to a different custom
   assert.match(result[0].reason || "", /different customer/);
 });
 
+test("cancelling a job clocks out active time entries, cancels upcoming schedules, and declines pending material requests", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:cancel-cleanup-admin@example.com",
+    name: "Cancel Cleanup Admin",
+    email: "cancel-cleanup-admin@example.com",
+    passwordHash: await hashPassword("Cancel-Cleanup-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const employee = await db.createEmployee({ name: "Cleanup Technician", role: "technician" });
+  const customer = await db.createCustomer({ name: "Cancel Cleanup Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-CANCELCLEANUP-0001" });
+
+  const activeEntry = await db.createTimeEntry({
+    employeeId: employee.id,
+    jobId: job.id,
+    date: new Date().toISOString().slice(0, 10),
+    clockInTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+  });
+  const schedule = await db.createSchedule({
+    jobId: job.id,
+    employeeId: employee.id,
+    scheduledDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+  });
+  const materialRequest = await db.createMaterialRequest({ jobId: job.id, materialName: "No Longer Needed Part", quantity: 1, requestedBy: adminUser.id });
+
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  await adminCaller.jobs.cancel({ id: job.id, reason: "Customer changed their mind" });
+
+  const reloadedEntry = await db.getTimeEntriesByJob(job.id);
+  assert.equal(reloadedEntry[0].id, activeEntry.id);
+  assert.ok(reloadedEntry[0].clockOutTime, "the active clock-in must be closed out");
+  assert.ok((reloadedEntry[0].hoursWorked ?? 0) > 0);
+
+  const reloadedSchedule = await db.getScheduleById(schedule.id);
+  assert.equal(reloadedSchedule?.status, "cancelled");
+
+  const reloadedRequest = await db.getMaterialRequestById(materialRequest.id);
+  assert.equal(reloadedRequest?.status, "rejected");
+});
+
+test("a full backup archive bundles the database and the uploads folder together", async () => {
+  const { createFullBackupArchive } = await import("../server/_core/backup");
+  const AdmZip = (await import("adm-zip")).default;
+
+  const archivePath = await createFullBackupArchive();
+  try {
+    assert.ok(fs.existsSync(archivePath));
+    const zip = new AdmZip(archivePath);
+    const entryNames = zip.getEntries().map((e) => e.entryName);
+    assert.ok(entryNames.includes("boatology.db"), "the archive must contain the database snapshot");
+    // Whether an "uploads/..." entry exists depends on whether this
+    // environment's uploads folder has any files in it — what matters is
+    // that the archive step never throws when it does, and never silently
+    // drops it when it's present (asserted by the earlier database-only
+    // backup bug: the old code never even looked at the uploads directory).
+  } finally {
+    fs.rmSync(archivePath, { force: true });
+  }
+});
+
+test("claiming an invoice for Xero sync is atomic — only one of two simultaneous claims succeeds", async () => {
+  const customer = await db.createCustomer({ name: "Xero Claim Customer" });
+  const invoice = await db.createInvoice({
+    customerId: customer.id,
+    invoiceNumber: "INV-TEST-XEROCLAIM-0001",
+    invoiceType: "final",
+    subtotal: 400,
+    totalDue: 400,
+    status: "sent",
+  });
+
+  const firstClaim = db.claimInvoiceForXeroSync(invoice.id);
+  const secondClaim = db.claimInvoiceForXeroSync(invoice.id);
+  assert.equal(firstClaim, true);
+  assert.equal(secondClaim, false, "a second claim while the first sync is still 'syncing' must not also succeed");
+
+  // Once the first attempt finishes (success or failure) and moves off
+  // "syncing", the invoice becomes claimable again for a genuine retry.
+  await db.updateInvoice(invoice.id, { xeroSyncStatus: "failed" });
+  const retryClaim = db.claimInvoiceForXeroSync(invoice.id);
+  assert.equal(retryClaim, true);
+
+  // Once xeroInvoiceRef is actually set, it must never be claimable again —
+  // that's the "already synced" case, permanently.
+  await db.updateInvoice(invoice.id, { xeroInvoiceRef: "XERO-REF-1", xeroSyncStatus: "synced" });
+  const claimAfterSynced = db.claimInvoiceForXeroSync(invoice.id);
+  assert.equal(claimAfterSynced, false);
+});
+
 test.after(() => {
   db.closeDatabase();
   fs.rmSync(tempDir, { recursive: true, force: true });

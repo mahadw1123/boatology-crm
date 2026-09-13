@@ -2350,6 +2350,41 @@ const jobsRouter = router({
           cancelledAt: new Date().toISOString(),
         });
         const job = await db.getJobById(input.id);
+        const cancelledAtIso = new Date().toISOString();
+
+        // A cancelled job needs to actually stop being live operational
+        // work, not just change a status label — otherwise the calendar
+        // still shows tomorrow's now-pointless appointment, and a
+        // technician can still be sitting there clocked in against work
+        // that no longer exists.
+        const activeEntries = (await db.getTimeEntriesByJob(input.id)).filter((e) => e.clockInTime && !e.clockOutTime);
+        for (const entry of activeEntries) {
+          const hoursWorked = Math.max(0, (Date.parse(cancelledAtIso) - Date.parse(entry.clockInTime!)) / (60 * 60 * 1000));
+          const note = "Clocked out automatically — the job was cancelled while this entry was active.";
+          await db.updateTimeEntry(entry.id, {
+            clockOutTime: cancelledAtIso,
+            hoursWorked: Math.round(hoursWorked * 100) / 100,
+            notes: entry.notes ? `${entry.notes}\n${note}` : note,
+          });
+        }
+
+        const upcomingSchedules = (await db.getSchedulesByJob(input.id)).filter(
+          (s) => s.status !== "completed" && s.status !== "cancelled"
+        );
+        for (const s of upcomingSchedules) {
+          await db.updateSchedule(s.id, { status: "cancelled" });
+        }
+
+        // A part requested for work that's no longer happening isn't
+        // something to approve or order — auto-decline it rather than
+        // leaving it sitting in the queue as if the job were still live.
+        const pendingMaterialRequests = (await db.getMaterialRequestsForJob(input.id)).filter((r) => r.status === "pending");
+        for (const r of pendingMaterialRequests) {
+          await db.updateMaterialRequest(r.id, {
+            status: "rejected",
+            rejectionReason: "Job was cancelled.",
+          });
+        }
 
         const customer = await db.getCustomerById(existingJob.customerId);
         if (customer?.email) {

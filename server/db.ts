@@ -829,6 +829,10 @@ export async function getSchedulesByEmployee(employeeId: number) {
     .orderBy(desc(schedules.scheduledDate));
 }
 
+export async function getSchedulesByJob(jobId: number) {
+  return await db.select().from(schedules).where(eq(schedules.jobId, jobId));
+}
+
 export async function updateSchedule(id: number, data: Partial<typeof schedules.$inferInsert>) {
   await db.update(schedules).set(data).where(eq(schedules.id, id));
 }
@@ -1205,6 +1209,19 @@ export async function getAllInvoices() {
 
 export async function updateInvoice(id: number, data: Partial<typeof invoices.$inferInsert>) {
   await db.update(invoices).set({ ...data, updatedAt: new Date().toISOString() }).where(eq(invoices.id, id));
+}
+
+/** Atomically claims an invoice for a Xero sync attempt — the conditional
+ * WHERE means two near-simultaneous "Sync to Xero" clicks can't both pass
+ * this check and both go on to create a Xero-side invoice; only one gets
+ * `claimed: true`; the other must be told a sync is already in progress. */
+export function claimInvoiceForXeroSync(id: number): boolean {
+  const result = sqlite
+    .prepare(
+      "UPDATE invoices SET xeroSyncStatus = 'syncing', xeroLastSyncError = NULL, updatedAt = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND xeroInvoiceRef IS NULL AND (xeroSyncStatus IS NULL OR xeroSyncStatus != 'syncing')"
+    )
+    .run(id);
+  return result.changes === 1;
 }
 
 export async function beginStripeWebhookEvent(eventId: string, eventType: string) {

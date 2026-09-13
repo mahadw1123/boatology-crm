@@ -186,6 +186,20 @@ async function getValidTokens(): Promise<XeroTokens> {
   return tokens;
 }
 
+/** Looks up an existing Xero invoice by the Reference field this app always
+ * sets to its own invoiceNumber when creating one — the recovery path for
+ * "Xero created the invoice, but Boatology crashed before saving the ref
+ * locally": a retry lands here first and adopts the invoice Xero already
+ * has instead of creating a second one for the same charge. */
+async function findXeroInvoiceByReference(headers: Record<string, string>, reference: string): Promise<{ invoiceNumber?: string; invoiceId?: string } | null> {
+  const res = await fetch(`${XERO_API_BASE}/Invoices?where=${encodeURIComponent(`Reference=="${reference.replace(/"/g, "")}"`)}`, { headers });
+  if (!res.ok) return null;
+  const json = await res.json();
+  const found = json.Invoices?.[0];
+  if (!found) return null;
+  return { invoiceNumber: found.InvoiceNumber, invoiceId: found.InvoiceID };
+}
+
 async function findOrCreateXeroContact(
   headers: Record<string, string>,
   customer: { name: string; email?: string | null }
@@ -307,7 +321,12 @@ export async function createXeroInvoiceForInvoice(invoiceId: number) {
     return { xeroInvoiceRef: existing.xeroInvoiceRef, alreadySynced: true as const };
   }
 
-  await db.updateInvoice(invoiceId, { xeroSyncStatus: "syncing", xeroLastSyncError: null });
+  // Conditional claim — if another sync attempt is already in flight for
+  // this invoice (a double-click, or two staff members both hitting Sync),
+  // only one of them proceeds past this point.
+  if (!db.claimInvoiceForXeroSync(invoiceId)) {
+    throw new Error("This invoice is already being synced to Xero. Wait for it to finish before trying again.");
+  }
 
   try {
     const tokens = await getValidTokens();
@@ -321,6 +340,20 @@ export async function createXeroInvoiceForInvoice(invoiceId: number) {
       "Content-Type": "application/json",
       Accept: "application/json",
     };
+
+    // Recovery path: if a previous sync attempt actually created this
+    // invoice in Xero but crashed (or lost the response) before saving
+    // xeroInvoiceRef locally, this finds it by the Reference we always set
+    // to our own invoiceNumber, and adopts it instead of creating a
+    // duplicate charge.
+    if (invoice.invoiceNumber) {
+      const foundInXero = await findXeroInvoiceByReference(headers, invoice.invoiceNumber);
+      if (foundInXero) {
+        const ref = foundInXero.invoiceNumber || foundInXero.invoiceId || "unknown";
+        await db.updateInvoice(invoiceId, { xeroInvoiceRef: ref, xeroSyncStatus: "synced", xeroLastSyncError: null });
+        return { xeroInvoiceRef: ref, alreadySynced: true as const };
+      }
+    }
 
     const contactId = await findOrCreateXeroContact(headers, customer);
     const accountCode = await resolveRevenueAccountCode(headers);
