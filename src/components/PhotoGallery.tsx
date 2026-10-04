@@ -1,3 +1,4 @@
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -7,9 +8,75 @@ import { toast } from "sonner";
 import { showErrorToast, throwApiError } from "@/lib/errors";
 
 type EntityRef =
-  | { type: "job"; id: number }
+  | { type: "job"; id: number; taskId?: number }
   | { type: "quote"; id: number }
   | { type: "vessel"; id: number };
+
+function PhotoComments({ doc, comments }: { doc: any; comments: any[] }) {
+  const [text, setText] = useState("");
+  const utils = trpc.useUtils();
+  const addMutation = trpc.documents.addComment.useMutation({
+    onSuccess: () => {
+      setText("");
+      utils.documents.commentsFor.invalidate();
+    },
+    onError: (err) => showErrorToast(err),
+  });
+  const submit = () => {
+    if (text.trim()) addMutation.mutate({ documentId: doc.id, body: text.trim() });
+  };
+  return (
+    <div className="mt-2 space-y-1 border-t border-slate-200 pt-2">
+      {comments.map((c) => (
+        <p key={c.id} className="text-xs text-slate-600">
+          <span className="font-medium text-slate-800">{c.authorName}</span>
+          {c.authorRole === "customer" ? " (customer)" : ""}: {c.body}
+        </p>
+      ))}
+      <div className="flex items-center gap-1">
+        <Input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Reply or add a note..."
+          className="h-7 border-slate-200 text-xs"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+        />
+        <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={submit} disabled={addMutation.isPending || !text.trim()}>
+          <Check className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PhotoDeleteButton({ doc }: { doc: any }) {
+  const utils = trpc.useUtils();
+  const deleteMutation = trpc.documents.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Removed");
+      utils.documents.listByJob.invalidate();
+      utils.documents.listByQuote.invalidate();
+      utils.documents.listByVessel.invalidate();
+    },
+    onError: (err) => showErrorToast(err),
+  });
+  const { user } = useAuth();
+  if (user?.role === "technician" || user?.role === "customer") return null;
+  return (
+    <button
+      type="button"
+      className="mt-1 text-xs text-slate-400 hover:text-red-600"
+      disabled={deleteMutation.isPending}
+      onClick={() => {
+        if (window.confirm(`Delete "${doc.fileName}"? This can't be undone.`)) deleteMutation.mutate({ id: doc.id });
+      }}
+    >
+      Delete
+    </button>
+  );
+}
 
 function PhotoCaption({ doc, readOnly }: { doc: any; readOnly: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -100,6 +167,7 @@ export function PhotoGallery({ entity, readOnly = false }: { entity: EntityRef; 
         const formData = new FormData();
         formData.append("file", file);
         formData.append(entity.type === "job" ? "jobId" : entity.type === "quote" ? "quoteId" : "vesselId", String(entity.id));
+        if (entity.type === "job" && entity.taskId) formData.append("taskId", String(entity.taskId));
         formData.append("documentType", file.type.startsWith("image/") ? "photo" : "pdf");
         if (pendingCaption.trim()) formData.append("caption", pendingCaption.trim());
 
@@ -122,12 +190,16 @@ export function PhotoGallery({ entity, readOnly = false }: { entity: EntityRef; 
     }
   };
 
-  const documents = query.data || [];
+  const allDocuments = query.data || [];
+  const documents = entity.type === "job" && entity.taskId ? allDocuments.filter((d: any) => d.taskId === entity.taskId) : allDocuments;
+  const commentsQuery = trpc.documents.commentsFor.useQuery(documents.map((d: any) => d.id), { enabled: documents.length > 0 });
+  const commentsByDoc = new Map<number, any[]>();
+  for (const c of commentsQuery.data || []) commentsByDoc.set(c.documentId, [...(commentsByDoc.get(c.documentId) || []), c]);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-medium text-slate-900">Photos & Documents</h3>
+        <h3 className="font-medium text-slate-900">{entity.type === "job" && entity.taskId ? "Task photos" : "Photos & Documents"}</h3>
         {!readOnly && (
           <div className="flex items-center gap-2">
             <Input
@@ -188,6 +260,8 @@ export function PhotoGallery({ entity, readOnly = false }: { entity: EntityRef; 
                 )}
               </a>
               <PhotoCaption doc={doc} readOnly={readOnly} />
+              <PhotoComments doc={doc} comments={commentsByDoc.get(doc.id) || []} />
+              {!readOnly && <PhotoDeleteButton doc={doc} />}
             </div>
           ))}
         </div>

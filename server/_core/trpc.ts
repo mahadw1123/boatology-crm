@@ -4,6 +4,7 @@ import { parse as parseCookieHeader } from "cookie";
 import { COOKIE_NAME } from "@shared/const";
 import { verifySessionToken } from "./auth";
 import * as db from "../db";
+import { isAccessAllowed } from "./accessControl";
 import type { User } from "../../drizzle/schema";
 
 export async function createContext({ req, res }: trpcExpress.CreateExpressContextOptions) {
@@ -67,7 +68,19 @@ const isAuthed = middleware(({ ctx, next }) => {
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
 
-export const protectedProcedure = t.procedure.use(isAuthed);
+// Admin-configured per-role view/add/edit/delete switches (Administration →
+// Access). Unconfigured = unchanged behaviour.
+const enforceAccessRules = middleware(async ({ ctx, path, type, next }) => {
+  if (ctx.user && !(await isAccessAllowed(ctx.user.role, path, type))) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "An administrator has turned off this kind of access for your account. Ask them to change it in Administration → Access.",
+    });
+  }
+  return next();
+});
+
+export const protectedProcedure = t.procedure.use(isAuthed).use(enforceAccessRules);
 
 export function requireRole(...roles: User["role"][]) {
   return middleware(({ ctx, next }) => {

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { COOKIE_NAME } from "@shared/const";
+import { ACCESS_MODULES, ACCESS_ACTIONS, CONFIGURABLE_ROLES, loadAccessRules, sanitizeAccessRules, clearAccessRulesCache } from "./_core/accessControl";
+import { quoteBreakdown, type QuoteTaxMode, type QuoteDiscountType } from "@shared/quoteMath";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { createSessionToken, hashPassword, verifyPassword } from "./_core/auth";
 import { sendEmail, emailTemplates, escapeHtml } from "./_core/email";
@@ -10,7 +12,7 @@ import { extractReceiptData, isOcrConfigured } from "./_core/ocr";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getXeroStatus, disconnectXero, createXeroInvoiceForInvoice, getXeroRevenueSummary } from "./_core/xero";
+import { getXeroStatus, disconnectXero, createXeroInvoiceForInvoice, getXeroRevenueSummary, getXeroOnlineInvoiceUrl } from "./_core/xero";
 import { assertQuoteIsSent, getJobEligibility } from "./_core/workflow";
 import { hasRole, isFinanceStaff } from "./_core/permissions";
 import { getWeatherForecast } from "./_core/weather";
@@ -52,10 +54,90 @@ function nextSequentialNumber(existing: Array<{ [key: string]: unknown }>, field
   return `${prefix}${String(max + 1).padStart(4, "0")}`;
 }
 
+// Which employees.role values can actually do hands-on job/task work —
+// subcontractors are hired labour, assignable exactly like technicians;
+// office_staff/management are not (they use the separate "Assigned To"
+// paperwork-owner field instead).
+function isAssignableEmployeeRole(role: string) {
+  return role === "technician" || role === "subcontractor";
+}
+
+// The Google-review discount is a one-time welcome offer: only on a
+// customer's first real (non-deposit) invoice, and only when the job came
+// from their first quote — never again once any earlier invoice exists or
+// a discount was already offered/claimed to them.
+async function customerQualifiesForReviewDiscount(customerId: number, quoteId: number | null | undefined) {
+  const invoices = (await db.getAllInvoices()).filter((i) => i.customerId === customerId);
+  const priorDiscount = invoices.some((i) => i.reviewDiscountOffered || i.reviewDiscountClaimed);
+  const priorRealInvoice = invoices.some((i) => i.invoiceType !== "deposit" && i.status !== "void");
+  if (priorDiscount || priorRealInvoice) return false;
+  if (quoteId) {
+    const customerQuotes = (await db.getQuotes())
+      .filter((q) => q.customerId === customerId && !q.parentQuoteId)
+      .sort((a, b) => a.id - b.id);
+    const quote = await db.getQuoteById(quoteId);
+    const rootId = quote?.parentQuoteId || quote?.id;
+    if (!customerQuotes.length || customerQuotes[0].id !== rootId) return false;
+  }
+  return true;
+}
+
 async function technicianIsAssigned(employeeId: number | null, jobId: number) {
   if (!employeeId) return false;
   const assignments = await db.getJobAssignments(jobId);
   return assignments.some((assignment) => assignment.employeeId === employeeId);
+}
+
+async function withAssignees<T extends { id: number; assignedEmployeeId: number | null }>(taskList: T[]) {
+  const map = await db.getAssigneesForTasks(taskList.map((t) => t.id));
+  return taskList.map((t) => {
+    const ids = map.get(t.id) || (t.assignedEmployeeId != null ? [t.assignedEmployeeId] : []);
+    return { ...t, assigneeIds: ids };
+  });
+}
+
+// Closes one time entry at "now", working out the hours.
+async function closeTimeEntryNow(entry: { id: number; clockInTime: string | null; notes: string | null }, note?: string) {
+  const nowIso = new Date().toISOString();
+  const hours = entry.clockInTime ? Math.max(0, (Date.parse(nowIso) - Date.parse(entry.clockInTime)) / 3600000) : 0;
+  await db.updateTimeEntry(entry.id, {
+    clockOutTime: nowIso,
+    hoursWorked: Math.round(hours * 100) / 100,
+    ...(note ? { notes: entry.notes ? `${entry.notes}\n${note}` : note } : {}),
+  });
+}
+
+async function openEntriesForTask(task: { id: number; jobId: number }) {
+  return (await db.getTimeEntriesByJob(task.jobId)).filter((e) => e.taskId === task.id && e.clockInTime && !e.clockOutTime);
+}
+
+// Starting a task starts that person's own timesheet entry against it. If
+// they were already clocked in somewhere else, that entry is closed first
+// (a person can only be doing one thing at a time).
+async function startTaskTimer(employeeId: number, task: { id: number; jobId: number }) {
+  const mine = (await openEntriesForTask(task)).find((e) => e.employeeId === employeeId);
+  if (mine) return;
+  const active = await db.getActiveTimeEntry(employeeId);
+  if (active) await closeTimeEntryNow(active, "Clocked out automatically — they started another task.");
+  const nowIso = new Date().toISOString();
+  await db.createTimeEntry({
+    employeeId,
+    jobId: task.jobId,
+    taskId: task.id,
+    date: nowIso.slice(0, 10),
+    clockInTime: nowIso,
+    isManualEntry: false,
+    isInternalCost: false,
+  });
+}
+
+async function stopTaskTimers(task: { id: number; jobId: number }, onlyEmployeeId?: number, note?: string) {
+  const open = await openEntriesForTask(task);
+  for (const entry of open) {
+    if (onlyEmployeeId != null && entry.employeeId !== onlyEmployeeId) continue;
+    await closeTimeEntryNow(entry, note);
+  }
+  return (await openEntriesForTask(task)).length;
 }
 
 async function technicianAssignedJobs(employeeId: number | null) {
@@ -83,6 +165,18 @@ async function technicianCanAccessDocument(
   if (document.quoteId != null) return assignedJobs.some((job) => job.quoteId === document.quoteId);
   if (document.vesselId != null) return assignedJobs.some((job) => job.vesselId === document.vesselId);
   if (document.customerId != null) return assignedJobs.some((job) => job.customerId === document.customerId);
+  return false;
+}
+
+async function customerOwnsDocument(
+  customerId: number | null,
+  document: NonNullable<Awaited<ReturnType<typeof db.getDocumentById>>>
+) {
+  if (!customerId) return false;
+  if (document.customerId != null) return document.customerId === customerId;
+  if (document.jobId != null) return (await db.getJobById(document.jobId))?.customerId === customerId;
+  if (document.quoteId != null) return (await db.getQuoteById(document.quoteId))?.customerId === customerId;
+  if (document.vesselId != null) return (await db.getVesselById(document.vesselId))?.customerId === customerId;
   return false;
 }
 
@@ -153,7 +247,9 @@ async function requireTechnicianTaskAccess(role: string, employeeId: number | nu
   const task = await db.getTaskById(taskId);
   if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "This task no longer exists. Refresh the job page." });
   await requireTechnicianJobAccess(role, employeeId, task.jobId);
-  if (role === "technician" && modifying && task.assignedEmployeeId != null && task.assignedEmployeeId !== employeeId) {
+  const assigneeIds = await db.getTaskAssigneeIds(taskId);
+  if (task.assignedEmployeeId != null && !assigneeIds.includes(task.assignedEmployeeId)) assigneeIds.push(task.assignedEmployeeId);
+  if (role === "technician" && modifying && assigneeIds.length > 0 && (employeeId == null || !assigneeIds.includes(employeeId))) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "This task is assigned to another technician. Ask office staff to reassign it before changing its status.",
@@ -182,25 +278,29 @@ function technicianQuoteView(quote: NonNullable<Awaited<ReturnType<typeof db.get
   };
 }
 
-function calculateQuoteTotal(input: {
-  lineItems?: Array<{ quantity: number; unitPrice: number }> | null;
+type QuoteMoneyInput = {
+  lineItems?: Array<{ quantity: number; unitPrice: number; gstApplicable?: boolean }> | null;
   laborCost?: number | null;
   partsCost?: number | null;
   totalAmount?: number | null;
-}) {
+  taxMode?: QuoteTaxMode | null;
+  discountType?: QuoteDiscountType | null;
+  discountValue?: number | null;
+  gstRate?: number | null;
+};
+
+// totalAmount is the final payable amount (after discount, incl. GST where it
+// applies) — the one number deposits, invoices and Xero all key off.
+function calculateQuoteTotal(input: QuoteMoneyInput) {
   const lineItems = input.lineItems || [];
   const hasBreakdown = lineItems.length > 0 || (input.laborCost || 0) > 0 || (input.partsCost || 0) > 0;
-  const computed = Math.round((
-    lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) +
-    (input.laborCost || 0) +
-    (input.partsCost || 0)
-  ) * 100) / 100;
+  const computed = quoteBreakdown(input).total;
 
   if (hasBreakdown) {
     if (input.totalAmount != null && Math.abs(input.totalAmount - computed) > 0.01) {
       throw new TRPCError({
         code: "BAD_REQUEST",
-        message: `Quote total must match the line items, labour, and parts total ($${computed.toFixed(2)}).`,
+        message: `Quote total must match the line items, discount and tax ($${computed.toFixed(2)}).`,
       });
     }
     if (computed <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "A quote total greater than zero is required." });
@@ -210,6 +310,14 @@ function calculateQuoteTotal(input: {
   const lumpSum = Math.round((input.totalAmount || 0) * 100) / 100;
   if (lumpSum <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Add quote line items or enter a lump-sum total greater than zero." });
   return lumpSum;
+}
+
+// The stored breakdown behind a quote's total, for display on the quote/PDF.
+function quoteAmountColumns(input: QuoteMoneyInput, total: number) {
+  const hasBreakdown = (input.lineItems || []).length > 0 || (input.laborCost || 0) > 0 || (input.partsCost || 0) > 0;
+  if (!hasBreakdown) return { subtotalAmount: total, discountAmount: 0, taxAmount: 0 };
+  const b = quoteBreakdown(input);
+  return { subtotalAmount: b.subtotal, discountAmount: b.discountAmount, taxAmount: b.taxAmount };
 }
 
 // Non-blocking audit write — record creation is a "nice to have" audit
@@ -809,6 +917,19 @@ const authRouter = router({
 
   logout: publicProcedure.mutation(async ({ ctx }) => {
     if (ctx.user) {
+      // A task left "running" after its technician logs out would keep
+      // looking live with nobody on it — pause whatever they had started.
+      if (ctx.user.employeeId) {
+        try {
+          const mine = await db.getTasksForEmployee(ctx.user.employeeId);
+          for (const t of mine.filter((t) => t.status === "in_progress")) {
+            const stillRunning = await stopTaskTimers(t, ctx.user.employeeId, "Clocked out automatically — they logged out.");
+            if (stillRunning === 0) await db.updateTask(t.id, { status: "paused", pausedAt: new Date().toISOString() });
+          }
+        } catch (error) {
+          console.error("Failed to auto-pause tasks on logout:", error);
+        }
+      }
       // Revoke the server-side session version as well as deleting this
       // browser's cookie, so a copied/stolen token cannot keep working.
       await db.incrementUserSessionVersion(ctx.user.id);
@@ -1231,6 +1352,13 @@ const quoteLineItemSchema = z.object({
   description: z.string().trim().min(1).max(500),
   quantity: z.number().positive().max(100000),
   unitPrice: z.number().nonnegative().max(100000000),
+  // Xero-style account/item code (e.g. "Insurance Survey", "Materials",
+  // "Labour") — display/export metadata only, doesn't affect the total.
+  accountCode: z.string().trim().max(100).optional(),
+  // Whether this specific line carries GST — display/export metadata only
+  // for now; the quote's existing subtotal math (and everything keyed off
+  // it — deposit %, Xero sync, invoice amounts) is unchanged.
+  gstApplicable: z.boolean().default(true),
 });
 
 const quotesRouter = router({
@@ -1294,6 +1422,10 @@ const quotesRouter = router({
         laborCost: z.number().nonnegative().max(100000000).optional(),
         partsCost: z.number().nonnegative().max(100000000).optional(),
         totalAmount: z.number().positive().max(100000000).optional(),
+        taxMode: z.enum(["exclusive", "inclusive", "none"]).optional(),
+        discountType: z.enum(["none", "percent", "fixed"]).optional(),
+        discountValue: z.number().nonnegative().max(100000000).optional(),
+        paymentTermsDays: z.number().int().nonnegative().max(365).optional(),
         notes: z.string().max(10000).optional(),
         expiryDate: z.string().optional(),
         assignedUserId: z.number().nullable().optional(),
@@ -1312,7 +1444,9 @@ const quotesRouter = router({
         }
       }
 
-      const totalAmount = calculateQuoteTotal(input);
+      const gstRate = (await db.getGstRatePercent()) / 100;
+      const totalAmount = calculateQuoteTotal({ ...input, gstRate });
+      const amountColumns = quoteAmountColumns({ ...input, gstRate }, totalAmount);
       const year = new Date().getFullYear();
       for (let attempt = 0; attempt < 5; attempt++) {
         const existingQuotes = await db.getQuotes();
@@ -1322,6 +1456,8 @@ const quotesRouter = router({
         try {
           const quote = await db.createQuote({
             ...input,
+            ...amountColumns,
+            taxMode: input.taxMode ?? "none",
             totalAmount,
             quoteNumber,
             createdBy: ctx.user.id,
@@ -1391,6 +1527,10 @@ const quotesRouter = router({
         laborCost: z.number().nonnegative().max(100000000).optional(),
         partsCost: z.number().nonnegative().max(100000000).optional(),
         totalAmount: z.number().positive().max(100000000).optional(),
+        taxMode: z.enum(["exclusive", "inclusive", "none"]).optional(),
+        discountType: z.enum(["none", "percent", "fixed"]).optional(),
+        discountValue: z.number().nonnegative().max(100000000).optional(),
+        paymentTermsDays: z.number().int().nonnegative().max(365).optional(),
         notes: z.string().max(10000).optional(),
         expiryDate: z.string().optional(),
         reason: z.string().trim().min(1).max(1000),
@@ -1440,11 +1580,21 @@ const quotesRouter = router({
       const mergedLineItems = (overrides.lineItems ?? (source.lineItems as Array<{ quantity: number; unitPrice: number }> | null)) || [];
       const mergedLaborCost = overrides.laborCost ?? source.laborCost ?? 0;
       const mergedPartsCost = overrides.partsCost ?? source.partsCost ?? 0;
-      const totalAmount = calculateQuoteTotal({
+      const mergedTaxMode = overrides.taxMode ?? source.taxMode;
+      const mergedDiscountType = overrides.discountType ?? source.discountType;
+      const mergedDiscountValue = overrides.discountValue ?? source.discountValue ?? 0;
+      const revisionMoney = {
+        gstRate: (await db.getGstRatePercent()) / 100,
         lineItems: mergedLineItems,
         laborCost: mergedLaborCost,
         partsCost: mergedPartsCost,
-        totalAmount: overrides.totalAmount ?? source.totalAmount,
+        taxMode: mergedTaxMode,
+        discountType: mergedDiscountType,
+        discountValue: mergedDiscountValue,
+      };
+      const totalAmount = calculateQuoteTotal({
+        ...revisionMoney,
+        totalAmount: overrides.totalAmount ?? (overrides.lineItems || overrides.laborCost != null || overrides.partsCost != null || overrides.taxMode || overrides.discountType || overrides.discountValue != null ? undefined : source.totalAmount),
       });
 
       try {
@@ -1456,6 +1606,11 @@ const quotesRouter = router({
           laborCost: mergedLaborCost,
           partsCost: mergedPartsCost,
           totalAmount,
+          ...quoteAmountColumns(revisionMoney, totalAmount),
+          taxMode: mergedTaxMode,
+          discountType: mergedDiscountType,
+          discountValue: mergedDiscountValue,
+          paymentTermsDays: overrides.paymentTermsDays ?? source.paymentTermsDays,
           notes: overrides.notes ?? source.notes,
           expiryDate: overrides.expiryDate ?? source.expiryDate,
           status: "draft",
@@ -1522,10 +1677,20 @@ const quotesRouter = router({
         laborCost: z.number().nonnegative().max(100000000).optional(),
         partsCost: z.number().nonnegative().max(100000000).optional(),
         totalAmount: z.number().positive().max(100000000).optional(),
+        taxMode: z.enum(["exclusive", "inclusive", "none"]).optional(),
+        discountType: z.enum(["none", "percent", "fixed"]).optional(),
+        discountValue: z.number().nonnegative().max(100000000).optional(),
+        paymentTermsDays: z.number().int().nonnegative().max(365).optional(),
         notes: z.string().max(10000).optional(),
         expiryDate: z.string().optional(),
         rejectionReason: z.string().trim().max(2000).optional(),
         assignedUserId: z.number().nullable().optional(),
+        // Changing who the quote is for — drafts only.
+        customerId: z.number().optional(),
+        vesselId: z.number().nullable().optional(),
+        // Mark as sent without emailing (email not set up yet, or the quote
+        // was handed over as a downloaded PDF).
+        sendWithoutEmail: z.boolean().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -1538,7 +1703,7 @@ const quotesRouter = router({
         if (ctx.user.role === "customer") {
           if (existingQuote.customerId !== ctx.user.customerId) throw new TRPCError({ code: "FORBIDDEN" });
           if (data.status !== "accepted" && data.status !== "rejected") throw new TRPCError({ code: "FORBIDDEN" });
-          if ([data.lineItems, data.laborCost, data.partsCost, data.totalAmount, data.notes, data.expiryDate, data.assignedUserId].some((value) => value !== undefined)) {
+          if ([data.lineItems, data.laborCost, data.partsCost, data.totalAmount, data.taxMode, data.discountType, data.discountValue, data.paymentTermsDays, data.notes, data.expiryDate, data.assignedUserId, data.customerId, data.vesselId, data.sendWithoutEmail].some((value) => value !== undefined)) {
             throw new TRPCError({ code: "FORBIDDEN", message: "Customers can only accept or reject a quote." });
           }
           try {
@@ -1578,7 +1743,7 @@ const quotesRouter = router({
         } else {
           if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
 
-          const financialChanged = data.lineItems !== undefined || data.laborCost !== undefined || data.partsCost !== undefined || data.totalAmount !== undefined;
+          const financialChanged = data.lineItems !== undefined || data.laborCost !== undefined || data.partsCost !== undefined || data.totalAmount !== undefined || data.taxMode !== undefined || data.discountType !== undefined || data.discountValue !== undefined;
           // Once a quote has actually been shown to the customer, its price
           // is the commercial document they saw — changing it in place would
           // let an accepted (or even just sent) total silently drift from
@@ -1594,19 +1759,46 @@ const quotesRouter = router({
           const mergedLabor = data.laborCost ?? existingQuote.laborCost ?? 0;
           const mergedParts = data.partsCost ?? existingQuote.partsCost ?? 0;
           if (financialChanged) {
-            patch.totalAmount = calculateQuoteTotal({
-              lineItems: mergedLineItems as Array<{ quantity: number; unitPrice: number }>,
+            const money = {
+              gstRate: (await db.getGstRatePercent()) / 100,
+              lineItems: mergedLineItems as Array<{ quantity: number; unitPrice: number; gstApplicable?: boolean }>,
               laborCost: mergedLabor,
               partsCost: mergedParts,
-              // Validate a total supplied in this request, but never compare
-              // the newly calculated breakdown with the quote's stale prior
-              // total when a caller changes only one component.
-              totalAmount: data.totalAmount,
-            });
+              taxMode: data.taxMode ?? existingQuote.taxMode,
+              discountType: data.discountType ?? existingQuote.discountType,
+              discountValue: data.discountValue ?? existingQuote.discountValue ?? 0,
+            };
+            // Validate a total supplied in this request, but never compare
+            // the newly calculated breakdown with the quote's stale prior
+            // total when a caller changes only one component.
+            const newTotal = calculateQuoteTotal({ ...money, totalAmount: data.totalAmount });
+            patch.totalAmount = newTotal;
+            Object.assign(patch, quoteAmountColumns(money, newTotal));
+          }
+          if (data.customerId !== undefined || data.vesselId !== undefined) {
+            if (!["draft", "pending_approval"].includes(existingQuote.status)) {
+              throw new TRPCError({ code: "BAD_REQUEST", message: "Only a draft quote can be moved to a different customer or vessel. Create a revision instead." });
+            }
+            const targetCustomerId = data.customerId ?? existingQuote.customerId;
+            const targetCustomer = await db.getCustomerById(targetCustomerId);
+            if (!targetCustomer) throw new TRPCError({ code: "BAD_REQUEST", message: "That customer doesn't exist." });
+            const targetVesselId = data.vesselId !== undefined ? data.vesselId : data.customerId !== undefined ? null : existingQuote.vesselId;
+            if (targetVesselId) {
+              const vessel = await db.getVesselById(targetVesselId);
+              if (!vessel || vessel.customerId !== targetCustomerId) {
+                throw new TRPCError({ code: "BAD_REQUEST", message: "That vessel does not belong to the selected customer." });
+              }
+            }
+            patch.customerId = targetCustomerId;
+            patch.vesselId = targetVesselId;
           }
           if (data.lineItems !== undefined) patch.lineItems = data.lineItems;
           if (data.laborCost !== undefined) patch.laborCost = data.laborCost;
           if (data.partsCost !== undefined) patch.partsCost = data.partsCost;
+          if (data.taxMode !== undefined) patch.taxMode = data.taxMode;
+          if (data.discountType !== undefined) patch.discountType = data.discountType;
+          if (data.discountValue !== undefined) patch.discountValue = data.discountValue;
+          if (data.paymentTermsDays !== undefined) patch.paymentTermsDays = data.paymentTermsDays;
           if (data.notes !== undefined) patch.notes = data.notes;
           if (data.expiryDate !== undefined) patch.expiryDate = data.expiryDate;
           if (data.rejectionReason !== undefined) patch.rejectionReason = data.rejectionReason;
@@ -1614,7 +1806,16 @@ const quotesRouter = router({
 
           // Sending is transactional from the CRM's perspective: the quote is
           // only marked sent after Resend confirms acceptance.
-          if (data.status === "sent") {
+          if (data.status === "sent" && data.sendWithoutEmail) {
+            if (Object.keys(patch).length > 0) await db.updateQuote(id, patch);
+            await db.updateQuote(id, {
+              status: "sent",
+              sentAt: new Date().toISOString(),
+              emailStatus: "not_sent",
+              emailError: "Marked as sent without emailing — the quote was handed to the customer another way.",
+              lastEmailAttemptAt: new Date().toISOString(),
+            });
+          } else if (data.status === "sent") {
             if (Object.keys(patch).length > 0) await db.updateQuote(id, patch);
             const quoteToSend = await db.getQuoteById(id);
             if (!quoteToSend) throw new TRPCError({ code: "NOT_FOUND" });
@@ -1821,7 +2022,9 @@ const JOB_STATUS_TRANSITIONS: Record<string, readonly string[]> = {
   in_progress: ["scheduled", "waiting_customer", "waiting_parts", "completed"],
   waiting_customer: ["in_progress"],
   waiting_parts: ["in_progress"],
-  completed: ["closed"],
+  // Reopening a completed job is allowed (work turned out not to be done);
+  // jobs.update refuses it once a real invoice has been issued.
+  completed: ["closed", "in_progress"],
   closed: [],
 };
 
@@ -2100,6 +2303,17 @@ const jobsRouter = router({
         if (data.status !== undefined) {
           assertValidJobStatusTransition(existingJob.status, data.status);
         }
+        let patchCompletedReset = false;
+        if (data.status === "completed" && existingJob.status !== "completed") {
+          const jobTasks = await db.getTasksForJob(id);
+          const openTasks = jobTasks.filter((t) => t.status !== "completed");
+          if (openTasks.length > 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `This job still has ${openTasks.length} task${openTasks.length === 1 ? "" : "s"} not marked complete. Finish them first, or remove them if they're no longer needed.`,
+            });
+          }
+        }
         if (data.status === "closed") {
           // "Closed" means the job is genuinely finished, including
           // financially — otherwise it's just "completed" with an
@@ -2115,8 +2329,25 @@ const jobsRouter = router({
             });
           }
         }
+        if (data.status === "in_progress" && existingJob.status === "completed") {
+          const reopenInvoice = await db.getInvoiceByJob(id);
+          if (reopenInvoice && !["draft", "void", "reversed"].includes(reopenInvoice.status)) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `This job's invoice (${reopenInvoice.invoiceNumber}) has already been issued, so the job can't be reopened. Void the invoice first if the work genuinely isn't finished.`,
+            });
+          }
+          patchCompletedReset = true;
+        }
+        const finishedStatuses = ["completed", "final_invoice", "customer_collection", "closed"];
+        if (data.status !== undefined && !finishedStatuses.includes(data.status) && finishedStatuses.includes(existingJob.status)) {
+          // The job was reverted — the "raise final invoice" to-do no longer applies.
+          const { resolveTask } = await import("./_core/taskRules");
+          await resolveTask(`JOB_NEEDS_FINAL_INVOICE:${id}`);
+        }
         const enteringCompleted = data.status === "completed" && existingJob.status !== "completed";
         const patch: Record<string, unknown> = { ...data };
+        if (patchCompletedReset) patch.completedAt = null;
         // Only stamp completedAt the moment a job first becomes completed —
         // closing it afterward (completed → closed is the only way in here)
         // must not overwrite the real completion date with today's date.
@@ -2206,10 +2437,10 @@ const jobsRouter = router({
         if (!employee) {
           throw new TRPCError({ code: "NOT_FOUND", message: "That employee no longer exists. Return to Administration → Employees and refresh the list." });
         }
-        if (employee.role !== "technician" || !employee.isActive) {
+        if (!isAssignableEmployeeRole(employee.role) || !employee.isActive) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Only an active technician can be assigned. Update the employee in Administration → Employees, then try again.",
+            message: "Only an active technician or subcontractor can be assigned. Update the employee in Administration → Employees, then try again.",
           });
         }
         const assignment = await db.assignJobToEmployee(input.jobId, input.employeeId);
@@ -2290,8 +2521,8 @@ const jobsRouter = router({
           db.getEmployeeById(input.toEmployeeId),
         ]);
         if (!job) throw new TRPCError({ code: "NOT_FOUND", message: "That job no longer exists." });
-        if (!employee || employee.role !== "technician" || !employee.isActive) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Only an active technician can be assigned." });
+        if (!employee || !isAssignableEmployeeRole(employee.role) || !employee.isActive) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Only an active technician or subcontractor can be assigned." });
         }
 
         if (input.fromAssignmentId) {
@@ -2373,6 +2604,16 @@ const jobsRouter = router({
         );
         for (const s of upcomingSchedules) {
           await db.updateSchedule(s.id, { status: "cancelled" });
+        }
+
+        // A task left "in progress"/"paused" on a now-cancelled job is stale
+        // state — there's no "cancelled" status for tasks, so reset them
+        // back to not-started rather than leaving a dead timer running.
+        const liveTasks = (await db.getTasksForJob(input.id)).filter(
+          (t) => t.status === "in_progress" || t.status === "paused"
+        );
+        for (const t of liveTasks) {
+          await db.updateTask(t.id, { status: "not_started", startedAt: null, pausedAt: null });
         }
 
         // A part requested for work that's no longer happening isn't
@@ -2562,12 +2803,18 @@ const jobsRouter = router({
       return await db.getJobById(input.jobId);
     }),
 
-  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+  deletePreview: protectedProcedure.input(z.number()).query(async ({ input, ctx }) => {
+    if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
+    const jobTasks = await db.getTasksForJob(input);
+    return { taskCount: jobTasks.length };
+  }),
+
+  delete: protectedProcedure.input(z.object({ id: z.number(), deleteTasks: z.boolean().optional() })).mutation(async ({ input, ctx }) => {
     if (!isFinanceStaff(ctx.user.role)) {
       throw new TRPCError({ code: "FORBIDDEN" });
     }
     try {
-      await db.deleteJob(input.id);
+      await db.deleteJob(input.id, { deleteTasks: input.deleteTasks });
       try {
         await db.logAuditEvent({ userId: ctx.user.id, action: "delete", entityType: "job", entityId: input.id, changes: null, ipAddress: ctx.req?.ip || null });
       } catch (auditError) {
@@ -2589,7 +2836,7 @@ const jobsRouter = router({
 
 const employeesRouter = router({
   list: protectedProcedure
-    .input(z.object({ role: z.enum(["technician", "office_staff", "management"]).optional() }).optional())
+    .input(z.object({ role: z.enum(["technician", "subcontractor", "office_staff", "management"]).optional() }).optional())
     .query(async ({ input, ctx }) => {
       if (ctx.user.role === "customer") throw new TRPCError({ code: "FORBIDDEN" });
       try {
@@ -2602,7 +2849,7 @@ const employeesRouter = router({
     }),
 
   listWithJobCounts: protectedProcedure
-    .input(z.object({ role: z.enum(["technician", "office_staff", "management"]).optional() }).optional())
+    .input(z.object({ role: z.enum(["technician", "subcontractor", "office_staff", "management"]).optional() }).optional())
     .query(async ({ input, ctx }) => {
       if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
       try {
@@ -2635,7 +2882,7 @@ const employeesRouter = router({
         email: z.string().email().optional().or(z.literal("")),
         phone: z.string().optional(),
         notes: z.string().optional(),
-        role: z.enum(["technician", "office_staff", "management"]),
+        role: z.enum(["technician", "subcontractor", "office_staff", "management"]),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -2656,7 +2903,7 @@ const employeesRouter = router({
         email: z.string().email().optional().or(z.literal("")),
         phone: z.string().optional(),
         notes: z.string().optional(),
-        role: z.enum(["technician", "office_staff", "management"]).optional(),
+        role: z.enum(["technician", "subcontractor", "office_staff", "management"]).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -2743,6 +2990,7 @@ const timeEntriesRouter = router({
       z.object({
         employeeId: z.number(),
         jobId: z.number().optional(),
+        taskId: z.number().optional(),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date in YYYY-MM-DD format."),
         clockInTime: z.string().datetime().optional(),
         clockOutTime: z.string().datetime().optional(),
@@ -2773,6 +3021,12 @@ const timeEntriesRouter = router({
         if (input.jobId && !(await db.getJobById(input.jobId))) {
           throw new TRPCError({ code: "NOT_FOUND", message: "That job no longer exists. Return to Time Tracking and refresh the job list." });
         }
+        if (input.taskId) {
+          const task = await db.getTaskById(input.taskId);
+          if (!task || task.jobId !== input.jobId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "That task does not belong to the selected job." });
+          }
+        }
         return await db.createTimeEntry({
           ...input,
           jobId: input.jobId ?? null,
@@ -2802,7 +3056,7 @@ const timeEntriesRouter = router({
   }),
 
   clockIn: protectedProcedure
-    .input(z.object({ employeeId: z.number(), jobId: z.number().optional(), isInternalCost: z.boolean().optional(), notes: z.string().max(2000).optional() }))
+    .input(z.object({ employeeId: z.number(), jobId: z.number().optional(), taskId: z.number().optional(), isInternalCost: z.boolean().optional(), notes: z.string().max(2000).optional() }))
     .mutation(async ({ input, ctx }) => {
       if (!hasRole(ctx.user.role, "COST_ENTRY")) {
         throw new TRPCError({ code: "FORBIDDEN" });
@@ -2833,6 +3087,12 @@ const timeEntriesRouter = router({
         if (input.jobId && !(await db.getJobById(input.jobId))) {
           throw new TRPCError({ code: "NOT_FOUND", message: "That job no longer exists. Refresh Time Tracking and select another job." });
         }
+        if (input.taskId) {
+          const task = await db.getTaskById(input.taskId);
+          if (!task || task.jobId !== input.jobId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "That task does not belong to the selected job." });
+          }
+        }
         const existing = await db.getActiveTimeEntry(input.employeeId);
         if (existing) {
           throw new TRPCError({
@@ -2844,6 +3104,7 @@ const timeEntriesRouter = router({
         return await db.createTimeEntry({
           employeeId: input.employeeId,
           jobId: input.jobId ?? null,
+          taskId: input.taskId ?? null,
           date: now.slice(0, 10),
           clockInTime: now,
           isManualEntry: false,
@@ -2926,6 +3187,54 @@ const timeEntriesRouter = router({
         if (error instanceof TRPCError) throw error;
         console.error("Error clocking out:", error);
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      }
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        jobId: z.number().nullable().optional(),
+        taskId: z.number().nullable().optional(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        clockInTime: z.string().datetime().nullable().optional(),
+        clockOutTime: z.string().datetime().nullable().optional(),
+        hoursWorked: z.number().nonnegative().max(24).nullable().optional(),
+        notes: z.string().max(2000).nullable().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // Editing a past entry (not just logging a new one) is an office
+      // correction, not something a technician self-serves.
+      if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
+      try {
+        const { id, ...data } = input;
+        const existing = await db.getTimeEntryById(id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "This time entry no longer exists. Refresh Time Tracking and try again." });
+        if (data.jobId && !(await db.getJobById(data.jobId))) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "That job no longer exists." });
+        }
+        if (data.taskId) {
+          const task = await db.getTaskById(data.taskId);
+          const jobId = data.jobId !== undefined ? data.jobId : existing.jobId;
+          if (!task || task.jobId !== jobId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "That task does not belong to the selected job." });
+          }
+        }
+        const clockIn = data.clockInTime !== undefined ? data.clockInTime : existing.clockInTime;
+        const clockOut = data.clockOutTime !== undefined ? data.clockOutTime : existing.clockOutTime;
+        const patch: Record<string, unknown> = { ...data };
+        if ((data.clockInTime !== undefined || data.clockOutTime !== undefined) && clockIn && clockOut) {
+          const hours = (Date.parse(clockOut) - Date.parse(clockIn)) / (60 * 60 * 1000);
+          if (hours < 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Clock-out time must be after clock-in time." });
+          patch.hoursWorked = Math.round(hours * 100) / 100;
+        }
+        patch.isManualEntry = true;
+        return await db.updateTimeEntry(id, patch);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("Error updating time entry:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The time entry could not be updated. Check the times, then try again." });
       }
     }),
 
@@ -3017,6 +3326,7 @@ const schedulesRouter = router({
     .input(
       z.object({
         jobId: z.number(),
+        taskId: z.number().optional(),
         employeeId: z.number().optional(),
         scheduledDate: z.string(),
         startTime: z.string().optional(),
@@ -3029,6 +3339,12 @@ const schedulesRouter = router({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
       try {
+        if (input.taskId) {
+          const task = await db.getTaskById(input.taskId);
+          if (!task || task.jobId !== input.jobId) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "That task does not belong to the selected job." });
+          }
+        }
         // Nothing in the schema stops an insert with an id for a job or
         // employee that doesn't exist (no foreign keys) — verify both
         // before creating anything, rather than ending up with a schedule
@@ -3541,7 +3857,7 @@ const tasksRouter = router({
     if (ctx.user.role === "customer") throw new TRPCError({ code: "FORBIDDEN" });
     await requireTechnicianJobAccess(ctx.user.role, ctx.user.employeeId, input);
     try {
-      return await db.getTasksForJob(input);
+      return await withAssignees(await db.getTasksForJob(input));
     } catch (error) {
       console.error("Error fetching tasks:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
@@ -3555,7 +3871,7 @@ const tasksRouter = router({
         const allowed = new Set((await technicianAssignedJobs(ctx.user.employeeId)).map((job) => job.id));
         if (input.some((jobId) => !allowed.has(jobId))) throw new TRPCError({ code: "FORBIDDEN", message: "One or more jobs are not assigned to you. Refresh Technician Home." });
       }
-      return await db.getTasksForJobs(input);
+      return await withAssignees(await db.getTasksForJobs(input));
     } catch (error) {
       if (error instanceof TRPCError) throw error;
       console.error("Error fetching tasks:", error);
@@ -3606,7 +3922,7 @@ const tasksRouter = router({
   myTasks: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user.employeeId) return [];
     try {
-      const tasks = await db.getTasksForEmployee(ctx.user.employeeId);
+      const tasks = await withAssignees(await db.getTasksForEmployee(ctx.user.employeeId));
       if (ctx.user.role !== "technician") return tasks;
       const allowed = new Set((await technicianAssignedJobs(ctx.user.employeeId)).map((job) => job.id));
       return tasks.filter((task) => allowed.has(task.jobId));
@@ -3624,6 +3940,7 @@ const tasksRouter = router({
         description: z.string().max(5000).optional(),
         priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
         assignedEmployeeId: z.number().int().positive().optional(),
+        assignedEmployeeIds: z.array(z.number().int().positive()).max(20).optional(),
         dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         estimatedHours: z.number().nonnegative().max(10000).optional(),
       })
@@ -3641,21 +3958,25 @@ const tasksRouter = router({
         await requireTechnicianJobAccess(ctx.user.role, ctx.user.employeeId, input.jobId);
         const job = await db.getJobById(input.jobId);
         if (!job) throw new TRPCError({ code: "NOT_FOUND", message: "The selected job no longer exists. Return to Jobs and refresh the list." });
+        const wantedIds = input.assignedEmployeeIds ?? (input.assignedEmployeeId != null ? [input.assignedEmployeeId] : []);
         // A technician can only ever hand a new task to themselves, not
         // assign it to a colleague — that reassignment stays a staff call.
-        if (ctx.user.role === "technician" && input.assignedEmployeeId != null && input.assignedEmployeeId !== ctx.user.employeeId) {
+        if (ctx.user.role === "technician" && wantedIds.some((id) => id !== ctx.user.employeeId)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "You can only add tasks for yourself. Ask office staff to assign a task to someone else." });
         }
-        if (input.assignedEmployeeId != null) {
-          const employee = await db.getEmployeeById(input.assignedEmployeeId);
-          if (!employee || employee.role !== "technician" || !employee.isActive) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Select an active technician for this task." });
+        for (const employeeId of wantedIds) {
+          const employee = await db.getEmployeeById(employeeId);
+          if (!employee || !isAssignableEmployeeRole(employee.role) || !employee.isActive) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Select active technicians or subcontractors for this task." });
           }
           if (!(await technicianIsAssigned(employee.id, input.jobId))) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Assign the technician to the job before assigning them this task." });
+            throw new TRPCError({ code: "BAD_REQUEST", message: `Assign ${employee.name} to the job before assigning them this task.` });
           }
         }
-        return await db.createTask({ ...input, createdBy: ctx.user.id });
+        const { assignedEmployeeIds: _ignored, ...taskInput } = input;
+        const created = await db.createTask({ ...taskInput, assignedEmployeeId: wantedIds[0], createdBy: ctx.user.id });
+        if (created && wantedIds.length > 0) await db.setTaskAssignees(created.id, wantedIds);
+        return created;
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         console.error("Error creating task:", error);
@@ -3671,6 +3992,7 @@ const tasksRouter = router({
         description: z.string().max(5000).optional(),
         priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
         assignedEmployeeId: z.number().int().positive().nullable().optional(),
+        assignedEmployeeIds: z.array(z.number().int().positive()).max(20).optional(),
         dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         estimatedHours: z.number().nonnegative().max(10000).optional(),
         notes: z.string().max(10000).optional(),
@@ -3683,17 +4005,27 @@ const tasksRouter = router({
       try {
         const existingTask = await db.getTaskById(input.id);
         if (!existingTask) throw new TRPCError({ code: "NOT_FOUND", message: "This task no longer exists. Refresh the job page." });
-        if (input.assignedEmployeeId != null) {
-          const employee = await db.getEmployeeById(input.assignedEmployeeId);
-          if (!employee || employee.role !== "technician" || !employee.isActive) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Select an active technician for this task." });
-          }
-          if (!(await technicianIsAssigned(employee.id, existingTask.jobId))) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Assign the technician to the job before assigning them this task." });
+        const newIds =
+          input.assignedEmployeeIds !== undefined
+            ? input.assignedEmployeeIds
+            : input.assignedEmployeeId !== undefined
+              ? input.assignedEmployeeId === null ? [] : [input.assignedEmployeeId]
+              : undefined;
+        if (newIds) {
+          for (const employeeId of newIds) {
+            const employee = await db.getEmployeeById(employeeId);
+            if (!employee || !isAssignableEmployeeRole(employee.role) || !employee.isActive) {
+              throw new TRPCError({ code: "BAD_REQUEST", message: "Select active technicians or subcontractors for this task." });
+            }
+            if (!(await technicianIsAssigned(employee.id, existingTask.jobId))) {
+              throw new TRPCError({ code: "BAD_REQUEST", message: `Assign ${employee.name} to the job before assigning them this task.` });
+            }
           }
         }
-        const { id, ...data } = input;
-        return await db.updateTask(id, data);
+        const { id, assignedEmployeeIds: _ids, assignedEmployeeId: _single, ...data } = input;
+        if (Object.keys(data).length > 0) await db.updateTask(id, data);
+        if (newIds) await db.setTaskAssignees(id, newIds);
+        return await db.getTaskById(id);
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         console.error("Error updating task:", error);
@@ -3706,8 +4038,19 @@ const tasksRouter = router({
   start: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
     if (ctx.user.role === "customer") throw new TRPCError({ code: "FORBIDDEN" });
     try {
-      await requireTechnicianTaskAccess(ctx.user.role, ctx.user.employeeId, input.id, true);
-      return await db.updateTask(input.id, { status: "in_progress", startedAt: new Date().toISOString() });
+      const task = await requireTechnicianTaskAccess(ctx.user.role, ctx.user.employeeId, input.id, true);
+      const job = await db.getJobById(task.jobId);
+      if (job && (job.status === "cancelled" || job.status === "closed")) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `This job is ${job.status}, so its tasks can't be started.` });
+      }
+      // Each person who presses Start gets their own timesheet entry, so
+      // several people starting the same task together are each logged.
+      if (ctx.user.employeeId) await startTaskTimer(ctx.user.employeeId, task);
+      return await db.updateTask(input.id, {
+        status: "in_progress",
+        startedAt: task.status === "in_progress" && task.startedAt ? task.startedAt : new Date().toISOString(),
+        pausedAt: null,
+      });
     } catch (error) {
       if (error instanceof TRPCError) throw error;
       console.error("Error starting task:", error);
@@ -3718,7 +4061,11 @@ const tasksRouter = router({
   pause: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
     if (ctx.user.role === "customer") throw new TRPCError({ code: "FORBIDDEN" });
     try {
-      await requireTechnicianTaskAccess(ctx.user.role, ctx.user.employeeId, input.id, true);
+      const task = await requireTechnicianTaskAccess(ctx.user.role, ctx.user.employeeId, input.id, true);
+      // Pausing stops the caller's own timer; the task itself only shows as
+      // paused once nobody else is still working on it.
+      const stillRunning = ctx.user.employeeId ? await stopTaskTimers(task, ctx.user.employeeId) : await stopTaskTimers(task);
+      if (stillRunning > 0) return await db.getTaskById(input.id);
       return await db.updateTask(input.id, { status: "paused", pausedAt: new Date().toISOString() });
     } catch (error) {
       if (error instanceof TRPCError) throw error;
@@ -3730,7 +4077,8 @@ const tasksRouter = router({
   complete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
     if (ctx.user.role === "customer") throw new TRPCError({ code: "FORBIDDEN" });
     try {
-      await requireTechnicianTaskAccess(ctx.user.role, ctx.user.employeeId, input.id, true);
+      const task = await requireTechnicianTaskAccess(ctx.user.role, ctx.user.employeeId, input.id, true);
+      await stopTaskTimers(task, undefined, "Clocked out automatically — the task was completed.");
       const updated = await db.updateTask(input.id, { status: "completed", completedAt: new Date().toISOString() });
       if (updated?.jobId) await maybeAutoCompleteJobFromTasks(updated.jobId);
       return updated;
@@ -3745,6 +4093,18 @@ const tasksRouter = router({
   // stays staff-only) — this is scoped narrowly so a technician can add
   // notes from the field without being able to reassign, reprioritise, or
   // rename the task.
+  reopen: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
+    const task = await db.getTaskById(input.id);
+    if (!task) throw new TRPCError({ code: "NOT_FOUND", message: "This task no longer exists. Refresh the job page." });
+    if (task.status !== "completed") throw new TRPCError({ code: "BAD_REQUEST", message: "Only a completed task can be reopened." });
+    const job = await db.getJobById(task.jobId);
+    if (job && (job.status === "closed" || job.status === "cancelled")) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: `This job is ${job.status}, so its tasks can't be reopened.` });
+    }
+    return await db.updateTask(input.id, { status: "not_started", completedAt: null, startedAt: null, pausedAt: null });
+  }),
+
   addNote: protectedProcedure
     .input(z.object({ id: z.number(), note: z.string().trim().min(1).max(5000) }))
     .mutation(async ({ input, ctx }) => {
@@ -3880,6 +4240,7 @@ const jobCostsRouter = router({
         invoiceNumber: z.string().max(100).optional(),
         purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         gstAmount: z.number().nonnegative().max(100000000).optional(),
+        documentId: z.number().optional(),
         notes: z.string().max(5000).optional(),
       })
     )
@@ -3890,7 +4251,7 @@ const jobCostsRouter = router({
       try {
         const job = await db.getJobById(input.jobId);
         if (!job) throw new TRPCError({ code: "NOT_FOUND", message: "The selected job no longer exists. Return to Job Costs and refresh the list." });
-        const totalCost = Math.round(input.quantity * input.unitCost * 100) / 100;
+        const totalCost = Math.round((input.quantity * input.unitCost + (input.gstAmount || 0)) * 100) / 100;
         if (!Number.isFinite(totalCost) || totalCost > 100000000) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "This cost total is too large. Check the quantity and unit cost." });
         }
@@ -3920,6 +4281,116 @@ const jobCostsRouter = router({
         if (error instanceof TRPCError) throw error;
         console.error("Error creating job cost:", error);
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The cost could not be saved. Check the job and amounts, then try again." });
+      }
+    }),
+
+  itemCodes: protectedProcedure.query(async ({ ctx }) => {
+    if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
+    return await db.getDistinctJobCostItemCodes();
+  }),
+
+  // One supplier invoice with several lines (each its own item code, account
+  // and tax rate) — stored as one cost row per line, all sharing the supplier,
+  // invoice number and uploaded invoice file.
+  createBill: protectedProcedure
+    .input(
+      z.object({
+        jobId: z.number(),
+        supplier: z.string().trim().min(1).max(200),
+        invoiceNumber: z.string().trim().max(100).optional(),
+        purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        documentId: z.number().optional(),
+        lines: z
+          .array(
+            z.object({
+              itemCode: z.string().trim().max(100).optional(),
+              description: z.string().trim().min(1).max(500),
+              quantity: z.number().positive().max(1000000),
+              unitCost: z.number().nonnegative().max(100000000),
+              discountPercent: z.number().min(0).max(100).default(0),
+              taxRate: z.number().min(0).max(100).default(0),
+              category: z.enum(["labour", "subcontractor", "travel", "equipment", "material"]),
+            })
+          )
+          .min(1)
+          .max(100),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
+      const job = await db.getJobById(input.jobId);
+      if (!job) throw new TRPCError({ code: "NOT_FOUND", message: "The selected job no longer exists. Return to Job Costs and refresh the list." });
+      if (input.documentId && !(await db.getDocumentById(input.documentId))) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "The uploaded invoice file could not be found. Upload it again." });
+      }
+      const created = [];
+      for (const line of input.lines) {
+        const net = Math.round(line.quantity * line.unitCost * (1 - line.discountPercent / 100) * 100) / 100;
+        const gstAmount = Math.round(net * (line.taxRate / 100) * 100) / 100;
+        const totalCost = Math.round((net + gstAmount) * 100) / 100;
+        created.push(
+          await db.createJobCost({
+            jobId: input.jobId,
+            category: line.category,
+            description: line.description,
+            itemCode: line.itemCode || undefined,
+            discountPercent: line.discountPercent,
+            quantity: line.quantity,
+            unitCost: line.unitCost,
+            totalCost,
+            gstAmount,
+            supplier: input.supplier,
+            invoiceNumber: input.invoiceNumber,
+            purchaseDate: input.purchaseDate,
+            documentId: input.documentId,
+            createdBy: ctx.user.id,
+          })
+        );
+      }
+      return created;
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        category: z.enum(["labour", "subcontractor", "travel", "equipment", "material"]).optional(),
+        description: z.string().trim().min(1).max(500).optional(),
+        quantity: z.number().positive().max(1000000).optional(),
+        unitCost: z.number().nonnegative().max(100000000).optional(),
+        supplier: z.string().max(200).nullable().optional(),
+        invoiceNumber: z.string().max(100).nullable().optional(),
+        purchaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        gstAmount: z.number().nonnegative().max(100000000).nullable().optional(),
+        documentId: z.number().nullable().optional(),
+        itemCode: z.string().trim().max(100).nullable().optional(),
+        discountPercent: z.number().min(0).max(100).optional(),
+        notes: z.string().max(5000).nullable().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (!isFinanceStaff(ctx.user.role)) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      try {
+        const { id, ...data } = input;
+        const existing = await db.getJobCostById(id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "This cost entry no longer exists. Refresh Job Costs and try again." });
+
+        const quantity = data.quantity ?? existing.quantity;
+        const unitCost = data.unitCost ?? existing.unitCost;
+        const gstAmount = data.gstAmount !== undefined ? data.gstAmount || 0 : existing.gstAmount || 0;
+        const discountPercent = data.discountPercent ?? existing.discountPercent ?? 0;
+        const totalCost = Math.round((quantity * unitCost * (1 - discountPercent / 100) + gstAmount) * 100) / 100;
+        if (!Number.isFinite(totalCost) || totalCost > 100000000) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "This cost total is too large. Check the quantity and unit cost." });
+        }
+
+        return await db.updateJobCost(id, { ...data, totalCost });
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        console.error("Error updating job cost:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The cost could not be updated. Check the amounts, then try again." });
       }
     }),
 
@@ -5500,7 +5971,11 @@ const invoicesRouter = router({
       }
 
       const rawAmount = input.adjustedAmount !== undefined ? input.adjustedAmount : quoteAmount;
-      const amountChanged = input.adjustedAmount !== undefined && Math.abs(input.adjustedAmount - quoteAmount) > 0.001;
+      // "Changed from the quote" only means something when there's a quote
+      // amount to compare against — a job with no linked quote has nothing
+      // to differ from, so entering its invoice amount isn't a change that
+      // needs explaining.
+      const amountChanged = quoteAmount > 0 && input.adjustedAmount !== undefined && Math.abs(input.adjustedAmount - quoteAmount) > 0.001;
       if (amountChanged && !input.adjustmentReason?.trim()) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Explain why the invoice differs from the accepted quote." });
       }
@@ -5523,7 +5998,11 @@ const invoicesRouter = router({
         originalQuoteAmount: amountChanged ? quoteAmount : null,
         adjustmentReason: amountChanged ? input.adjustmentReason || null : null,
         requiresApproval: amountChanged && !noBalance,
-        reviewDiscountOffered: !noBalance && input.offerReviewDiscount && !!ENV.googleReviewUrl,
+        reviewDiscountOffered:
+          !noBalance &&
+          input.offerReviewDiscount &&
+          !!ENV.googleReviewUrl &&
+          (await customerQualifiesForReviewDiscount(job.customerId, job.quoteId)),
         status: noBalance ? "paid" : "draft",
         paymentMethod: noBalance ? "no_balance" : null,
         paidAt: noBalance ? new Date().toISOString() : null,
@@ -5632,6 +6111,10 @@ const invoicesRouter = router({
     }
     if (!invoice.reviewDiscountOffered) throw new TRPCError({ code: "BAD_REQUEST", message: "No review discount is offered on this invoice." });
     if (invoice.reviewDiscountClaimed) throw new TRPCError({ code: "BAD_REQUEST", message: "This discount has already been applied." });
+    const claimedElsewhere = (await db.getAllInvoices()).some(
+      (i) => i.customerId === invoice.customerId && i.id !== invoice.id && i.reviewDiscountClaimed
+    );
+    if (claimedElsewhere) throw new TRPCError({ code: "BAD_REQUEST", message: "The review discount can only be used once per customer." });
     if (invoice.status === "paid") throw new TRPCError({ code: "BAD_REQUEST", message: "This invoice is already paid." });
     if (invoice.status !== "sent") throw new TRPCError({ code: "BAD_REQUEST", message: "Only a sent invoice can receive a discount." });
     if (invoice.requiresApproval && !invoice.approvedAt) {
@@ -5669,6 +6152,17 @@ const invoicesRouter = router({
       }
     }
     return await db.getInvoiceById(invoice.id);
+  }),
+
+  // The Xero-hosted "view and pay" page for an invoice, when one exists.
+  xeroPayLink: protectedProcedure.input(z.object({ invoiceId: z.number() })).query(async ({ input, ctx }) => {
+    const invoice = await db.getInvoiceById(input.invoiceId);
+    if (!invoice) throw new TRPCError({ code: "NOT_FOUND" });
+    if (ctx.user.role !== "customer" || invoice.customerId !== ctx.user.customerId) {
+      throw new TRPCError({ code: "FORBIDDEN" });
+    }
+    if (invoice.status !== "sent") return { url: null };
+    return { url: await getXeroOnlineInvoiceUrl(invoice.id) };
   }),
 
   createPaymentIntent: protectedProcedure.input(z.object({ invoiceId: z.number() })).mutation(async ({ input, ctx }) => {
@@ -6034,7 +6528,7 @@ const documentsRouter = router({
       const all = await db.getDocuments();
       if (ctx.user.role === "customer") {
         if (!ctx.user.customerId) return [];
-        return all.filter((document) => document.customerId === ctx.user.customerId);
+        return all.filter((document) => document.customerId === ctx.user.customerId && document.documentType !== "invoice");
       }
       if (ctx.user.role === "technician") {
         const assigned = await technicianAssignedJobs(ctx.user.employeeId);
@@ -6061,7 +6555,9 @@ const documentsRouter = router({
     if (ctx.user.role === "technician" && !(await technicianIsAssigned(ctx.user.employeeId, input))) {
       throw new TRPCError({ code: "FORBIDDEN" });
     }
-    return await db.getDocumentsByJob(input);
+    const jobDocuments = await db.getDocumentsByJob(input);
+    // Scanned receipts / supplier invoices carry cost information — office only.
+    return isFinanceStaff(ctx.user.role) ? jobDocuments : jobDocuments.filter((d) => d.documentType !== "invoice");
   }),
 
   listByQuote: protectedProcedure.input(z.number()).query(async ({ input, ctx }) => {
@@ -6110,6 +6606,62 @@ const documentsRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
     }),
+
+  // Comments on photos — staff and the owning customer can both read/add;
+  // technicians only on jobs they're assigned to.
+  commentsFor: protectedProcedure.input(z.array(z.number()).max(500)).query(async ({ input, ctx }) => {
+    const allowed: number[] = [];
+    for (const id of input) {
+      const document = await db.getDocumentById(id);
+      if (!document) continue;
+      if (ctx.user.role === "customer") {
+        if (!(await customerOwnsDocument(ctx.user.customerId, document))) continue;
+      } else if (ctx.user.role === "technician" && !(await technicianCanAccessDocument(ctx.user.employeeId, document))) {
+        continue;
+      }
+      allowed.push(id);
+    }
+    return await db.getDocumentComments(allowed);
+  }),
+
+  addComment: protectedProcedure
+    .input(z.object({ documentId: z.number(), body: z.string().trim().min(1).max(2000) }))
+    .mutation(async ({ input, ctx }) => {
+      const document = await db.getDocumentById(input.documentId);
+      if (!document) throw new TRPCError({ code: "NOT_FOUND", message: "That photo no longer exists." });
+      if (ctx.user.role === "customer") {
+        if (!(await customerOwnsDocument(ctx.user.customerId, document))) throw new TRPCError({ code: "FORBIDDEN" });
+      } else if (ctx.user.role === "technician" && !(await technicianCanAccessDocument(ctx.user.employeeId, document))) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+      return await db.addDocumentComment({
+        documentId: input.documentId,
+        authorUserId: ctx.user.id,
+        authorName: ctx.user.name || ctx.user.email || "Unknown",
+        authorRole: ctx.user.role,
+        body: input.body,
+      });
+    }),
+
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+    if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
+    const document = await db.getDocumentById(input.id);
+    if (!document) throw new TRPCError({ code: "NOT_FOUND", message: "That file no longer exists." });
+    if (document.documentType === "invoice") {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Invoice documents can't be deleted here." });
+    }
+    try {
+      await db.deleteDocumentRow(input.id);
+      const uploadsDir = ENV.persistentDataDir ? path.join(ENV.persistentDataDir, "uploads") : path.resolve(__dirname, "../uploads");
+      const filePath = path.join(uploadsDir, document.storageKey);
+      if (filePath.startsWith(uploadsDir) && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      await db.logAuditEvent({ userId: ctx.user.id, action: "delete", entityType: "document", entityId: input.id, changes: { fileName: document.fileName }, ipAddress: ctx.req?.ip || null }).catch(() => {});
+      return { success: true } as const;
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The file could not be deleted. Try again." });
+    }
+  }),
 });
 
 // ============================================================================
@@ -6467,6 +7019,29 @@ const analyticsRouter = router({
 // ============================================================================
 
 const administrationRouter = router({
+  accessRules: protectedProcedure.query(async ({ ctx }) => {
+    if (!hasRole(ctx.user.role, "ADMIN")) throw new TRPCError({ code: "FORBIDDEN" });
+    return {
+      rules: await loadAccessRules(),
+      modules: ACCESS_MODULES.map(({ key, label }) => ({ key, label })),
+      roles: [...CONFIGURABLE_ROLES],
+      actions: [...ACCESS_ACTIONS],
+    };
+  }),
+
+  saveAccessRules: protectedProcedure.input(z.object({ rules: z.record(z.string(), z.record(z.string(), z.array(z.string()))) })).mutation(async ({ input, ctx }) => {
+    if (!hasRole(ctx.user.role, "ADMIN")) throw new TRPCError({ code: "FORBIDDEN" });
+    const clean = sanitizeAccessRules(input.rules);
+    await db.upsertSetting("access_rules", JSON.stringify(clean), "Per-role view/add/edit/delete switches");
+    clearAccessRulesCache();
+    try {
+      await db.logAuditEvent({ userId: ctx.user.id, action: "update", entityType: "access_rules", entityId: null, changes: clean as any, ipAddress: ctx.req?.ip || null });
+    } catch (auditError) {
+      console.error("Failed to write audit log:", auditError);
+    }
+    return { success: true } as const;
+  }),
+
   // A lightweight, non-admin-only staff directory — just enough (id, name,
   // email, role) to populate an "Assign to" dropdown on quotes, jobs,
   // invoices, inventory, and material requests. The full `users` query
@@ -6756,6 +7331,11 @@ const administrationRouter = router({
 
   // Same pattern — a staff member creating a quote needs to read this
   // without needing full admin-only settings access.
+  gstRate: protectedProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role === "customer") throw new TRPCError({ code: "FORBIDDEN" });
+    return { percent: await db.getGstRatePercent() };
+  }),
+
   quoteExpiryDays: protectedProcedure.query(async ({ ctx }) => {
     if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
     const allSettings = await db.getSettings();
@@ -6770,6 +7350,7 @@ const administrationRouter = router({
         key: z.enum([
           "quote_expiry_days",
           "deposit_percentage",
+          "gst_rate_percent",
           "company_name",
           "company_email",
           "morning_briefing_recipient_ids",
@@ -6815,6 +7396,15 @@ const administrationRouter = router({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Deposit percentage must be between 0 and 100. Open Administration → Settings and enter a valid percentage.",
+          });
+        }
+      }
+      if (input.key === "gst_rate_percent") {
+        const rate = Number(value);
+        if (value === "" || !Number.isFinite(rate) || rate < 0 || rate > 50) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "GST rate must be a percentage from 0 to 50. Open Administration → Settings and enter a valid rate, e.g. 10.",
           });
         }
       }
@@ -7159,8 +7749,8 @@ const importsRouter = router({
             const rawRole = importField(row, "role").toLowerCase().replace(/\s+/g, "_");
             const role = rawRole === "office" ? "office_staff" : rawRole;
             if (!name) throw new Error("Employee name is required.");
-            if (!["technician", "office_staff", "management"].includes(role)) {
-              throw new Error("Role must be technician, office_staff, or management. Admin login access is granted separately in Administration → Users.");
+            if (!["technician", "subcontractor", "office_staff", "management"].includes(role)) {
+              throw new Error("Role must be technician, subcontractor, office_staff, or management. Admin login access is granted separately in Administration → Users.");
             }
             if (email && !z.string().email().safeParse(email).success) throw new Error("Email address is invalid.");
             if (email && employeeList.some((employee) => employee.email?.trim().toLowerCase() === email)) {

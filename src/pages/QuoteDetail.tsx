@@ -25,6 +25,13 @@ import { useLocation, useRoute, useSearch } from "wouter";
 import { toast } from "sonner";
 import { LineItemsEditor, type LineItem } from "@/components/LineItemsEditor";
 import { PhotoGallery } from "@/components/PhotoGallery";
+import {
+  QuotePricingFields,
+  DEFAULT_QUOTE_PRICING,
+  computeQuoteMoney,
+  quotePricingPayload,
+  type QuotePricing,
+} from "@/components/QuotePricingFields";
 import { showErrorToast } from "@/lib/errors";
 
 const statusColors: Record<string, { bg: string; text: string }> = {
@@ -51,8 +58,13 @@ export default function QuoteDetail() {
     notes: "",
     expiryDate: "",
     assignedUserId: "",
+    customerId: "",
+    vesselId: "",
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [pricing, setPricing] = useState<QuotePricing>(DEFAULT_QUOTE_PRICING);
+  const customersQuery = trpc.customers.list.useQuery();
+  const vesselsQuery = trpc.vessels.list.useQuery();
 
   const quoteQuery = trpc.quotes.getById.useQuery(quoteId || 0, {
     enabled: !!quoteId,
@@ -64,7 +76,10 @@ export default function QuoteDetail() {
   const labourAmount = parseFloat(formData.laborCost) || 0;
   const partsAmount = parseFloat(formData.partsCost) || 0;
   const hasBreakdown = lineItems.length > 0 || formData.laborCost.trim() !== "" || formData.partsCost.trim() !== "";
-  const calculatedTotal = Math.round((lineItemsTotal + labourAmount + partsAmount) * 100) / 100;
+  const gstQuery = trpc.administration.gstRate.useQuery();
+  const gstPercent = gstQuery.data?.percent;
+  const breakdown = computeQuoteMoney(lineItems, labourAmount, partsAmount, pricing, gstPercent);
+  const calculatedTotal = breakdown.total;
 
   // A freshly created revision lands here straight from "Create Revision"
   // (via setLocation, not a full page load) — open it directly in edit
@@ -89,6 +104,14 @@ export default function QuoteDetail() {
         notes: quoteQuery.data.notes || "",
         expiryDate: (quoteQuery.data as any).expiryDate || "",
         assignedUserId: (quoteQuery.data as any).assignedUserId?.toString() || "",
+        customerId: (quoteQuery.data as any).customerId?.toString() || "",
+        vesselId: (quoteQuery.data as any).vesselId?.toString() || "",
+      });
+      setPricing({
+        taxMode: ((quoteQuery.data as any).taxMode as any) || "none",
+        discountType: ((quoteQuery.data as any).discountType as any) || "none",
+        discountValue: (quoteQuery.data as any).discountValue ? String((quoteQuery.data as any).discountValue) : "",
+        paymentTermsDays: String((quoteQuery.data as any).paymentTermsDays ?? 7),
       });
       const rawItems = Array.isArray((quoteQuery.data as any).lineItems)
         ? (quoteQuery.data as any).lineItems
@@ -96,6 +119,8 @@ export default function QuoteDetail() {
       setLineItems(
         rawItems.map((item: any) => ({
           id: crypto.randomUUID(),
+          accountCode: item.accountCode || "",
+          gstApplicable: item.gstApplicable !== false,
           description: item.description || "",
           quantity: item.quantity ?? 1,
           unitPrice: item.unitPrice ?? 0,
@@ -104,16 +129,28 @@ export default function QuoteDetail() {
     }
   }, [quoteQuery.data]);
 
+  const quote = quoteQuery.data;
+  const isDraftLike = (quote as any)?.status === "draft" || (quote as any)?.status === "pending_approval";
+  const editVessels = (vesselsQuery.data || []).filter((v: any) => v.customerId === parseInt(formData.customerId || "0"));
+
   const handleSave = async () => {
     if (!quoteId) return;
     try {
       await updateMutation.mutateAsync({
         id: quoteId,
-        lineItems: lineItems.map(({ description, quantity, unitPrice }) => ({
+        lineItems: lineItems.map(({ description, quantity, unitPrice, accountCode, gstApplicable }) => ({
           description,
           quantity,
           unitPrice,
+          accountCode: accountCode || undefined,
+          gstApplicable: gstApplicable !== false,
         })),
+        ...quotePricingPayload(pricing),
+        ...(isDraftLike && formData.customerId && parseInt(formData.customerId) !== (quote as any)?.customerId
+          ? { customerId: parseInt(formData.customerId), vesselId: formData.vesselId ? parseInt(formData.vesselId) : null }
+          : isDraftLike && formData.vesselId !== ((quote as any)?.vesselId?.toString() || "")
+            ? { vesselId: formData.vesselId ? parseInt(formData.vesselId) : null }
+            : {}),
         laborCost: formData.laborCost ? parseFloat(formData.laborCost) : 0,
         partsCost: formData.partsCost ? parseFloat(formData.partsCost) : 0,
         totalAmount: hasBreakdown
@@ -157,8 +194,6 @@ export default function QuoteDetail() {
     );
   }
 
-  const quote = quoteQuery.data;
-
   const formatCurrency = (value: number | null) => {
     if (!value) return "$0.00";
     return new Intl.NumberFormat("en-AU", {
@@ -180,7 +215,7 @@ export default function QuoteDetail() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       {/* Header */}
       <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-2xl px-6 py-6">
+        <div className="mx-auto max-w-5xl px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -204,6 +239,9 @@ export default function QuoteDetail() {
             </div>
             {!isEditing ? (
               <div className="flex gap-2">
+                <Button variant="outline" onClick={() => window.open(`/api/quotes/${quoteId}/pdf`, "_blank")}>
+                  Preview / Download PDF
+                </Button>
                 <SendQuoteButton quoteId={quoteId} status={(quote as any)?.status} />
                 <CreateRevisionButton quoteId={quoteId} status={(quote as any)?.status} />
                 <Button
@@ -236,7 +274,7 @@ export default function QuoteDetail() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-2xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-6 py-8">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Status */}
           <Card className="border-slate-200 bg-white shadow-sm">
@@ -290,6 +328,47 @@ export default function QuoteDetail() {
           <div className="p-6">
             {isEditing ? (
               <div className="space-y-6">
+                {isDraftLike && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900">Customer</label>
+                      <Select
+                        value={formData.customerId}
+                        onValueChange={(v) => setFormData({ ...formData, customerId: v, vesselId: "" })}
+                      >
+                        <SelectTrigger className="mt-1 border-slate-200">
+                          <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(customersQuery.data || []).map((c: any) => (
+                            <SelectItem key={c.id} value={c.id.toString()}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900">Vessel</label>
+                      <Select
+                        value={formData.vesselId || "none"}
+                        onValueChange={(v) => setFormData({ ...formData, vesselId: v === "none" ? "" : v })}
+                      >
+                        <SelectTrigger className="mt-1 border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No vessel</SelectItem>
+                          {editVessels.map((v: any) => (
+                            <SelectItem key={v.id} value={v.id.toString()}>
+                              {v.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
                 <LineItemsEditor items={lineItems} onChange={setLineItems} />
 
                 <div className="grid grid-cols-2 gap-4">
@@ -323,22 +402,19 @@ export default function QuoteDetail() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-900">
-                    Total Amount
-                  </label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={hasBreakdown ? calculatedTotal.toFixed(2) : formData.totalAmount}
-                    onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-                    readOnly={hasBreakdown}
-                    className="mt-1 border-slate-200"
-                  />
-                  {hasBreakdown && (
-                    <p className="mt-1 text-xs text-slate-500">Calculated automatically from line items, labour, and parts.</p>
-                  )}
-                </div>
+                <QuotePricingFields value={pricing} onChange={setPricing} breakdown={breakdown} showBreakdown={hasBreakdown} gstPercent={gstPercent} />
+                {!hasBreakdown && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900">Total Amount</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.totalAmount}
+                      onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
+                      className="mt-1 border-slate-200"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
@@ -404,7 +480,9 @@ export default function QuoteDetail() {
                       {lineItems.map((item) => (
                         <div key={item.id} className="flex items-center justify-between px-4 py-2 text-sm">
                           <span className="text-slate-700">
+                            {item.accountCode ? <span className="mr-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{item.accountCode}</span> : null}
                             {item.description} {item.quantity !== 1 ? `× ${item.quantity}` : ""}
+                            {item.gstApplicable === false ? <span className="ml-2 text-xs text-slate-400">no GST</span> : null}
                           </span>
                           <span className="font-medium text-slate-900">
                             {formatCurrency(item.quantity * item.unitPrice)}
@@ -436,6 +514,30 @@ export default function QuoteDetail() {
                   </div>
                 </div>
 
+                {(Number((quote as any)?.discountAmount || 0) > 0 || ((quote as any)?.taxMode !== "none" && Number((quote as any)?.taxAmount || 0) > 0)) && (
+                  <dl className="ml-auto w-full max-w-xs space-y-1 text-sm">
+                    <div className="flex justify-between text-slate-600">
+                      <dt>Subtotal</dt>
+                      <dd>{formatCurrency(Number((quote as any)?.subtotalAmount || 0))}</dd>
+                    </div>
+                    {Number((quote as any)?.discountAmount || 0) > 0 && (
+                      <div className="flex justify-between text-slate-600">
+                        <dt>Discount</dt>
+                        <dd>-{formatCurrency(Number((quote as any)?.discountAmount || 0))}</dd>
+                      </div>
+                    )}
+                    {(quote as any)?.taxMode !== "none" && Number((quote as any)?.taxAmount || 0) > 0 && (
+                      <div className="flex justify-between text-slate-600">
+                        <dt>{(quote as any)?.taxMode === "inclusive" ? "Includes GST" : "GST"}</dt>
+                        <dd>{formatCurrency(Number((quote as any)?.taxAmount || 0))}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+                <p className="text-sm text-slate-500">
+                  Payment terms: {(quote as any)?.paymentTermsDays ? `Net ${(quote as any).paymentTermsDays} days` : "Due on receipt"}
+                </p>
+
                 {(quote as any)?.notes && (
                   <div>
                     <h3 className="font-medium text-slate-900">Notes</h3>
@@ -461,12 +563,21 @@ export default function QuoteDetail() {
 
 function SendQuoteButton({ quoteId, status }: { quoteId: number | null; status?: string }) {
   const utils = trpc.useUtils();
+  const [emailFailed, setEmailFailed] = useState(false);
   const updateMutation = trpc.quotes.update.useMutation({
-    onSuccess: () => {
-      toast.success("Quote sent to customer — they can now accept or reject it");
+    onSuccess: (_data, vars) => {
+      toast.success(
+        vars.sendWithoutEmail
+          ? "Quote marked as sent — the customer can now accept or reject it"
+          : "Quote sent to customer — they can now accept or reject it"
+      );
+      setEmailFailed(false);
       if (quoteId) utils.quotes.getById.invalidate(quoteId);
     },
-    onError: (err) => showErrorToast(err),
+    onError: (err) => {
+      setEmailFailed(true);
+      showErrorToast(err);
+    },
   });
 
   // Any pre-send state (draft, or the unused "pending approval" holdover from
@@ -475,14 +586,26 @@ function SendQuoteButton({ quoteId, status }: { quoteId: number | null; status?:
   if (status && status !== "draft" && status !== "pending_approval") return null;
 
   return (
-    <Button
-      variant="outline"
-      className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
-      onClick={() => quoteId && updateMutation.mutate({ id: quoteId, status: "sent" })}
-      disabled={!quoteId || updateMutation.isPending}
-    >
-      {updateMutation.isPending ? "Sending..." : "Send Quote to Customer"}
-    </Button>
+    <div className="flex gap-2">
+      <Button
+        variant="outline"
+        className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+        onClick={() => quoteId && updateMutation.mutate({ id: quoteId, status: "sent" })}
+        disabled={!quoteId || updateMutation.isPending}
+      >
+        {updateMutation.isPending ? "Sending..." : "Send Quote to Customer"}
+      </Button>
+      {emailFailed && (
+        <Button
+          variant="outline"
+          title="Use this if email isn't set up yet — download the PDF and send it yourself"
+          onClick={() => quoteId && updateMutation.mutate({ id: quoteId, status: "sent", sendWithoutEmail: true })}
+          disabled={!quoteId || updateMutation.isPending}
+        >
+          Mark as sent (no email)
+        </Button>
+      )}
+    </div>
   );
 }
 

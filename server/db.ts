@@ -14,6 +14,8 @@ import {
   jobs,
   employees,
   jobAssignments,
+  taskAssignments,
+  documentComments,
   timeEntries,
   schedules,
   documents,
@@ -386,7 +388,7 @@ export async function updateJob(id: number, data: Partial<typeof jobs.$inferInse
   await db.update(jobs).set(data).where(eq(jobs.id, id));
 }
 
-export async function deleteJob(id: number) {
+export async function deleteJob(id: number, opts: { deleteTasks?: boolean } = {}) {
   const linkedInvoice = await db.select().from(invoices).where(eq(invoices.jobId, id));
   if (linkedInvoice.length > 0) {
     throw new Error(`Can't delete this job — invoice ${linkedInvoice[0].invoiceNumber} is linked to it.`);
@@ -404,11 +406,17 @@ export async function deleteJob(id: number) {
     db.select().from(antifoulingDetails).where(eq(antifoulingDetails.jobId, id)),
     db.select().from(documents).where(eq(documents.jobId, id)),
   ]);
+  // Explicitly asked for: the job's own tasks (and their assignee links) go
+  // with it. Everything else above still blocks.
+  if (opts.deleteTasks) {
+    for (const task of linkedTasks) await deleteTask(task.id);
+    linkedTasks.length = 0;
+  }
   if (linkedCosts.length > 0) {
     throw new Error(`Can't delete this job — it has ${linkedCosts.length} cost entr${linkedCosts.length === 1 ? "y" : "ies"} recorded against it. Remove those first.`);
   }
   if (linkedTasks.length > 0) {
-    throw new Error(`Can't delete this job — it has ${linkedTasks.length} task(s) recorded against it. Remove those first.`);
+    throw new Error(`Can't delete this job — it has ${linkedTasks.length} task(s) recorded against it. Tick "also delete its tasks", or remove them first.`);
   }
   if (linkedMaterialRequests.length > 0) {
     throw new Error(`Can't delete this job — it has ${linkedMaterialRequests.length} material request(s) on record. Remove those first.`);
@@ -441,13 +449,13 @@ export async function createEmployee(data: {
   name: string;
   email?: string;
   phone?: string;
-  role: "technician" | "office_staff" | "management";
+  role: "technician" | "subcontractor" | "office_staff" | "management";
 }) {
   const result = await db.insert(employees).values(data).returning();
   return result[0];
 }
 
-export async function getEmployees(role?: "technician" | "office_staff" | "management") {
+export async function getEmployees(role?: "technician" | "subcontractor" | "office_staff" | "management") {
   if (role) {
     return await db.select().from(employees).where(eq(employees.role, role)).orderBy(asc(employees.name));
   }
@@ -693,8 +701,14 @@ export async function getAllTimeEntries() {
   return await db.select().from(timeEntries).orderBy(desc(timeEntries.date));
 }
 
+export async function getTimeEntryById(id: number) {
+  const rows = await db.select().from(timeEntries).where(eq(timeEntries.id, id)).limit(1);
+  return rows[0] || null;
+}
+
 export async function updateTimeEntry(id: number, data: Partial<typeof timeEntries.$inferInsert>) {
-  await db.update(timeEntries).set(data).where(eq(timeEntries.id, id));
+  const result = await db.update(timeEntries).set(data).where(eq(timeEntries.id, id)).returning();
+  return result[0];
 }
 
 /** Every time entry that's still "clocked in" (real clockInTime, no
@@ -854,6 +868,23 @@ export async function updateDocumentCaption(id: number, caption: string) {
   await db.update(documents).set({ caption }).where(eq(documents.id, id));
 }
 
+export async function getDocumentComments(documentIds: number[]) {
+  if (documentIds.length === 0) return [];
+  const idSet = new Set(documentIds);
+  const rows = await db.select().from(documentComments).orderBy(asc(documentComments.createdAt));
+  return rows.filter((r) => idSet.has(r.documentId));
+}
+
+export async function addDocumentComment(data: typeof documentComments.$inferInsert) {
+  const result = await db.insert(documentComments).values(data).returning();
+  return result[0];
+}
+
+export async function deleteDocumentRow(id: number) {
+  await db.delete(documentComments).where(eq(documentComments.documentId, id));
+  await db.delete(documents).where(eq(documents.id, id));
+}
+
 export async function getDocuments() {
   return await db.select().from(documents).orderBy(desc(documents.createdAt));
 }
@@ -954,6 +985,16 @@ export async function getSettings() {
 /** Reads the configurable deposit percentage — falls back to 30% only if
  * an admin has never set one, so this is genuinely controlled by the
  * Administration settings screen, not a fixed constant pretending to be. */
+/** GST rate as a percentage (10 = 10%) — admin-configurable in Administration →
+ * Settings; 10 only if never set. Changing it affects quotes calculated from
+ * then on; a quote's stored totals never change on their own. */
+export async function getGstRatePercent(): Promise<number> {
+  const setting = (await getSettings()).find((s) => s.key === "gst_rate_percent");
+  if (setting?.value === undefined || setting.value === null || setting.value === "") return 10;
+  const parsed = parseFloat(setting.value);
+  return !isNaN(parsed) && parsed >= 0 && parsed <= 50 ? parsed : 10;
+}
+
 export async function getDepositPercentage(): Promise<number> {
   const all = await getSettings();
   const setting = all.find((s) => s.key === "deposit_percentage");
@@ -1356,6 +1397,9 @@ export async function createJobCost(data: {
   invoiceNumber?: string;
   purchaseDate?: string;
   gstAmount?: number;
+  documentId?: number;
+  itemCode?: string;
+  discountPercent?: number;
   notes?: string;
   createdBy?: number;
 }) {
@@ -1365,6 +1409,21 @@ export async function createJobCost(data: {
 
 export async function getJobCostsForJob(jobId: number) {
   return await db.select().from(jobCosts).where(eq(jobCosts.jobId, jobId)).orderBy(desc(jobCosts.createdAt));
+}
+
+export async function getDistinctJobCostItemCodes() {
+  const rows = await db.select().from(jobCosts);
+  return Array.from(new Set(rows.map((r) => r.itemCode).filter((c): c is string => !!c))).sort();
+}
+
+export async function getJobCostById(id: number) {
+  const rows = await db.select().from(jobCosts).where(eq(jobCosts.id, id)).limit(1);
+  return rows[0] || null;
+}
+
+export async function updateJobCost(id: number, data: Record<string, unknown>) {
+  const result = await db.update(jobCosts).set(data).where(eq(jobCosts.id, id)).returning();
+  return result[0];
 }
 
 export async function getAllJobCosts() {
@@ -1480,7 +1539,40 @@ export async function getTasksForJobs(jobIds: number[]) {
 }
 
 export async function getTasksForEmployee(employeeId: number) {
-  return await db.select().from(tasks).where(eq(tasks.assignedEmployeeId, employeeId));
+  const links = await db.select().from(taskAssignments).where(eq(taskAssignments.employeeId, employeeId));
+  const ids = new Set(links.map((l) => l.taskId));
+  const legacy = await db.select().from(tasks).where(eq(tasks.assignedEmployeeId, employeeId));
+  for (const t of legacy) ids.add(t.id);
+  if (ids.size === 0) return [];
+  const all = await db.select().from(tasks);
+  return all.filter((t) => ids.has(t.id));
+}
+
+export async function getAssigneesForTasks(taskIds: number[]) {
+  const map = new Map<number, number[]>();
+  if (taskIds.length === 0) return map;
+  const idSet = new Set(taskIds);
+  const rows = await db.select().from(taskAssignments);
+  for (const row of rows) {
+    if (!idSet.has(row.taskId)) continue;
+    map.set(row.taskId, [...(map.get(row.taskId) || []), row.employeeId]);
+  }
+  return map;
+}
+
+export async function getTaskAssigneeIds(taskId: number) {
+  return (await getAssigneesForTasks([taskId])).get(taskId) || [];
+}
+
+// Replaces the full set of people on a task. tasks.assignedEmployeeId is kept
+// pointing at the first of them so older screens/reports still show someone.
+export async function setTaskAssignees(taskId: number, employeeIds: number[]) {
+  const unique = Array.from(new Set(employeeIds));
+  await db.delete(taskAssignments).where(eq(taskAssignments.taskId, taskId));
+  for (const employeeId of unique) {
+    await db.insert(taskAssignments).values({ taskId, employeeId });
+  }
+  await db.update(tasks).set({ assignedEmployeeId: unique[0] ?? null, updatedAt: new Date().toISOString() }).where(eq(tasks.id, taskId));
 }
 
 export async function updateTask(id: number, data: Partial<typeof tasks.$inferInsert>) {
@@ -1490,6 +1582,8 @@ export async function updateTask(id: number, data: Partial<typeof tasks.$inferIn
 }
 
 export async function deleteTask(id: number) {
+  await db.delete(taskAssignments).where(eq(taskAssignments.taskId, id));
+  await db.update(timeEntries).set({ taskId: null }).where(eq(timeEntries.taskId, id));
   await db.delete(tasks).where(eq(tasks.id, id));
 }
 

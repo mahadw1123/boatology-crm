@@ -1,7 +1,5 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -9,208 +7,91 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TimeEntryDialog } from "@/components/TimeEntryDialog";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useJobDisplayName } from "@/lib/jobNaming";
-import { Clock, Plus } from "lucide-react";
+import { Clock, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
-import { showErrorToast } from "@/lib/errors";
+
+const fmtDay = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-AU", { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+const fmtTime = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" }) : "";
 
 export default function TimeTracking() {
-
-  const [selectedEmployee, setSelectedEmployee] = useState("");
-  const [selectedJob, setSelectedJob] = useState("");
-  const [isInternal, setIsInternal] = useState(false);
-  const [hours, setHours] = useState("");
-  const [notes, setNotes] = useState("");
+  const { user } = useAuth();
+  const isTechnician = user?.role === "technician";
+  const [selectedEmployee, setSelectedEmployee] = useState(isTechnician && user?.employeeId ? String(user.employeeId) : "");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
 
   const employeesQuery = trpc.employees.list.useQuery();
   const jobsQuery = trpc.jobs.list.useQuery();
   const { getDisplayName } = useJobDisplayName();
-  const timeEntriesQuery = trpc.timeEntries.listByEmployee.useQuery(
-    selectedEmployee ? parseInt(selectedEmployee) : 0,
-    { enabled: !!selectedEmployee }
-  );
-
-  const createTimeEntryMutation = trpc.timeEntries.create.useMutation();
-
-  const handleCreateTimeEntry = async () => {
-    if (!selectedEmployee || !hours || (!selectedJob && !isInternal)) {
-      toast.error("Select an employee, pick a job (or mark it internal/admin time), and enter the hours worked.");
-      return;
-    }
-
-    try {
-      await createTimeEntryMutation.mutateAsync({
-        employeeId: parseInt(selectedEmployee),
-        jobId: selectedJob ? parseInt(selectedJob) : undefined,
-        isInternalCost: isInternal,
-        date: new Date().toISOString().slice(0, 10),
-        hoursWorked: parseFloat(hours),
-        isManualEntry: true,
-        notes: notes || undefined,
-      });
-      toast.success("Time entry created successfully");
-      setHours("");
-      setNotes("");
-      setSelectedJob("");
-      setIsInternal(false);
-      timeEntriesQuery.refetch();
-    } catch (error) {
-      showErrorToast(error, "The time entry could not be saved. Check the employee, job, and hours, then try again.");
-      console.error(error);
-    }
-  };
+  const employeeId = selectedEmployee ? parseInt(selectedEmployee) : 0;
+  const timeEntriesQuery = trpc.timeEntries.listByEmployee.useQuery(employeeId, { enabled: !!selectedEmployee });
 
   const employees = employeesQuery.data || [];
   const jobs = jobsQuery.data || [];
-  const timeEntries = timeEntriesQuery.data || [];
-
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const totalHours = timeEntries.reduce(
-    (sum: number, entry: any) => sum + (entry.hoursWorked || 0),
-    0
+  const timeEntries = [...(timeEntriesQuery.data || [])].sort((a: any, b: any) =>
+    String(b.clockInTime || b.date).localeCompare(String(a.clockInTime || a.date))
   );
+  const totalHours = timeEntries.reduce((sum: number, entry: any) => sum + (entry.hoursWorked || 0), 0);
+
+  // Task names for the entries shown (one lookup per job that has any)
+  const jobIdsShown = Array.from(new Set(timeEntries.filter((e: any) => e.jobId && e.taskId).map((e: any) => e.jobId as number)));
+  const taskLookup = trpc.tasks.listForJobs.useQuery(jobIdsShown, { enabled: jobIdsShown.length > 0, retry: false });
+  const taskNames = new Map((taskLookup.data || []).map((t: any) => [t.id, t.name]));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      {/* Header */}
       <div className="border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">
-                Time Tracking
-              </h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Track employee hours worked on jobs
-              </p>
+              <h1 className="text-3xl font-semibold text-slate-900">Time Tracking</h1>
+              <p className="mt-1 text-sm text-slate-600">Log and review hours worked on jobs and tasks</p>
             </div>
             <Clock className="h-8 w-8 text-[#2d4160]" />
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="mx-auto max-w-7xl px-6 py-8">
-        {/* Create Time Entry Form */}
-        <Card className="mb-8 border-slate-200 bg-white shadow-sm">
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">
-              Log Time Entry
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-900">
-                  Employee *
-                </label>
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                  <SelectTrigger className="mt-1 border-slate-200">
-                    <SelectValue placeholder="Select employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employees.map((emp: any) => (
-                      <SelectItem key={emp.id} value={emp.id.toString()}>
-                        {emp.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900">
-                  {isInternal ? "Job" : "Job *"}
-                </label>
-                <Select value={selectedJob} onValueChange={setSelectedJob} disabled={isInternal}>
-                  <SelectTrigger className="mt-1 border-slate-200">
-                    <SelectValue placeholder={isInternal ? "Not tied to a job" : "Select job"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {jobs.map((job: any) => (
-                      <SelectItem key={job.id} value={job.id.toString()}>
-                        {getDisplayName(job)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <label className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={isInternal}
-                    onChange={(e) => {
-                      setIsInternal(e.target.checked);
-                      if (e.target.checked) setSelectedJob("");
-                    }}
-                    className="h-3.5 w-3.5 rounded border-slate-300"
-                  />
-                  Internal / admin time (not tied to a job)
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900">
-                  Hours *
-                </label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
-                  placeholder="Hours"
-                  className="mt-1 border-slate-200"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-900">
-                  Notes
-                </label>
-                <Input
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional notes"
-                  className="mt-1 border-slate-200"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <Button
-                  className="w-full bg-[#0c1e38] hover:bg-[#0c1e38]/90"
-                  onClick={handleCreateTimeEntry}
-                  disabled={createTimeEntryMutation.isPending}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Log Time
-                </Button>
-              </div>
-            </div>
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div className="w-72">
+            <label className="block text-sm font-medium text-slate-900">Employee</label>
+            <Select value={selectedEmployee} onValueChange={setSelectedEmployee} disabled={isTechnician}>
+              <SelectTrigger className="mt-1 border-slate-200 bg-white">
+                <SelectValue placeholder="Select employee to view their time" />
+              </SelectTrigger>
+              <SelectContent>
+                {employees.map((emp: any) => (
+                  <SelectItem key={emp.id} value={emp.id.toString()}>
+                    {emp.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </Card>
+          <Button
+            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            onClick={() => {
+              setEditing(null);
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Log Time
+          </Button>
+        </div>
 
-        {/* Time Entries List */}
         {selectedEmployee ? (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Time Entries
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">
-                  Total Hours: <span className="font-semibold">{totalHours}</span>
-                </p>
-              </div>
-            </div>
-
+            <p className="text-sm text-slate-600">
+              Total hours: <span className="font-semibold">{totalHours.toFixed(2)}</span>
+            </p>
             {timeEntries.length === 0 ? (
               <Card className="border-slate-200 bg-white shadow-sm">
                 <div className="p-8 text-center">
@@ -219,51 +100,56 @@ export default function TimeTracking() {
                 </div>
               </Card>
             ) : (
-              <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
+              <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50">
-                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900">
-                          Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900">
-                          Job
-                        </th>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900">
-                          Hours
-                        </th>
-                        <th className="px-6 py-3 text-left text-sm font-medium text-slate-900">
-                          Notes
-                        </th>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-sm font-medium text-slate-900">
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Job</th>
+                        <th className="px-4 py-3">Task</th>
+                        <th className="px-4 py-3">Start – Finish</th>
+                        <th className="px-4 py-3">Hours</th>
+                        <th className="px-4 py-3">Notes</th>
+                        {!isTechnician && <th className="w-10 px-4 py-3" />}
                       </tr>
                     </thead>
                     <tbody>
-                      {timeEntries.map((entry: any, idx: number) => (
-                        <tr
-                          key={entry.id}
-                          className={`border-b border-slate-200 ${
-                            idx % 2 === 0 ? "bg-white" : "bg-slate-50"
-                          }`}
-                        >
-                          <td className="px-6 py-4 text-sm text-slate-600">
-                            {formatDate(entry.createdAt)}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600">
-                            {(() => {
-                              const job = jobs.find((j: any) => j.id === entry.jobId);
-                              if (job) return getDisplayName(job);
-                              return entry.jobId ? `Job #${entry.jobId}` : "General Hours";
-                            })()}
-                          </td>
-                          <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                            {entry.hoursWorked} hrs
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600">
-                            {entry.notes || "—"}
-                          </td>
-                        </tr>
-                      ))}
+                      {timeEntries.map((entry: any, idx: number) => {
+                        const job = jobs.find((j: any) => j.id === entry.jobId);
+                        return (
+                          <tr key={entry.id} className={`border-b border-slate-200 ${idx % 2 === 0 ? "bg-white" : "bg-slate-50"}`}>
+                            <td className="px-4 py-3 text-sm text-slate-600">{fmtDay(entry.clockInTime || entry.date)}</td>
+                            <td className="px-4 py-3 text-sm text-slate-600">
+                              {job ? getDisplayName(job) : entry.jobId ? `Job #${entry.jobId}` : "General Hours"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-600">
+                              {entry.taskId ? taskNames.get(entry.taskId) || `Task #${entry.taskId}` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-600">
+                              {entry.clockInTime ? `${fmtTime(entry.clockInTime)} – ${entry.clockOutTime ? fmtTime(entry.clockOutTime) : "running"}` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                              {entry.hoursWorked != null ? `${entry.hoursWorked} hrs` : "…"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-600">{entry.notes || "—"}</td>
+                            {!isTechnician && (
+                              <td className="px-4 py-3">
+                                <button
+                                  className="text-slate-400 hover:text-slate-700"
+                                  title="Edit this entry"
+                                  onClick={() => {
+                                    setEditing(entry);
+                                    setDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -274,13 +160,19 @@ export default function TimeTracking() {
           <Card className="border-slate-200 bg-white shadow-sm">
             <div className="p-8 text-center">
               <Clock className="mx-auto h-12 w-12 text-slate-400" />
-              <p className="mt-4 text-slate-600">
-                Select an employee to view time entries
-              </p>
+              <p className="mt-4 text-slate-600">Select an employee to view time entries</p>
             </div>
           </Card>
         )}
       </div>
+
+      <TimeEntryDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        entry={editing}
+        defaultEmployeeId={employeeId || null}
+        onSaved={() => timeEntriesQuery.refetch()}
+      />
     </div>
   );
 }

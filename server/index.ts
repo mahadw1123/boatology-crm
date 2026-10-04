@@ -514,7 +514,7 @@ app.post("/api/uploads", requireUploadAuth, uploadLimiter, handleSingleUpload, a
     return;
   }
 
-  const { jobId, quoteId, vesselId, customerId, documentType, caption } = req.body as Record<string, string | undefined>;
+  const { jobId, quoteId, vesselId, customerId, documentType, caption, taskId } = req.body as Record<string, string | undefined>;
 
   const parsed = {
     jobId: parseOptionalPositiveId(jobId),
@@ -522,6 +522,12 @@ app.post("/api/uploads", requireUploadAuth, uploadLimiter, handleSingleUpload, a
     vesselId: parseOptionalPositiveId(vesselId),
     customerId: parseOptionalPositiveId(customerId),
   };
+  const parsedTaskId = parseOptionalPositiveId(taskId);
+  if (Number.isNaN(parsedTaskId)) {
+    cleanupFile();
+    apiError(res, 400, "The selected task is no longer valid. Reopen the job and try again.", "Return to job");
+    return;
+  }
   if (Object.values(parsed).some((value) => Number.isNaN(value))) {
     cleanupFile();
     apiError(res, 400, "The selected customer, vessel, quote, or job is no longer valid. Return to the record and reopen the upload panel.", "Return to record");
@@ -604,7 +610,19 @@ app.post("/api/uploads", requireUploadAuth, uploadLimiter, handleSingleUpload, a
       }
     }
 
+    let linkedTaskId: number | null = null;
+    if (parsedTaskId) {
+      const task = await db.getTaskById(parsedTaskId);
+      if (!task || !parsed.jobId || task.jobId !== parsed.jobId) {
+        cleanupFile();
+        apiError(res, 400, "That task does not belong to this job. Reopen the job and try again.", "Return to job");
+        return;
+      }
+      linkedTaskId = task.id;
+    }
+
     const doc = await db.createDocument({
+      taskId: linkedTaskId,
       jobId: parsed.jobId,
       quoteId: parsed.quoteId,
       vesselId: parsed.vesselId,
@@ -650,6 +668,104 @@ app.get("/api/admin/download-database", async (req, res) => {
     console.error("Database snapshot failed:", error);
     apiError(res, 500, "The database file could not be prepared. Try again; contact an administrator if it continues.", "Administration", "/administration");
   }
+});
+
+app.get("/api/quotes/:id/pdf", async (req, res) => {
+  const user = await requireAuthUser(req);
+  if (!user) {
+    apiError(res, 401, "Your session has expired. Sign in again before downloading a quote.", "Sign in", "/");
+    return;
+  }
+  const quoteId = Number(req.params.id);
+  const quote = Number.isInteger(quoteId) ? await db.getQuoteById(quoteId) : null;
+  if (!quote) {
+    apiError(res, 404, "That quote no longer exists. Return to Quotes and refresh.", "Quotes", "/quotes");
+    return;
+  }
+  const isStaff = ["admin", "office_staff", "management"].includes(user.role);
+  const isOwnCustomer = user.role === "customer" && user.customerId === quote.customerId && quote.status !== "draft" && quote.status !== "pending_approval";
+  if (!isStaff && !isOwnCustomer) {
+    apiError(res, 403, "You don't have access to this quote.", "Dashboard", "/");
+    return;
+  }
+
+  const customer = await db.getCustomerById(quote.customerId);
+  const vessel = quote.vesselId ? await db.getVesselById(quote.vesselId) : null;
+  let companyName = "Boatology";
+  try {
+    const setting = (await db.getSettings()).find((s) => s.key === "company_name");
+    if (setting?.value) companyName = setting.value;
+  } catch {}
+
+  const money = (n: number) => `$${(n || 0).toFixed(2)}`;
+  const items: any[] = Array.isArray(quote.lineItems) ? (quote.lineItems as any[]) : [];
+  const PDFDocument = (await import("pdfkit")).default;
+  const doc = new PDFDocument({ margin: 50, size: "A4" });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${(quote.quoteNumber || `quote-${quote.id}`).replace(/[^A-Za-z0-9._-]/g, "_")}.pdf"`);
+  doc.pipe(res);
+
+  doc.fontSize(22).fillColor("#0B2341").text(companyName);
+  doc.fontSize(12).fillColor("#666").text(`Quote ${quote.quoteNumber || `#${quote.id}`}${quote.status === "draft" ? "  (DRAFT)" : ""}`);
+  doc.moveDown(0.8);
+  doc.fontSize(10).fillColor("#333");
+  doc.text(`Customer: ${customer?.name || "—"}`);
+  if (vessel) doc.text(`Vessel: ${vessel.name}`);
+  doc.text(`Date: ${new Date(quote.createdAt).toLocaleDateString("en-AU")}`);
+  if (quote.expiryDate) doc.text(`Valid until: ${new Date(quote.expiryDate).toLocaleDateString("en-AU")}`);
+  doc.text(`Payment terms: ${quote.paymentTermsDays ? `Net ${quote.paymentTermsDays} days` : "Due on receipt"}`);
+  doc.moveDown(1);
+
+  const cols = { code: 50, desc: 140, qty: 330, price: 375, gst: 440, total: 475 };
+  const rowY = () => doc.y;
+  let y = rowY();
+  doc.fontSize(9).fillColor("#0B2341");
+  doc.text("Account", cols.code, y, { width: 85 });
+  doc.text("Description", cols.desc, y, { width: 185 });
+  doc.text("Qty", cols.qty, y, { width: 40, align: "right" });
+  doc.text("Unit", cols.price, y, { width: 60, align: "right" });
+  doc.text("GST", cols.gst, y, { width: 30, align: "right" });
+  doc.text("Total", cols.total, y, { width: 70, align: "right" });
+  doc.moveTo(50, doc.y + 2).lineTo(545, doc.y + 2).strokeColor("#cccccc").stroke();
+  doc.moveDown(0.6);
+  doc.fillColor("#333");
+  for (const item of items) {
+    y = rowY();
+    if (y > 740) {
+      doc.addPage();
+      y = doc.y;
+    }
+    doc.fontSize(9);
+    doc.text(item.accountCode || "", cols.code, y, { width: 85 });
+    doc.text(item.description || "", cols.desc, y, { width: 185 });
+    doc.text(String(item.quantity ?? 1), cols.qty, y, { width: 40, align: "right" });
+    doc.text(money(item.unitPrice || 0), cols.price, y, { width: 60, align: "right" });
+    doc.text(item.gstApplicable === false ? "No" : "Yes", cols.gst, y, { width: 30, align: "right" });
+    doc.text(money((item.quantity ?? 1) * (item.unitPrice || 0)), cols.total, y, { width: 70, align: "right" });
+    doc.moveDown(0.5);
+  }
+  if ((quote.laborCost || 0) > 0) doc.text(`Labour: ${money(quote.laborCost || 0)}`, 50);
+  if ((quote.partsCost || 0) > 0) doc.text(`Parts: ${money(quote.partsCost || 0)}`, 50);
+
+  doc.moveDown(1);
+  const totalsLine = (label: string, value: string, bold = false) => {
+    const ty = doc.y;
+    doc.fontSize(bold ? 11 : 10).fillColor(bold ? "#0B2341" : "#333");
+    doc.text(label, 340, ty, { width: 120 });
+    doc.text(value, 460, ty, { width: 85, align: "right" });
+  };
+  totalsLine("Subtotal", money(quote.subtotalAmount || quote.totalAmount || 0));
+  if ((quote.discountAmount || 0) > 0) totalsLine("Discount", `-${money(quote.discountAmount || 0)}`);
+  if (quote.taxMode !== "none" && (quote.taxAmount || 0) > 0) {
+    totalsLine(quote.taxMode === "inclusive" ? "Includes GST" : "GST", money(quote.taxAmount || 0));
+  }
+  totalsLine("Total", money(quote.totalAmount || 0), true);
+  if (quote.notes) {
+    doc.moveDown(2);
+    doc.fontSize(10).fillColor("#0B2341").text("Notes", 50);
+    doc.fillColor("#333").text(quote.notes, 50, doc.y, { width: 495 });
+  }
+  doc.end();
 });
 
 app.get("/api/reports/morning-briefing.pdf", async (req, res) => {

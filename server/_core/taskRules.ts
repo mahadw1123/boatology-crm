@@ -109,6 +109,10 @@ async function checkJobsCompletedWithoutFinalInvoice() {
   const [jobs, invoices] = await Promise.all([db.getJobs(), db.getAllInvoices()]);
   const finishedStatuses = new Set(["completed", "final_invoice", "customer_collection", "closed"]);
   const finishedJobs = jobs.filter((j) => finishedStatuses.has(j.status));
+  // A job reverted to in-progress (or cancelled) no longer needs a final invoice.
+  for (const job of jobs.filter((j) => !finishedStatuses.has(j.status))) {
+    await resolveTask(`JOB_NEEDS_FINAL_INVOICE:${job.id}`);
+  }
   let created = 0;
   for (const job of finishedJobs) {
     const hasFinalInvoice = invoices.some((inv) => inv.jobId === job.id && inv.invoiceType === "final");

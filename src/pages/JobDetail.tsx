@@ -28,7 +28,9 @@ import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { ReceiptScanner } from "@/components/ReceiptScanner";
-import { showErrorToast } from "@/lib/errors";
+import { JobTimesheet } from "@/components/JobTimesheet";
+import { SupplierBillForm } from "@/components/SupplierBillForm";
+import { showErrorToast, throwApiError } from "@/lib/errors";
 
 const statusColors: Record<string, { bg: string; text: string }> = {
   inspection: { bg: "bg-slate-100", text: "text-slate-700" },
@@ -494,6 +496,7 @@ export default function JobDetail() {
           <TabsList className="grid h-auto w-full grid-cols-3 sm:grid-cols-5">
             <TabsTrigger value="technicians">Technicians</TabsTrigger>
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="timesheet">Timesheet</TabsTrigger>
             <TabsTrigger value="antifouling">Antifouling</TabsTrigger>
             <TabsTrigger value="costs">Costs</TabsTrigger>
             <TabsTrigger value="photos">Photos</TabsTrigger>
@@ -511,6 +514,14 @@ export default function JobDetail() {
             <Card className="border-slate-200 bg-white shadow-sm">
               <div className="p-6">
                 <TasksSection jobId={jobId!} />
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="timesheet">
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <div className="p-6">
+                <JobTimesheet jobId={jobId!} />
               </div>
             </Card>
           </TabsContent>
@@ -550,7 +561,12 @@ function TechnicianAssignment({ jobId }: { jobId: number }) {
   const utils = trpc.useUtils();
 
   const assignmentsQuery = trpc.jobs.getAssignments.useQuery(jobId);
-  const employeesQuery = trpc.employees.list.useQuery({ role: "technician" });
+  // Technicians and subcontractors are both assignable to hands-on job work.
+  const allEmployeesQuery = trpc.employees.list.useQuery();
+  const employeesQuery = {
+    ...allEmployeesQuery,
+    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
+  };
 
   const assignMutation = trpc.jobs.assignTechnician.useMutation({
     onSuccess: () => {
@@ -687,11 +703,12 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
   };
 
   if (isEditingAmount) {
+    const hasQuote = quoteAmount > 0;
     return (
       <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
         <div>
           <label className="block text-xs font-medium text-slate-600">
-            Original quote amount: ${quoteAmount.toFixed(2)}
+            {hasQuote ? `Original quote amount: $${quoteAmount.toFixed(2)}` : "This job has no linked quote — enter the invoice amount directly."}
           </label>
           <label className="mt-1 block text-xs font-medium text-slate-900">Invoice amount</label>
           <Input
@@ -702,18 +719,20 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
             className="mt-1 h-8 w-40 border-slate-200"
           />
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-900">
-            What's changed? (the customer will see this)
-          </label>
-          <Textarea
-            value={adjustmentReason}
-            onChange={(e) => setAdjustmentReason(e.target.value)}
-            placeholder="e.g. Found additional corrosion during the hull inspection, required extra parts and labor."
-            rows={2}
-            className="mt-1 border-slate-200 text-sm"
-          />
-        </div>
+        {hasQuote && (
+          <div>
+            <label className="block text-xs font-medium text-slate-900">
+              What's changed? (the customer will see this)
+            </label>
+            <Textarea
+              value={adjustmentReason}
+              onChange={(e) => setAdjustmentReason(e.target.value)}
+              placeholder="e.g. Found additional corrosion during the hull inspection, required extra parts and labor."
+              rows={2}
+              className="mt-1 border-slate-200 text-sm"
+            />
+          </div>
+        )}
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -744,7 +763,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
           variant="outline"
           disabled={createMutation.isPending}
           onClick={() => {
-            if (hasUninvoicedApprovedWork) {
+            if (hasUninvoicedApprovedWork || !quoteAmount) {
               setEditedAmount(quoteAmount ? quoteAmount.toFixed(2) : "");
               setAdjustmentReason(job.additionalWorkNotes || "");
               setIsEditingAmount(true);
@@ -753,20 +772,22 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
             }
           }}
         >
-          {createMutation.isPending ? "Sending..." : "Create & Send Invoice"}
+          {createMutation.isPending ? "Sending..." : quoteAmount ? "Create & Send Invoice" : "Enter Amount & Invoice"}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Edit amount before sending"
-          onClick={() => {
-            setEditedAmount(quoteAmount ? quoteAmount.toFixed(2) : "");
-            setAdjustmentReason(hasUninvoicedApprovedWork ? job.additionalWorkNotes || "" : "");
-            setIsEditingAmount(true);
-          }}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
+        {!!quoteAmount && (
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Edit amount before sending"
+            onClick={() => {
+              setEditedAmount(quoteAmount ? quoteAmount.toFixed(2) : "");
+              setAdjustmentReason(hasUninvoicedApprovedWork ? job.additionalWorkNotes || "" : "");
+              setIsEditingAmount(true);
+            }}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -782,6 +803,11 @@ const costCategoryLabels: Record<string, string> = {
 
 function JobCostsSection({ jobId }: { jobId: number }) {
   const [isAdding, setIsAdding] = useState(false);
+  const [isBilling, setIsBilling] = useState(false);
+  const [attachingKey, setAttachingKey] = useState<string | null>(null);
+  const costDocsQuery = trpc.documents.listByJob.useQuery(jobId);
+  const costDocUrls = new Map((costDocsQuery.data || []).map((d: any) => [d.id, d.storageUrl as string]));
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [form, setForm] = useState({
     category: "material" as "labour" | "subcontractor" | "travel" | "equipment" | "material",
@@ -827,6 +853,54 @@ function JobCostsSection({ jobId }: { jobId: number }) {
     onError: (err) => showErrorToast(err),
   });
 
+  const updateMutation = trpc.jobCosts.update.useMutation({
+    onSuccess: () => {
+      toast.success("Cost updated");
+      utils.jobCosts.listForJob.invalidate(jobId);
+      utils.jobCosts.summaryForJob.invalidate(jobId);
+      setIsAdding(false);
+      setEditingId(null);
+      setForm({
+        category: "material",
+        description: "",
+        quantity: "1",
+        unitCost: "",
+        supplier: "",
+        invoiceNumber: "",
+        purchaseDate: "",
+        gstAmount: "",
+        notes: "",
+      });
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const attachMutation = trpc.jobCosts.update.useMutation({
+    onError: (err) => showErrorToast(err),
+  });
+
+  const attachInvoiceToGroup = async (groupKey: string, rows: any[], file: File) => {
+    setAttachingKey(groupKey);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("jobId", String(jobId));
+      formData.append("documentType", "invoice");
+      formData.append("caption", `Supplier invoice — ${rows[0].supplier || "supplier"}${rows[0].invoiceNumber ? ` ${rows[0].invoiceNumber}` : ""}`);
+      const res = await fetch("/api/uploads", { method: "POST", body: formData, credentials: "include" });
+      if (!res.ok) await throwApiError(res, "The invoice file could not be uploaded.");
+      const doc = await res.json();
+      for (const row of rows) await attachMutation.mutateAsync({ id: row.id, documentId: doc.id });
+      toast.success("Invoice attached");
+      utils.jobCosts.listForJob.invalidate(jobId);
+      utils.documents.listByJob.invalidate(jobId);
+    } catch (error) {
+      showErrorToast(error, "The invoice file could not be attached.");
+    } finally {
+      setAttachingKey(null);
+    }
+  };
+
   const deleteMutation = trpc.jobCosts.delete.useMutation({
     onSuccess: () => {
       toast.success("Removed");
@@ -843,9 +917,40 @@ function JobCostsSection({ jobId }: { jobId: number }) {
   const costs = costsQuery.data || [];
   const summary = summaryQuery.data;
 
+  const startEdit = (cost: any) => {
+    setForm({
+      category: cost.category,
+      description: cost.description,
+      quantity: String(cost.quantity),
+      unitCost: String(cost.unitCost),
+      supplier: cost.supplier || "",
+      invoiceNumber: cost.invoiceNumber || "",
+      purchaseDate: cost.purchaseDate || "",
+      gstAmount: cost.gstAmount ? String(cost.gstAmount) : "",
+      notes: cost.notes || "",
+    });
+    setEditingId(cost.id);
+    setIsAdding(true);
+  };
+
   const handleSubmit = () => {
     if (!form.description.trim() || !form.unitCost) {
       toast.error("Description and unit cost are required");
+      return;
+    }
+    if (editingId) {
+      updateMutation.mutate({
+        id: editingId,
+        category: form.category,
+        description: form.description.trim(),
+        quantity: parseFloat(form.quantity) || 1,
+        unitCost: parseFloat(form.unitCost),
+        supplier: form.supplier || null,
+        invoiceNumber: form.invoiceNumber || null,
+        purchaseDate: form.purchaseDate || null,
+        gstAmount: form.gstAmount ? parseFloat(form.gstAmount) : null,
+        notes: form.notes || null,
+      });
       return;
     }
     createMutation.mutate({
@@ -868,14 +973,21 @@ function JobCostsSection({ jobId }: { jobId: number }) {
         <h3 className="font-medium text-slate-900">Job Costs</h3>
         <div className="flex gap-2">
           <ReceiptScanner jobId={jobId} />
-          {!isAdding && (
-            <Button size="sm" variant="outline" onClick={() => setIsAdding(true)}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add Cost
-            </Button>
+          {!isAdding && !isBilling && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => setIsBilling(true)}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Add Supplier Bill
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setIsAdding(true)}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Add Cost
+              </Button>
+            </>
           )}
         </div>
       </div>
+      {isBilling && <SupplierBillForm jobId={jobId} onDone={() => setIsBilling(false)} />}
       <p className="mt-1 text-xs text-slate-500">
         Labour, subcontractors, travel, equipment hire, and materials — the real cost of doing
         this job, separate from what the customer's quoted.
@@ -1016,51 +1128,105 @@ function JobCostsSection({ jobId }: { jobId: number }) {
           </div>
           {form.quantity && form.unitCost && (
             <p className="text-sm text-slate-600">
-              Total: <span className="font-semibold">${(parseFloat(form.quantity || "0") * parseFloat(form.unitCost || "0")).toFixed(2)}</span>
+              Total: <span className="font-semibold">${(parseFloat(form.quantity || "0") * parseFloat(form.unitCost || "0") + parseFloat(form.gstAmount || "0")).toFixed(2)}</span>
             </p>
           )}
           <div className="flex gap-2">
-            <Button size="sm" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSubmit} disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Saving..." : "Save Cost"}
+            <Button size="sm" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
+              {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingId ? "Save Changes" : "Save Cost"}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setIsAdding(false)}>
+            <Button size="sm" variant="outline" onClick={() => { setIsAdding(false); setEditingId(null); }}>
               Cancel
             </Button>
           </div>
         </div>
       )}
 
-      {/* Cost list */}
-      {costs.length > 0 && (
-        <div className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-200">
-          {costs.map((cost: any) => (
-            <div key={cost.id} className="flex items-center justify-between p-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    {costCategoryLabels[cost.category]}
-                  </Badge>
-                  <span className="text-sm font-medium text-slate-900">{cost.description}</span>
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {cost.quantity} × ${cost.unitCost.toFixed(2)}
-                  {cost.supplier ? ` — ${cost.supplier}` : ""}
-                  {cost.purchaseDate ? ` — ${new Date(cost.purchaseDate).toLocaleDateString("en-AU")}` : ""}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-slate-900">${cost.totalCost.toFixed(2)}</span>
-                <button
-                  onClick={() => setDeleteTarget(cost)}
-                  className="text-slate-300 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+      {/* Cost list — grouped by supplier invoice */}
+      {costs.length > 0 &&
+        (() => {
+          const groups = new Map<string, any[]>();
+          for (const cost of costs) {
+            const key = cost.supplier ? `${cost.supplier}||${cost.invoiceNumber || ""}||${cost.documentId || ""}` : "none";
+            groups.set(key, [...(groups.get(key) || []), cost]);
+          }
+          return (
+            <div className="mt-4 space-y-3">
+              {Array.from(groups.entries()).map(([key, rows]) => {
+                const first = rows[0];
+                const groupTotal = rows.reduce((sum: number, r: any) => sum + r.totalCost, 0);
+                const docUrl = first.documentId ? costDocUrls.get(first.documentId) : null;
+                return (
+                  <div key={key} className="rounded-lg border border-slate-200">
+                    {first.supplier && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
+                        <div className="text-sm font-medium text-slate-900">
+                          {first.supplier}
+                          {first.invoiceNumber ? <span className="ml-2 text-xs font-normal text-slate-500">Invoice {first.invoiceNumber}</span> : null}
+                          {first.purchaseDate ? (
+                            <span className="ml-2 text-xs font-normal text-slate-500">{new Date(first.purchaseDate).toLocaleDateString("en-AU")}</span>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                          {docUrl ? (
+                            <a href={docUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                              View invoice
+                            </a>
+                          ) : (
+                            <label className="cursor-pointer text-blue-700 hover:underline">
+                              {attachingKey === key ? "Uploading..." : "Attach invoice"}
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) attachInvoiceToGroup(key, rows, f);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                          )}
+                          <span className="font-semibold text-slate-900">${groupTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="divide-y divide-slate-100">
+                      {rows.map((cost: any) => (
+                        <div key={cost.id} className="flex items-center justify-between p-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs">
+                                {costCategoryLabels[cost.category]}
+                              </Badge>
+                              {cost.itemCode && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{cost.itemCode}</span>}
+                              <span className="text-sm font-medium text-slate-900">{cost.description}</span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {cost.quantity} × ${cost.unitCost.toFixed(2)}
+                              {cost.discountPercent ? ` — ${cost.discountPercent}% off` : ""}
+                              {cost.gstAmount ? ` — GST $${cost.gstAmount.toFixed(2)}` : ""}
+                              {!first.supplier && cost.purchaseDate ? ` — ${new Date(cost.purchaseDate).toLocaleDateString("en-AU")}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-semibold text-slate-900">${cost.totalCost.toFixed(2)}</span>
+                            <button onClick={() => startEdit(cost)} className="text-slate-300 hover:text-slate-600" title="Edit this cost entry">
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => setDeleteTarget(cost)} className="text-slate-300 hover:text-red-600">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })()}
 
       <DeleteConfirmDialog
         open={!!deleteTarget}
@@ -1090,42 +1256,91 @@ const taskPriorityColors: Record<string, { bg: string; text: string }> = {
 
 function TasksSection({ jobId }: { jobId: number }) {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [photoTaskId, setPhotoTaskId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const [form, setForm] = useState({
+  const emptyTaskForm = {
     name: "",
     description: "",
     priority: "medium" as "low" | "medium" | "high" | "urgent",
-    assignedEmployeeId: "",
+    assignedEmployeeIds: [] as number[],
     dueDate: "",
     estimatedHours: "",
-  });
+  };
+  const [form, setForm] = useState(emptyTaskForm);
 
   const utils = trpc.useUtils();
   const tasksQuery = trpc.tasks.listForJob.useQuery(jobId);
-  const employeesQuery = trpc.employees.list.useQuery({ role: "technician" });
+  const jobForQuoteQuery = trpc.jobs.getById.useQuery(jobId);
+  const taskJobQuoteId = (jobForQuoteQuery.data as any)?.quoteId;
+  const taskQuoteQuery = trpc.quotes.getById.useQuery(taskJobQuoteId, { enabled: !!taskJobQuoteId });
+  // Technicians and subcontractors are both assignable to job tasks.
+  const allEmployeesQuery = trpc.employees.list.useQuery();
+  const employeesQuery = {
+    ...allEmployeesQuery,
+    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
+  };
 
   const createMutation = trpc.tasks.create.useMutation({
     onSuccess: () => {
       toast.success("Task added");
       utils.tasks.listForJob.invalidate(jobId);
       setIsAdding(false);
-      setForm({ name: "", description: "", priority: "medium", assignedEmployeeId: "", dueDate: "", estimatedHours: "" });
+      setForm(emptyTaskForm);
     },
     onError: (err) => showErrorToast(err),
   });
 
+  const updateTaskMutation = trpc.tasks.update.useMutation({
+    onSuccess: () => {
+      toast.success("Task updated");
+      utils.tasks.listForJob.invalidate(jobId);
+      setIsAdding(false);
+      setEditingTaskId(null);
+      setForm(emptyTaskForm);
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const startEditTask = (task: any) => {
+    setForm({
+      name: task.name,
+      description: task.description || "",
+      priority: task.priority,
+      assignedEmployeeIds: task.assigneeIds || [],
+      dueDate: task.dueDate || "",
+      estimatedHours: task.estimatedHours ? String(task.estimatedHours) : "",
+    });
+    setEditingTaskId(task.id);
+    setIsAdding(true);
+  };
+
   const startMutation = trpc.tasks.start.useMutation({
-    onSuccess: () => utils.tasks.listForJob.invalidate(jobId),
+    onSuccess: () => {
+      utils.tasks.listForJob.invalidate(jobId);
+      utils.timeEntries.listByJob.invalidate(jobId);
+    },
     onError: (err) => showErrorToast(err),
   });
   const pauseMutation = trpc.tasks.pause.useMutation({
-    onSuccess: () => utils.tasks.listForJob.invalidate(jobId),
+    onSuccess: () => {
+      utils.tasks.listForJob.invalidate(jobId);
+      utils.timeEntries.listByJob.invalidate(jobId);
+    },
+    onError: (err) => showErrorToast(err),
+  });
+  const reopenMutation = trpc.tasks.reopen.useMutation({
+    onSuccess: () => {
+      toast.success("Task reopened");
+      utils.tasks.listForJob.invalidate(jobId);
+    },
     onError: (err) => showErrorToast(err),
   });
   const completeMutation = trpc.tasks.complete.useMutation({
     onSuccess: () => {
       toast.success("Task marked complete");
       utils.tasks.listForJob.invalidate(jobId);
+      utils.timeEntries.listByJob.invalidate(jobId);
     },
     onError: (err) => showErrorToast(err),
   });
@@ -1156,6 +1371,37 @@ function TasksSection({ jobId }: { jobId: number }) {
           </Button>
         )}
       </div>
+
+      {tasks.length > 0 && (() => {
+        const done = tasks.filter((t: any) => t.status === "completed").length;
+        const pct = Math.round((done / tasks.length) * 100);
+        return (
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-xs text-slate-600">
+              <span>Job progress</span>
+              <span>{done} of {tasks.length} tasks complete — {pct}%</span>
+            </div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })()}
+
+      {(() => {
+        const quoteLines: any[] = Array.isArray((taskQuoteQuery.data as any)?.lineItems) ? (taskQuoteQuery.data as any).lineItems : [];
+        const quotedLabour = quoteLines
+          .filter((l) => /labou?r/i.test(l.accountCode || ""))
+          .reduce((sum, l) => sum + (Number(l.quantity) || 0), 0);
+        if (!quotedLabour) return null;
+        const estimated = tasks.reduce((sum: number, t: any) => sum + (Number(t.estimatedHours) || 0), 0);
+        return (
+          <p className={`mt-2 text-xs ${estimated > quotedLabour ? "text-amber-700" : "text-slate-500"}`}>
+            Quoted labour: {quotedLabour}h — estimated across tasks: {estimated}h
+            {estimated > quotedLabour ? " (over the quoted labour)" : ` (${(quotedLabour - estimated).toFixed(1)}h unallocated)`}
+          </p>
+        );
+      })()}
 
       {isAdding && (
         <div className="mt-4 space-y-3 rounded-lg border border-slate-200 p-4">
@@ -1193,19 +1439,27 @@ function TasksSection({ jobId }: { jobId: number }) {
               </Select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-900">Assigned Technician</label>
-              <Select value={form.assignedEmployeeId} onValueChange={(v) => setForm({ ...form, assignedEmployeeId: v })}>
-                <SelectTrigger className="mt-1 h-9 border-slate-200">
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(employeesQuery.data || []).map((e: any) => (
-                    <SelectItem key={e.id} value={e.id.toString()}>
-                      {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="block text-xs font-medium text-slate-900">Assigned To (pick one or more)</label>
+              <div className="mt-1 max-h-28 space-y-1 overflow-y-auto rounded-md border border-slate-200 p-2">
+                {(employeesQuery.data || []).length === 0 && <p className="text-xs text-slate-400">No technicians available</p>}
+                {(employeesQuery.data || []).map((e: any) => (
+                  <label key={e.id} className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={form.assignedEmployeeIds.includes(e.id)}
+                      onChange={(ev) =>
+                        setForm({
+                          ...form,
+                          assignedEmployeeIds: ev.target.checked
+                            ? [...form.assignedEmployeeIds, e.id]
+                            : form.assignedEmployeeIds.filter((id) => id !== e.id),
+                        })
+                      }
+                    />
+                    {e.name}
+                  </label>
+                ))}
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Due Date</label>
@@ -1231,22 +1485,23 @@ function TasksSection({ jobId }: { jobId: number }) {
             <Button
               size="sm"
               className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
-              disabled={!form.name.trim() || createMutation.isPending}
-              onClick={() =>
-                createMutation.mutate({
-                  jobId,
+              disabled={!form.name.trim() || createMutation.isPending || updateTaskMutation.isPending}
+              onClick={() => {
+                const payload = {
                   name: form.name.trim(),
                   description: form.description || undefined,
                   priority: form.priority,
-                  assignedEmployeeId: form.assignedEmployeeId ? parseInt(form.assignedEmployeeId) : undefined,
+                  assignedEmployeeIds: form.assignedEmployeeIds,
                   dueDate: form.dueDate || undefined,
                   estimatedHours: form.estimatedHours ? parseFloat(form.estimatedHours) : undefined,
-                })
-              }
+                };
+                if (editingTaskId) updateTaskMutation.mutate({ id: editingTaskId, ...payload });
+                else createMutation.mutate({ jobId, ...payload });
+              }}
             >
-              {createMutation.isPending ? "Saving..." : "Save Task"}
+              {createMutation.isPending || updateTaskMutation.isPending ? "Saving..." : editingTaskId ? "Save Changes" : "Save Task"}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setIsAdding(false)}>
+            <Button size="sm" variant="outline" onClick={() => { setIsAdding(false); setEditingTaskId(null); setForm(emptyTaskForm); }}>
               Cancel
             </Button>
           </div>
@@ -1274,7 +1529,9 @@ function TasksSection({ jobId }: { jobId: number }) {
                   </div>
                   {task.description && <p className="mt-1 text-xs text-slate-500">{task.description}</p>}
                   <p className="mt-1 text-xs text-slate-500">
-                    {task.assignedEmployeeId ? employeesById.get(task.assignedEmployeeId)?.name || "Unknown" : "Unassigned"}
+                    {(task.assigneeIds || []).length > 0
+                      ? (task.assigneeIds as number[]).map((id) => employeesById.get(id)?.name || "Unknown").join(", ")
+                      : "Unassigned"}
                     {task.dueDate ? ` — Due ${new Date(task.dueDate).toLocaleDateString("en-AU")}` : ""}
                     {task.estimatedHours ? ` — Est. ${task.estimatedHours}h` : ""}
                   </p>
@@ -1302,11 +1559,27 @@ function TasksSection({ jobId }: { jobId: number }) {
                       </Button>
                     </>
                   )}
+                  {task.status === "completed" && (
+                    <Button size="sm" variant="ghost" onClick={() => reopenMutation.mutate({ id: task.id })}>
+                      Reopen
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => setPhotoTaskId(photoTaskId === task.id ? null : task.id)}>
+                    Photos
+                  </Button>
+                  <button onClick={() => startEditTask(task)} className="text-slate-300 hover:text-slate-600" title="Edit task">
+                    <Pencil className="h-4 w-4" />
+                  </button>
                   <button onClick={() => setDeleteTarget(task)} className="text-slate-300 hover:text-red-600">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
+              {photoTaskId === task.id && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <PhotoGallery entity={{ type: "job", id: jobId, taskId: task.id }} />
+                </div>
+              )}
             </div>
           ))}
         </div>

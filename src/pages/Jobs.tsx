@@ -41,6 +41,9 @@ export default function Jobs() {
   const [search, setSearch] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteTasks, setDeleteTasks] = useState(false);
+  const deletePreviewQuery = trpc.jobs.deletePreview.useQuery(deleteTarget?.id ?? 0, { enabled: !!deleteTarget });
+  const taskCountToDelete = deletePreviewQuery.data?.taskCount ?? 0;
   const [, setLocation] = useLocation();
   const jobsQuery = trpc.jobs.list.useQuery();
   const { getDisplayName } = useJobDisplayName();
@@ -60,10 +63,12 @@ export default function Jobs() {
       toast.success("Job removed");
       jobsQuery.refetch();
       setDeleteTarget(null);
+      setDeleteTasks(false);
     },
     onError: (err) => {
       showErrorToast(err);
       setDeleteTarget(null);
+      setDeleteTasks(false);
     },
   });
 
@@ -231,12 +236,26 @@ export default function Jobs() {
 
         <DeleteConfirmDialog
           open={!!deleteTarget}
-          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null);
+              setDeleteTasks(false);
+            }
+          }}
           title={`Delete ${deleteTarget ? getDisplayName(deleteTarget) : "this job"}?`}
-          description="This can't be undone. If an invoice is linked to this job, deletion will be blocked until that's removed first."
-          onConfirm={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id })}
+          description="This can't be undone. If an invoice, cost entry, material request or photo is linked to this job, deletion will be blocked until those are removed first."
+          onConfirm={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id, deleteTasks })}
           isPending={deleteMutation.isPending}
-        />
+        >
+          {taskCountToDelete > 0 && (
+            <label className="mt-3 flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <input type="checkbox" className="mt-0.5" checked={deleteTasks} onChange={(e) => setDeleteTasks(e.target.checked)} />
+              <span>
+                Also delete this job's {taskCountToDelete} task{taskCountToDelete === 1 ? "" : "s"} (and the time logged against them).
+              </span>
+            </label>
+          )}
+        </DeleteConfirmDialog>
       </div>
     </div>
   );

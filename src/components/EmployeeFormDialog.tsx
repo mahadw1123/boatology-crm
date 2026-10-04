@@ -128,6 +128,7 @@ export function EmployeeFormDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="technician">Technician</SelectItem>
+                <SelectItem value="subcontractor">Subcontractor</SelectItem>
                 <SelectItem value="office_staff">Office Staff</SelectItem>
                 <SelectItem value="management">Management</SelectItem>
               </SelectContent>

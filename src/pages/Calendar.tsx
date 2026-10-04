@@ -65,10 +65,14 @@ export default function Calendar() {
   // Workload counts are a management view and contain information about the
   // whole team. Do not call that endpoint for technicians; doing so was the
   // source of the misleading "you don't have permission" notification.
-  const employeesQuery = trpc.employees.listWithJobCounts.useQuery(
-    { role: "technician" },
-    { enabled: Boolean(user) && !isTechnician }
-  );
+  const allStaffWithCountsQuery = trpc.employees.listWithJobCounts.useQuery(undefined, {
+    enabled: Boolean(user) && !isTechnician,
+  });
+  // Technicians and subcontractors are the people who get scheduled onto jobs.
+  const employeesQuery = {
+    ...allStaffWithCountsQuery,
+    data: allStaffWithCountsQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
+  };
   const schedulesQuery = trpc.schedules.list.useQuery();
   const weatherQuery = trpc.analytics.weatherForecast.useQuery();
   const materialRequestsQuery = trpc.materialRequests.listMine.useQuery(undefined, {
@@ -1119,9 +1123,12 @@ function NewAppointmentDialog({
     startTime: "08:30",
     endTime: "09:30",
     jobId: "",
+    taskId: "",
     employeeId: "",
     notes: "",
   });
+  const emptyForm = () => ({ scheduledDate: defaultDate || toDateKey(new Date()), startTime: "08:30", endTime: "09:30", jobId: "", taskId: "", employeeId: "", notes: "" });
+  const jobTasksQuery = trpc.tasks.listForJob.useQuery(parseInt(form.jobId || "0"), { enabled: open && !!form.jobId, retry: false });
 
   const createMutation = trpc.schedules.create.useMutation({
     onSuccess: (result: any) => {
@@ -1135,7 +1142,7 @@ function NewAppointmentDialog({
       }
       utils.schedules.list.invalidate();
       onOpenChange(false);
-      setForm({ scheduledDate: defaultDate || toDateKey(new Date()), startTime: "08:30", endTime: "09:30", jobId: "", employeeId: "", notes: "" });
+      setForm(emptyForm());
     },
     onError: (err) => showErrorToast(err),
   });
@@ -1147,6 +1154,7 @@ function NewAppointmentDialog({
     }
     createMutation.mutate({
       jobId: parseInt(form.jobId),
+      taskId: form.taskId ? parseInt(form.taskId) : undefined,
       employeeId: form.employeeId ? parseInt(form.employeeId) : undefined,
       scheduledDate: form.scheduledDate,
       startTime: form.startTime || undefined,
@@ -1160,7 +1168,8 @@ function NewAppointmentDialog({
       open={open}
       onOpenChange={(o) => {
         onOpenChange(o);
-        if (o) setForm((prev) => ({ ...prev, scheduledDate: defaultDate || toDateKey(new Date()) }));
+        // Every open starts clean — and so does closing without saving.
+        setForm(emptyForm());
       }}
     >
       <DialogContent>
@@ -1186,7 +1195,7 @@ function NewAppointmentDialog({
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Job *</label>
-            <Select value={form.jobId} onValueChange={(v) => setForm({ ...form, jobId: v })}>
+            <Select value={form.jobId} onValueChange={(v) => setForm({ ...form, jobId: v, taskId: "" })}>
               <SelectTrigger className="mt-1 border-slate-200">
                 <SelectValue placeholder="Select a job" />
               </SelectTrigger>
@@ -1199,6 +1208,25 @@ function NewAppointmentDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {form.jobId && (
+            <div>
+              <label className="block text-sm font-medium text-slate-900">Task</label>
+              <Select value={form.taskId || "none"} onValueChange={(v) => setForm({ ...form, taskId: v === "none" ? "" : v })}>
+                <SelectTrigger className="mt-1 border-slate-200">
+                  <SelectValue placeholder="Whole job (no specific task)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Whole job (no specific task)</SelectItem>
+                  {(jobTasksQuery.data || []).map((t: any) => (
+                    <SelectItem key={t.id} value={t.id.toString()}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Staff</label>
@@ -1222,7 +1250,7 @@ function NewAppointmentDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => { onOpenChange(false); setForm(emptyForm()); }}>
             Cancel
           </Button>
           <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSubmit} disabled={createMutation.isPending}>

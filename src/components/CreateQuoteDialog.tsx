@@ -18,6 +18,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  QuotePricingFields,
+  DEFAULT_QUOTE_PRICING,
+  computeQuoteMoney,
+  quotePricingPayload,
+  type QuotePricing,
+} from "@/components/QuotePricingFields";
 import { LineItemsEditor, type LineItem } from "@/components/LineItemsEditor";
 import { TrendingUp, Plus } from "lucide-react";
 import { CreateCustomerDialog } from "@/components/CreateCustomerDialog";
@@ -80,6 +87,7 @@ export function CreateQuoteDialog({
     notes: "",
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [pricing, setPricing] = useState<QuotePricing>(DEFAULT_QUOTE_PRICING);
 
   const customersQuery = trpc.customers.list.useQuery();
   const vesselsQuery = trpc.vessels.list.useQuery();
@@ -96,7 +104,10 @@ export function CreateQuoteDialog({
   const labourAmount = parseFloat(formData.laborCost) || 0;
   const partsAmount = parseFloat(formData.partsCost) || 0;
   const hasBreakdown = lineItems.length > 0 || formData.laborCost.trim() !== "" || formData.partsCost.trim() !== "";
-  const calculatedTotal = Math.round((lineItemsTotal + labourAmount + partsAmount) * 100) / 100;
+  const gstQuery = trpc.administration.gstRate.useQuery();
+  const gstPercent = gstQuery.data?.percent;
+  const breakdown = computeQuoteMoney(lineItems, labourAmount, partsAmount, pricing, gstPercent);
+  const calculatedTotal = breakdown.total;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,11 +123,14 @@ export function CreateQuoteDialog({
       const quote = await createMutation.mutateAsync({
         customerId: parseInt(formData.customerId),
         vesselId: formData.vesselId ? parseInt(formData.vesselId) : undefined,
-        lineItems: lineItems.map(({ description, quantity, unitPrice }) => ({
+        lineItems: lineItems.map(({ description, quantity, unitPrice, accountCode, gstApplicable }) => ({
           description,
           quantity,
           unitPrice,
+          accountCode: accountCode || undefined,
+          gstApplicable: gstApplicable !== false,
         })),
+        ...quotePricingPayload(pricing),
         laborCost: formData.laborCost ? parseFloat(formData.laborCost) : undefined,
         partsCost: formData.partsCost ? parseFloat(formData.partsCost) : undefined,
         totalAmount: hasBreakdown
@@ -141,6 +155,7 @@ export function CreateQuoteDialog({
         notes: "",
       });
       setLineItems([]);
+      setPricing(DEFAULT_QUOTE_PRICING);
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
@@ -151,7 +166,7 @@ export function CreateQuoteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[920px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Quote</DialogTitle>
           <DialogDescription>
@@ -255,21 +270,21 @@ export function CreateQuoteDialog({
             </div>
           </div>
 
+          <QuotePricingFields value={pricing} onChange={setPricing} breakdown={breakdown} showBreakdown={hasBreakdown} gstPercent={gstPercent} />
+
           <div>
-            <label className="block text-sm font-medium text-slate-900">
-              Total Amount
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              value={hasBreakdown ? calculatedTotal.toFixed(2) : formData.totalAmount}
-              onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-              readOnly={hasBreakdown}
-              placeholder="0.00"
-              className="mt-1 border-slate-200"
-            />
-            {hasBreakdown && (
-              <p className="mt-1 text-xs text-slate-500">Calculated automatically from line items, labour, and parts.</p>
+            {!hasBreakdown && (
+              <>
+                <label className="block text-sm font-medium text-slate-900">Total Amount</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.totalAmount}
+                  onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
+                  placeholder="0.00"
+                  className="mt-1 border-slate-200"
+                />
+              </>
             )}
             <QuoteAcceptanceIndicator
               totalAmount={hasBreakdown ? calculatedTotal : parseFloat(formData.totalAmount) || 0}

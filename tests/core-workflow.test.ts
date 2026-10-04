@@ -802,6 +802,514 @@ test("claiming an invoice for Xero sync is atomic — only one of two simultaneo
   assert.equal(claimAfterSynced, false);
 });
 
+test("a subcontractor can be assigned to a job and a task, same as a technician", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:subcontractor-admin@example.com",
+    name: "Subcontractor Admin",
+    email: "subcontractor-admin@example.com",
+    passwordHash: await hashPassword("Subcontractor-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const subcontractor = await db.createEmployee({ name: "Hull Painting Co", role: "subcontractor" });
+  const officeStaff = await db.createEmployee({ name: "Front Desk", role: "office_staff" });
+  const customer = await db.createCustomer({ name: "Subcontractor Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-SUBCONTRACTOR-0001" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await adminCaller.jobs.assignTechnician({ jobId: job.id, employeeId: subcontractor.id });
+  const assignments = await db.getJobAssignments(job.id);
+  assert.ok(assignments.some((a) => a.employeeId === subcontractor.id));
+
+  const task = await adminCaller.tasks.create({ jobId: job.id, name: "Apply antifouling", assignedEmployeeId: subcontractor.id });
+  assert.equal(task.assignedEmployeeId, subcontractor.id);
+
+  await assert.rejects(
+    () => adminCaller.jobs.assignTechnician({ jobId: job.id, employeeId: officeStaff.id }),
+    /active technician or subcontractor/,
+    "office staff must still be rejected for hands-on job assignment"
+  );
+});
+
+test("a job cost's total includes GST, and an existing entry can be edited afterward", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:jobcost-admin@example.com",
+    name: "Job Cost Admin",
+    email: "jobcost-admin@example.com",
+    passwordHash: await hashPassword("Job-Cost-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Job Cost Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-JOBCOST-0001" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  const created = await adminCaller.jobCosts.create({
+    jobId: job.id,
+    category: "material",
+    description: "Antifouling paint",
+    quantity: 2,
+    unitCost: 100,
+    gstAmount: 30,
+  });
+  assert.equal(created.totalCost, 230, "GST must be folded into the total, not silently dropped");
+
+  const updated = await adminCaller.jobCosts.update({ id: created.id, quantity: 3, gstAmount: 45 });
+  assert.equal(updated?.totalCost, 345, "editing an existing cost entry must recompute its total");
+});
+
+test("a job can't be marked completed while it still has open tasks", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:completed-tasks-admin@example.com",
+    name: "Completed Tasks Admin",
+    email: "completed-tasks-admin@example.com",
+    passwordHash: await hashPassword("Completed-Tasks-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Completed Tasks Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-COMPLETEDTASKS-0001" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  await db.createTask({ jobId: job.id, name: "Still open task", createdBy: adminUser.id });
+
+  await adminCaller.jobs.update({ id: job.id, status: "scheduled" });
+  await adminCaller.jobs.update({ id: job.id, status: "in_progress" });
+  await assert.rejects(
+    () => adminCaller.jobs.update({ id: job.id, status: "completed" }),
+    /task.*not marked complete/i
+  );
+});
+
+test("cancelling a job resets any in-progress or paused tasks back to not-started", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:cancel-task-reset-admin@example.com",
+    name: "Cancel Task Reset Admin",
+    email: "cancel-task-reset-admin@example.com",
+    passwordHash: await hashPassword("Cancel-Task-Reset-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Cancel Task Reset Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-CANCELTASKRESET-0001" });
+  const liveTask = await db.createTask({ jobId: job.id, name: "Mid-way task", createdBy: adminUser.id });
+  await db.updateTask(liveTask.id, { status: "in_progress", startedAt: new Date().toISOString() });
+
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  await adminCaller.jobs.cancel({ id: job.id, reason: "Customer cancelled" });
+
+  const reloadedTask = await db.getTaskById(liveTask.id);
+  assert.equal(reloadedTask?.status, "not_started");
+  assert.equal(reloadedTask?.startedAt, null);
+});
+
+test("a job with no linked quote can still be invoiced directly, without a change-reason", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:no-quote-invoice-admin@example.com",
+    name: "No Quote Invoice Admin",
+    email: "no-quote-invoice-admin@example.com",
+    passwordHash: await hashPassword("No-Quote-Invoice-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "No Quote Invoice Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-NOQUOTEINVOICE-0001" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await assert.rejects(
+    () => adminCaller.invoices.createForJob({ jobId: job.id, offerReviewDiscount: false }),
+    /no linked quote amount/,
+    "an amount must still be supplied somehow"
+  );
+
+  const invoice = await adminCaller.invoices.createForJob({
+    jobId: job.id,
+    offerReviewDiscount: false,
+    adjustedAmount: 450,
+  });
+  assert.equal(invoice.subtotal, 450);
+  assert.equal(invoice.invoiceType, "standalone");
+});
+
+test("a past time entry can be edited, and its hours are recomputed", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:timeentry-edit-admin@example.com",
+    name: "Time Entry Edit Admin",
+    email: "timeentry-edit-admin@example.com",
+    passwordHash: await hashPassword("Time-Entry-Edit-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const employee = await db.createEmployee({ name: "Edited Timesheet Tech", role: "technician" });
+  const customer = await db.createCustomer({ name: "Time Entry Edit Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-TIMEENTRYEDIT-0001" });
+  const task = await db.createTask({ jobId: job.id, name: "Logged-against task", createdBy: adminUser.id });
+  const entry = await db.createTimeEntry({
+    employeeId: employee.id,
+    jobId: job.id,
+    date: "2026-01-01",
+    clockInTime: "2026-01-01T09:00:00.000Z",
+    clockOutTime: "2026-01-01T11:00:00.000Z",
+    hoursWorked: 2,
+  });
+
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  const updated = await adminCaller.timeEntries.update({
+    id: entry.id,
+    taskId: task.id,
+    clockOutTime: "2026-01-01T13:00:00.000Z",
+  });
+  assert.equal(updated?.taskId, task.id);
+  assert.equal(updated?.hoursWorked, 4, "changing the clock-out time must recompute hoursWorked");
+});
+
+test("a completed task can be reopened, and logging out pauses a technician's running tasks", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:reopen-admin@example.com",
+    name: "Reopen Admin",
+    email: "reopen-admin@example.com",
+    passwordHash: await hashPassword("Reopen-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const employee = await db.createEmployee({ name: "Logout Tech", role: "technician" });
+  const techUser = await db.createUser({
+    openId: "local:logout-tech@example.com",
+    name: "Logout Tech",
+    email: "logout-tech@example.com",
+    passwordHash: await hashPassword("Logout-Tech-42"),
+    loginMethod: "password",
+    role: "technician",
+    employeeId: employee.id,
+  } as any);
+  const customer = await db.createCustomer({ name: "Reopen Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-REOPEN-0001" });
+  const done = await db.createTask({ jobId: job.id, name: "Finished task", createdBy: adminUser.id });
+  await db.updateTask(done.id, { status: "completed", completedAt: new Date().toISOString() });
+  const running = await db.createTask({ jobId: job.id, name: "Running task", assignedEmployeeId: employee.id, createdBy: adminUser.id });
+  await db.updateTask(running.id, { status: "in_progress", startedAt: new Date().toISOString() });
+
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  await assert.rejects(() => adminCaller.tasks.reopen({ id: running.id }), /Only a completed task/);
+  await adminCaller.tasks.reopen({ id: done.id });
+  assert.equal((await db.getTaskById(done.id))?.status, "not_started");
+
+  await appRouter.createCaller(contextFor(techUser)).auth.logout();
+  assert.equal((await db.getTaskById(running.id))?.status, "paused");
+});
+
+test("staff can delete a job photo, but invoice documents are protected", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:doc-delete-admin@example.com",
+    name: "Doc Delete Admin",
+    email: "doc-delete-admin@example.com",
+    passwordHash: await hashPassword("Doc-Delete-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const photo = await db.createDocument({ fileName: "p.jpg", fileType: "image/jpeg", storageUrl: "/uploads/none-p.jpg", storageKey: "none-p.jpg", documentType: "photo" } as any);
+  const invoiceDoc = await db.createDocument({ fileName: "i.pdf", fileType: "application/pdf", storageUrl: "/uploads/none-i.pdf", storageKey: "none-i.pdf", documentType: "invoice" } as any);
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  await adminCaller.documents.delete({ id: photo.id });
+  assert.equal(await db.getDocumentById(photo.id), null);
+  await assert.rejects(() => adminCaller.documents.delete({ id: invoiceDoc.id }), /can't be deleted/);
+});
+
+test("the Google review discount is only offered on a customer's first invoice and first quote", async () => {
+  const { ENV } = await import("../server/_core/env");
+  (ENV as any).googleReviewUrl = "https://g.page/r/test";
+  try {
+    const adminUser = await db.createUser({
+      openId: "local:review-disc-admin@example.com",
+      name: "Review Discount Admin",
+      email: "review-disc-admin@example.com",
+      passwordHash: await hashPassword("Review-Disc-Admin-42"),
+      loginMethod: "password",
+      role: "admin",
+    });
+    const adminCaller = appRouter.createCaller(contextFor(adminUser));
+    const customer = await db.createCustomer({ name: "Review Discount Customer" });
+    const firstQuote = await db.createQuote({ customerId: customer.id, quoteNumber: "Q-TEST-REVDISC-1", status: "accepted", totalAmount: 500 } as any);
+    const secondQuote = await db.createQuote({ customerId: customer.id, quoteNumber: "Q-TEST-REVDISC-2", status: "accepted", totalAmount: 500 } as any);
+    const laterJob = await db.createJob({ customerId: customer.id, quoteId: secondQuote.id, jobNumber: "J-TEST-REVDISC-2" });
+    const firstJob = await db.createJob({ customerId: customer.id, quoteId: firstQuote.id, jobNumber: "J-TEST-REVDISC-1" });
+
+    const notFirstQuote = await adminCaller.invoices.createForJob({ jobId: laterJob.id });
+    assert.equal(!!notFirstQuote.reviewDiscountOffered, false, "a job from the customer's second quote must not get the discount");
+    await db.updateInvoice(notFirstQuote.id, { status: "void" });
+
+    const first = await adminCaller.invoices.createForJob({ jobId: firstJob.id });
+    assert.equal(!!first.reviewDiscountOffered, true, "first quote's first invoice gets the discount");
+
+    const secondCustomerJob = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-REVDISC-3" });
+    const repeat = await adminCaller.invoices.createForJob({ jobId: secondCustomerJob.id, adjustedAmount: 100 });
+    assert.equal(!!repeat.reviewDiscountOffered, false, "any later invoice must not get the discount");
+  } finally {
+    (ENV as any).googleReviewUrl = "";
+  }
+});
+
+test("quote tax and discount: totals are computed server-side, stored, and drive the deposit", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:quote-tax-admin@example.com",
+    name: "Quote Tax Admin",
+    email: "quote-tax-admin@example.com",
+    passwordHash: await hashPassword("Quote-Tax-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Quote Tax Customer", email: "quote-tax@example.com" });
+  const otherCustomer = await db.createCustomer({ name: "Quote Tax Other Customer" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  // 2 x 100 (GST) + 100 (no GST) = 300 subtotal; 10% discount = 30; taxable 200 * 0.9 = 180 -> GST 18; total 288
+  const quote = await adminCaller.quotes.create({
+    customerId: customer.id,
+    taxMode: "exclusive",
+    discountType: "percent",
+    discountValue: 10,
+    paymentTermsDays: 14,
+    lineItems: [
+      { description: "Labour", accountCode: "Labour", quantity: 2, unitPrice: 100, gstApplicable: true },
+      { description: "Overseas survey", accountCode: "Insurance Survey", quantity: 1, unitPrice: 100, gstApplicable: false },
+    ],
+    totalAmount: 288,
+  });
+  assert.equal(quote?.totalAmount, 288);
+  assert.equal(quote?.subtotalAmount, 300);
+  assert.equal(quote?.discountAmount, 30);
+  assert.equal(quote?.taxAmount, 18);
+  assert.equal(quote?.paymentTermsDays, 14);
+
+  await assert.rejects(
+    () => adminCaller.quotes.create({ customerId: customer.id, taxMode: "exclusive", lineItems: [{ description: "x", quantity: 1, unitPrice: 100, gstApplicable: true }], totalAmount: 100 }),
+    /must match the line items, discount and tax/
+  );
+
+  const inclusive = await adminCaller.quotes.create({
+    customerId: customer.id,
+    taxMode: "inclusive",
+    lineItems: [{ description: "Fixed price job", quantity: 1, unitPrice: 110, gstApplicable: true }],
+  });
+  assert.equal(inclusive?.totalAmount, 110);
+  assert.equal(inclusive?.taxAmount, 10);
+
+  // A draft can be moved to another customer; the old vessel link is dropped.
+  const moved = await adminCaller.quotes.update({ id: quote!.id, customerId: otherCustomer.id });
+  assert.equal(moved?.customerId, otherCustomer.id);
+
+  // Sending without email (email not configured) still marks it sent.
+  const sent = await adminCaller.quotes.update({ id: quote!.id, status: "sent", sendWithoutEmail: true });
+  assert.equal(sent?.status, "sent");
+  await assert.rejects(
+    () => adminCaller.quotes.update({ id: quote!.id, customerId: customer.id }),
+    /Only a draft quote can be moved/
+  );
+});
+
+test("a task can have several assignees; each Start logs their own time entry, and Complete closes them all", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:multi-task-admin@example.com",
+    name: "Multi Task Admin",
+    email: "multi-task-admin@example.com",
+    passwordHash: await hashPassword("Multi-Task-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const techA = await db.createEmployee({ name: "Multi Tech A", role: "technician" });
+  const techB = await db.createEmployee({ name: "Multi Tech B", role: "subcontractor" });
+  const makeTechUser = async (name: string, employeeId: number) =>
+    db.createUser({
+      openId: `local:${name}@example.com`,
+      name,
+      email: `${name}@example.com`,
+      passwordHash: await hashPassword("Multi-Tech-42"),
+      loginMethod: "password",
+      role: "technician",
+      employeeId,
+    } as any);
+  const userA = await makeTechUser("multi-tech-a", techA.id);
+  const userB = await makeTechUser("multi-tech-b", techB.id);
+  const customer = await db.createCustomer({ name: "Multi Task Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-MULTITASK-0001" });
+  await db.assignJobToEmployee(job.id, techA.id);
+  await db.assignJobToEmployee(job.id, techB.id);
+
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  const task = await adminCaller.tasks.create({ jobId: job.id, name: "Two-person lift", assignedEmployeeIds: [techA.id, techB.id] });
+  const listed = await adminCaller.tasks.listForJob(job.id);
+  assert.deepEqual([...(listed[0] as any).assigneeIds].sort(), [techA.id, techB.id].sort());
+
+  const callerA = appRouter.createCaller(contextFor(userA));
+  const callerB = appRouter.createCaller(contextFor(userB));
+  await callerA.tasks.start({ id: task!.id });
+  await callerB.tasks.start({ id: task!.id });
+  let entries = (await db.getTimeEntriesByJob(job.id)).filter((e) => e.taskId === task!.id);
+  assert.equal(entries.length, 2, "each person pressing Start gets their own time entry");
+  assert.ok(entries.every((e) => !e.clockOutTime));
+
+  // A pauses: A's entry closes, but the task stays in progress because B is still on it.
+  await callerA.tasks.pause({ id: task!.id });
+  assert.equal((await db.getTaskById(task!.id))?.status, "in_progress");
+  entries = (await db.getTimeEntriesByJob(job.id)).filter((e) => e.taskId === task!.id);
+  assert.equal(entries.filter((e) => e.clockOutTime).length, 1);
+
+  await callerB.tasks.complete({ id: task!.id });
+  entries = (await db.getTimeEntriesByJob(job.id)).filter((e) => e.taskId === task!.id);
+  assert.ok(entries.every((e) => e.clockOutTime), "completing closes every running entry");
+  assert.equal((await db.getTaskById(task!.id))?.status, "completed");
+});
+
+test("admin access rules can switch off a role's access to an area, and admins are never locked out", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:access-admin@example.com",
+    name: "Access Admin",
+    email: "access-admin@example.com",
+    passwordHash: await hashPassword("Access-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const officeUser = await db.createUser({
+    openId: "local:access-office@example.com",
+    name: "Access Office",
+    email: "access-office@example.com",
+    passwordHash: await hashPassword("Access-Office-42"),
+    loginMethod: "password",
+    role: "office_staff",
+  });
+  const { clearAccessRulesCache } = await import("../server/_core/accessControl");
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  const officeCaller = appRouter.createCaller(contextFor(officeUser));
+
+  await officeCaller.customers.list();
+  await adminCaller.administration.saveAccessRules({ rules: { office_staff: { customers: ["view"] } } });
+  clearAccessRulesCache();
+
+  await officeCaller.customers.list();
+  await assert.rejects(() => officeCaller.customers.create({ name: "Blocked by access rules" } as any), /turned off this kind of access/);
+  await adminCaller.customers.create({ name: "Admin still allowed" } as any);
+  await assert.rejects(() => officeCaller.administration.saveAccessRules({ rules: {} }), (e: any) => e?.code === "FORBIDDEN");
+
+  await adminCaller.administration.saveAccessRules({ rules: {} });
+  clearAccessRulesCache();
+  await officeCaller.customers.create({ name: "Allowed again" } as any);
+});
+
+test("a supplier bill creates one cost row per line sharing the supplier/invoice, and a job can be deleted together with its tasks", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:bill-admin@example.com",
+    name: "Bill Admin",
+    email: "bill-admin@example.com",
+    passwordHash: await hashPassword("Bill-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Bill Customer" });
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-BILL-0001" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  const rows = await adminCaller.jobCosts.createBill({
+    jobId: job.id,
+    supplier: "Marine Supplies Co",
+    invoiceNumber: "MS-1001",
+    lines: [
+      { itemCode: "PAINT-5L", description: "Antifoul 5L", quantity: 2, unitCost: 100, discountPercent: 10, taxRate: 10, category: "material" },
+      { itemCode: "LAB", description: "Hull prep labour", quantity: 1, unitCost: 50, discountPercent: 0, taxRate: 0, category: "subcontractor" },
+    ],
+  });
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]?.totalCost, 198, "2 x 100, 10% off = 180, plus 10% tax = 198");
+  assert.equal(rows[1]?.totalCost, 50);
+  assert.ok(rows.every((r) => r?.supplier === "Marine Supplies Co" && r?.invoiceNumber === "MS-1001"));
+  assert.ok((await adminCaller.jobCosts.itemCodes()).includes("PAINT-5L"));
+
+  // Costs still block deletion; remove them, then tasks only go with the explicit option.
+  for (const r of rows) await adminCaller.jobCosts.delete({ id: r!.id });
+  await db.createTask({ jobId: job.id, name: "Task that goes with the job", createdBy: adminUser.id });
+  await assert.rejects(() => adminCaller.jobs.delete({ id: job.id }), /task/);
+  assert.equal((await adminCaller.jobs.deletePreview(job.id)).taskCount, 1);
+  await adminCaller.jobs.delete({ id: job.id, deleteTasks: true });
+  assert.equal(await db.getJobById(job.id), null);
+});
+
+test("reverting a completed job resolves its 'raise final invoice' to-do; photos take comments from staff and the owning customer", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:revert-admin@example.com",
+    name: "Revert Admin",
+    email: "revert-admin@example.com",
+    passwordHash: await hashPassword("Revert-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Revert Customer" });
+  const customerUser = await db.createUser({
+    openId: "local:revert-customer@example.com",
+    name: "Revert Customer User",
+    email: "revert-customer@example.com",
+    passwordHash: await hashPassword("Revert-Customer-42"),
+    loginMethod: "password",
+    role: "customer",
+    customerId: customer.id,
+  } as any);
+  const otherCustomer = await db.createCustomer({ name: "Someone Else" });
+  const otherUser = await db.createUser({
+    openId: "local:revert-other@example.com",
+    name: "Other Customer User",
+    email: "revert-other@example.com",
+    passwordHash: await hashPassword("Revert-Other-42"),
+    loginMethod: "password",
+    role: "customer",
+    customerId: otherCustomer.id,
+  } as any);
+  const job = await db.createJob({ customerId: customer.id, jobNumber: "J-TEST-REVERT-0001" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+
+  await adminCaller.jobs.update({ id: job.id, status: "scheduled" });
+  await adminCaller.jobs.update({ id: job.id, status: "in_progress" });
+  await adminCaller.jobs.update({ id: job.id, status: "completed" });
+  const { ensureTask } = await import("../server/_core/taskRules");
+  const ruleKey = `JOB_NEEDS_FINAL_INVOICE:${job.id}`;
+  await ensureTask(ruleKey, { title: "Raise final invoice — test", linkedJobId: job.id });
+  assert.ok((await db.getStaffTasks()).some((t) => t.ruleKey === ruleKey && t.status === "pending"));
+  await adminCaller.jobs.update({ id: job.id, status: "in_progress" });
+  assert.ok(!(await db.getStaffTasks()).some((t) => t.ruleKey === ruleKey && t.status === "pending"), "reverting the job clears the to-do");
+
+  const photo = await db.createDocument({ jobId: job.id, customerId: customer.id, fileName: "hull.jpg", fileType: "image/jpeg", storageUrl: "/uploads/none-h.jpg", storageKey: "none-h.jpg", documentType: "photo" } as any);
+  const customerCaller = appRouter.createCaller(contextFor(customerUser));
+  await customerCaller.documents.addComment({ documentId: photo.id, body: "Is that blister normal?" });
+  await adminCaller.documents.addComment({ documentId: photo.id, body: "Yes, it's cosmetic." });
+  const thread = await customerCaller.documents.commentsFor([photo.id]);
+  assert.equal(thread.length, 2);
+  await assert.rejects(() => appRouter.createCaller(contextFor(otherUser)).documents.addComment({ documentId: photo.id, body: "not mine" }), (e: any) => e?.code === "FORBIDDEN");
+});
+
+test("the GST rate is an admin setting: new quotes use it, existing quotes keep their totals", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:gst-admin@example.com",
+    name: "GST Admin",
+    email: "gst-admin@example.com",
+    passwordHash: await hashPassword("Gst-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "GST Customer" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  const lines = [{ description: "Work", quantity: 1, unitPrice: 100, gstApplicable: true }];
+
+  assert.equal((await adminCaller.administration.gstRate()).percent, 10);
+  const atTen = await adminCaller.quotes.create({ customerId: customer.id, taxMode: "exclusive", lineItems: lines });
+  assert.equal(atTen?.totalAmount, 110);
+
+  await assert.rejects(() => adminCaller.administration.updateSetting({ key: "gst_rate_percent", value: "abc" }), /GST rate must be/);
+  await adminCaller.administration.updateSetting({ key: "gst_rate_percent", value: "15" });
+  assert.equal((await adminCaller.administration.gstRate()).percent, 15);
+
+  const atFifteen = await adminCaller.quotes.create({ customerId: customer.id, taxMode: "exclusive", lineItems: lines });
+  assert.equal(atFifteen?.totalAmount, 115);
+  assert.equal((await db.getQuoteById(atTen!.id))?.totalAmount, 110, "an existing quote's total must not change when the rate does");
+
+  await adminCaller.administration.updateSetting({ key: "gst_rate_percent", value: "10" });
+});
+
 test.after(() => {
   db.closeDatabase();
   fs.rmSync(tempDir, { recursive: true, force: true });

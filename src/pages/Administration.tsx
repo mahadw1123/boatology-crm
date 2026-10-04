@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { AccessControlCard } from "@/components/AccessControlCard";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -79,6 +80,7 @@ export default function Administration() {
             <TabsTrigger value="services">Services</TabsTrigger>
             <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="access">Access</TabsTrigger>
             <TabsTrigger value="audit-log">Audit Log</TabsTrigger>
             <TabsTrigger value="system-errors">System Errors</TabsTrigger>
             <TabsTrigger value="system-health">System Health</TabsTrigger>
@@ -134,6 +136,10 @@ export default function Administration() {
             <MorningBriefingRecipientsCard />
 
             <SystemSettingsCard />
+          </TabsContent>
+
+          <TabsContent value="access" className="mt-6">
+            <AccessControlCard />
           </TabsContent>
 
           <TabsContent value="audit-log" className="mt-6">
@@ -621,6 +627,7 @@ function SystemSettingsCard() {
   const settingsQuery = trpc.administration.settings.useQuery();
   const [quoteExpiryDays, setQuoteExpiryDays] = useState("5");
   const [depositPercentage, setDepositPercentage] = useState("30");
+  const [gstRatePercent, setGstRatePercent] = useState("10");
   const [companyName, setCompanyName] = useState("Boatology");
   const [companyEmail, setCompanyEmail] = useState("");
   const [waitingPartsAlertDays, setWaitingPartsAlertDays] = useState("7");
@@ -631,6 +638,7 @@ function SystemSettingsCard() {
       const get = (key: string) => settingsQuery.data!.find((x: any) => x.key === key)?.value;
       setQuoteExpiryDays(get("quote_expiry_days") || "5");
       setDepositPercentage(get("deposit_percentage") || "30");
+      setGstRatePercent(get("gst_rate_percent") || "10");
       setCompanyName(get("company_name") || "Boatology");
       setCompanyEmail(get("company_email") || "");
       setWaitingPartsAlertDays(get("waiting_parts_alert_days") || "7");
@@ -654,6 +662,11 @@ function SystemSettingsCard() {
           key: "deposit_percentage",
           value: depositPercentage,
           description: "Percentage of the quote total charged as a deposit before a job can be created",
+        }),
+        updateMutation.mutateAsync({
+          key: "gst_rate_percent",
+          value: gstRatePercent,
+          description: "GST rate (%) applied to quotes when tax is added",
         }),
         updateMutation.mutateAsync({ key: "company_name", value: companyName }),
         updateMutation.mutateAsync({ key: "company_email", value: companyEmail }),
@@ -705,6 +718,24 @@ function SystemSettingsCard() {
             <p className="mt-1 text-sm text-slate-600">
               This is the actual percentage charged as a deposit the moment a quote is accepted — not
               just a label, it directly controls the deposit invoice amount.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-900">GST Rate (%)</label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0"
+              max="50"
+              value={gstRatePercent}
+              onChange={(e) => setGstRatePercent(e.target.value)}
+              className="mt-1 border-slate-200"
+            />
+            <p className="mt-1 text-sm text-slate-600">
+              Used whenever a quote has GST added (tax exclusive or tax inclusive), and as the default tax rate on
+              supplier bills. Changing it never alters quotes that already have totals — it applies to new quotes and
+              to drafts you edit afterward.
             </p>
           </div>
 

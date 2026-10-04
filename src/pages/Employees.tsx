@@ -19,6 +19,7 @@ import { showErrorToast } from "@/lib/errors";
 
 const roleColors: Record<string, { bg: string; text: string }> = {
   technician: { bg: "bg-blue-100", text: "text-blue-700" },
+  subcontractor: { bg: "bg-amber-100", text: "text-amber-700" },
   office_staff: { bg: "bg-slate-100", text: "text-slate-700" },
   management: { bg: "bg-purple-100", text: "text-purple-700" },
 };

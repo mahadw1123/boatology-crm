@@ -874,6 +874,7 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
                   <CreditCard className="mr-2 h-4 w-4" />
                   {paymentConfigQuery.data?.configured ? "Pay now" : "Online payment not set up yet"}
                 </Button>
+                <XeroPayLink invoiceId={inv.id} />
                 {!paymentConfigQuery.data?.configured && (
                   <p className="mt-2 text-xs text-amber-700">
                     Contact the office for a bank-transfer or manual payment option while online payment is unavailable.
@@ -892,5 +893,18 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
         onPaid={() => utils.invoices.listMine.invalidate()}
       />
     </>
+  );
+}
+
+
+function XeroPayLink({ invoiceId }: { invoiceId: number }) {
+  const query = trpc.invoices.xeroPayLink.useQuery({ invoiceId }, { staleTime: 60_000, retry: false });
+  if (!query.data?.url) return null;
+  return (
+    <a href={query.data.url} target="_blank" rel="noreferrer" className="mt-2 block">
+      <Button variant="outline" className="w-full">
+        Pay via Xero
+      </Button>
+    </a>
   );
 }

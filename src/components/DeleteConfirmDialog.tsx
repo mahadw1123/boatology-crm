@@ -14,6 +14,7 @@ export function DeleteConfirmDialog({
   description,
   onConfirm,
   isPending,
+  children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -21,6 +22,7 @@ export function DeleteConfirmDialog({
   description: string;
   onConfirm: () => void;
   isPending?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -29,6 +31,7 @@ export function DeleteConfirmDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-slate-600">{description}</p>
+        {children}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

@@ -364,8 +364,12 @@ export async function createXeroInvoiceForInvoice(invoiceId: number) {
     const rawLineItems = linkedQuote && Array.isArray(linkedQuote.lineItems) ? linkedQuote.lineItems : [];
     const job = invoice.jobId ? await db.getJobById(invoice.jobId) : null;
 
+    // A quote with GST or a discount has a grand total that its raw lines
+    // don't sum to — sending those lines would post the wrong amount, so
+    // those invoices go across as one line at the real payable figure.
+    const quoteHasAdjustments = !!linkedQuote && ((linkedQuote.discountAmount || 0) > 0 || (linkedQuote.taxMode !== "none" && (linkedQuote.taxAmount || 0) > 0));
     const lineItems =
-      rawLineItems.length > 0
+      rawLineItems.length > 0 && !quoteHasAdjustments
         ? rawLineItems.map((item: any) => ({
             Description: item.description || "Service",
             Quantity: item.quantity || 1,
@@ -422,5 +426,42 @@ export async function createXeroInvoiceForInvoice(invoiceId: number) {
     await db.updateInvoice(invoiceId, { xeroSyncStatus: "failed", xeroLastSyncError: message });
     captureSystemError(error, { source: "background", route: "xero.createXeroInvoiceForInvoice", context: { invoiceId } });
     throw error;
+  }
+}
+
+/**
+ * The customer-facing "view and pay online" page Xero hosts for a synced
+ * invoice. Only exists when the invoice is synced AND online payments are
+ * switched on in the user's Xero account — in every other case (not
+ * connected, not synced, payments not enabled, any API error) this returns
+ * null rather than throwing, so the portal simply doesn't show the link.
+ */
+export async function getXeroOnlineInvoiceUrl(invoiceId: number): Promise<string | null> {
+  try {
+    const invoice = await db.getInvoiceById(invoiceId);
+    if (!invoice || !invoice.xeroInvoiceRef || !invoice.invoiceNumber) return null;
+    if (["paid", "void", "refunded", "reversed", "draft"].includes(invoice.status)) return null;
+    // Xero's copy holds the full invoice amount; if a deposit or review
+    // discount reduced what's actually owed here, its pay page would charge
+    // the wrong figure — so don't offer it.
+    if (invoice.reviewDiscountClaimed || (invoice.depositAppliedAmount || 0) > 0) return null;
+    const status = await getXeroStatus();
+    if (!status.connected) return null;
+    const tokens = await getValidTokens();
+    const headers = {
+      Authorization: `Bearer ${tokens.accessToken}`,
+      "Xero-tenant-id": tokens.tenantId!,
+      Accept: "application/json",
+    };
+    const found = await findXeroInvoiceByReference(headers, invoice.invoiceNumber);
+    if (!found?.invoiceId) return null;
+    const res = await fetch(`${XERO_API_BASE}/Invoices/${found.invoiceId}/OnlineInvoice`, { headers });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const url = json.OnlineInvoices?.[0]?.OnlineInvoiceUrl;
+    return typeof url === "string" && url.startsWith("https://") ? url : null;
+  } catch (error) {
+    console.error("Could not fetch the Xero online invoice link:", error);
+    return null;
   }
 }

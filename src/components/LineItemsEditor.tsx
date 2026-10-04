@@ -15,10 +15,14 @@ import { toast } from "sonner";
 
 export type LineItem = {
   id: string;
+  accountCode?: string;
   description: string;
   quantity: number;
   unitPrice: number;
+  gstApplicable?: boolean;
 };
+
+export const ACCOUNT_CODE_SUGGESTIONS = ["Labour", "Materials", "Insurance Survey", "Subcontractor", "Travel", "Equipment Hire"];
 
 function extractPrice(text: string): number | null {
   const match = text.match(/\$?\s?(\d+(?:\.\d{1,2})?)/);
@@ -74,6 +78,8 @@ export function LineItemsEditor({
       ...items,
       {
         id: crypto.randomUUID(),
+        accountCode: item.accountCode || "",
+        gstApplicable: item.gstApplicable ?? true,
         description: item.description || "",
         quantity: item.quantity ?? 1,
         unitPrice: item.unitPrice ?? 0,
@@ -178,54 +184,84 @@ export function LineItemsEditor({
         </p>
       ) : (
         <div className="space-y-2">
-          <div className="flex items-center gap-2 px-2 text-xs font-medium text-slate-500">
-            <span className="flex-1">Description</span>
-            <span className="w-20 text-center">Qty</span>
-            <span className="w-24 text-center">Unit Price ($)</span>
-            <span className="w-9" />
-          </div>
-          {items.map((item) => (
-            <div key={item.id} className="rounded-lg border border-slate-200 p-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  value={item.description}
-                  onChange={(e) => updateItem(item.id, { description: e.target.value })}
-                  placeholder="Description"
-                  className="flex-1 border-slate-200"
-                />
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
-                  placeholder="Qty"
-                  title="Quantity"
-                  className="w-20 border-slate-200"
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={item.unitPrice}
-                  onChange={(e) => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })}
-                  placeholder="Unit $"
-                  title="Unit price in dollars"
-                  className="w-24 border-slate-200"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeItem(item.id)}
-                  className="shrink-0 text-red-500 hover:bg-red-50 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+          <div className="overflow-x-auto">
+            <div className="min-w-[760px] space-y-2">
+              <div className="flex items-center gap-2 px-2 text-xs font-medium text-slate-500">
+                <span className="w-36">Account / Item Code</span>
+                <span className="flex-1">Description</span>
+                <span className="w-16 text-center">Qty</span>
+                <span className="w-24 text-center">Unit Price ($)</span>
+                <span className="w-12 text-center">GST</span>
+                <span className="w-24 text-right">Total ($)</span>
+                <span className="w-9" />
               </div>
-              <PriceSuggestion description={item.description} />
+              {items.map((item) => (
+                <div key={item.id} className="rounded-lg border border-slate-200 p-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      list="account-code-suggestions"
+                      value={item.accountCode || ""}
+                      onChange={(e) => updateItem(item.id, { accountCode: e.target.value })}
+                      placeholder="e.g. Labour"
+                      className="w-36 border-slate-200"
+                    />
+                    <Input
+                      value={item.description}
+                      onChange={(e) => updateItem(item.id, { description: e.target.value })}
+                      placeholder="Description"
+                      className="flex-1 border-slate-200"
+                    />
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(item.id, { quantity: parseFloat(e.target.value) || 0 })}
+                      placeholder="Qty"
+                      title="Quantity"
+                      className="w-16 border-slate-200"
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })}
+                      placeholder="Unit $"
+                      title="Unit price in dollars"
+                      className="w-24 border-slate-200"
+                    />
+                    <label className="flex w-12 justify-center" title="Tick if GST applies to this line">
+                      <input
+                        type="checkbox"
+                        checked={item.gstApplicable !== false}
+                        onChange={(e) => updateItem(item.id, { gstApplicable: e.target.checked })}
+                        className="h-4 w-4"
+                      />
+                    </label>
+                    <span className="w-24 text-right text-sm font-medium text-slate-800">
+                      {(item.quantity * item.unitPrice).toFixed(2)}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeItem(item.id)}
+                      className="shrink-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <PriceSuggestion description={item.description} />
+                </div>
+              ))}
+              <datalist id="account-code-suggestions">
+                {ACCOUNT_CODE_SUGGESTIONS.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
-          ))}
+          </div>
           <div className="flex justify-end pt-1 text-sm font-medium text-slate-700">
-            Line items total: ${total.toFixed(2)}
+            Line items subtotal: ${total.toFixed(2)}
           </div>
         </div>
       )}

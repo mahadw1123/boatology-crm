@@ -99,20 +99,54 @@ export function CreateJobDialog({
     dueDate: "",
     employeeId: "",
   });
+  const emptyJobForm = {
+    customerId: "",
+    vesselId: "",
+    quoteId: "",
+    description: "",
+    priority: "medium",
+    estimatedLaborHours: "",
+    dueDate: "",
+    employeeId: "",
+  };
   const [quickCreateCustomerOpen, setQuickCreateCustomerOpen] = useState(false);
   const [quickCreateVesselOpen, setQuickCreateVesselOpen] = useState(false);
 
   const customersQuery = trpc.customers.list.useQuery();
   const vesselsQuery = trpc.vessels.list.useQuery();
-  const techniciansQuery = trpc.employees.list.useQuery({ role: "technician" });
+  // Technicians and subcontractors are both assignable to hands-on job work.
+  const allEmployeesQuery = trpc.employees.list.useQuery();
+  const techniciansQuery = {
+    ...allEmployeesQuery,
+    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
+  };
   const utils = trpc.useUtils();
   const customerVessels = (vesselsQuery.data || []).filter(
     (v: any) => v.customerId === parseInt(formData.customerId || "0")
   );
   const quotesQuery = trpc.quotes.list.useQuery(
     formData.customerId ? { customerId: parseInt(formData.customerId) } : undefined,
-    { enabled: !!formData.customerId }
+    { enabled: !!formData.customerId, refetchOnMount: "always", staleTime: 0 }
   );
+
+  // Opening the dialog always starts clean and re-reads customers/quotes, so
+  // a quote or customer created a moment ago shows up without a page refresh,
+  // and a half-filled form from a cancelled attempt never lingers.
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      customersQuery.refetch();
+      vesselsQuery.refetch();
+    }
+    setFormData(emptyJobForm);
+    onOpenChange(next);
+  };
+  useEffect(() => {
+    if (open) {
+      customersQuery.refetch();
+      vesselsQuery.refetch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const createMutation = trpc.jobs.create.useMutation();
   const assignMutation = trpc.jobs.assignTechnician.useMutation();
 
@@ -171,7 +205,7 @@ export function CreateJobDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Create New Job</DialogTitle>
@@ -241,13 +275,14 @@ export function CreateJobDialog({
                 Link to Quote (optional)
               </label>
               <Select
-                value={formData.quoteId}
-                onValueChange={(value) => setFormData({ ...formData, quoteId: value })}
+                value={formData.quoteId || "none"}
+                onValueChange={(value) => setFormData({ ...formData, quoteId: value === "none" ? "" : value })}
               >
                 <SelectTrigger className="mt-1 border-slate-200">
                   <SelectValue placeholder="No quote — invoice amount added later" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">No quote — invoice amount added later</SelectItem>
                   {(quotesQuery.data || []).length === 0 ? (
                     <div className="px-3 py-2 text-sm text-slate-500">
                       No quotes for this customer yet
@@ -372,7 +407,7 @@ export function CreateJobDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>

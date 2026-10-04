@@ -100,6 +100,20 @@ export const quotes = sqliteTable("quotes", {
   laborCost: real("laborCost").default(0),
   partsCost: real("partsCost").default(0),
   totalAmount: real("totalAmount").default(0),
+  // How totalAmount relates to GST — informational/display only for now;
+  // totalAmount itself is still the plain subtotal everything else
+  // (deposit %, Xero sync, invoice amounts) already keys off.
+  // totalAmount is the final payable amount (after discount, incl. GST where
+  // applicable) — these three are the stored breakdown behind it.
+  subtotalAmount: real("subtotalAmount").default(0),
+  discountAmount: real("discountAmount").default(0),
+  taxAmount: real("taxAmount").default(0),
+  taxMode: text("taxMode", { enum: ["exclusive", "inclusive", "none"] }).default("exclusive").notNull(),
+  discountType: text("discountType", { enum: ["none", "percent", "fixed"] }).default("none").notNull(),
+  discountValue: real("discountValue").default(0),
+  // Days until payment is due once invoiced — shown on the quote/PDF as the
+  // default terms; doesn't change any existing invoice due-date logic.
+  paymentTermsDays: integer("paymentTermsDays").default(7),
   notes: text("notes"),
   expiryDate: text("expiryDate"),
   rejectionReason: text("rejectionReason"),
@@ -227,7 +241,7 @@ export const employees = sqliteTable("employees", {
   email: text("email"),
   phone: text("phone"),
   notes: text("notes"),
-  role: text("role", { enum: ["technician", "office_staff", "management"] }).notNull(),
+  role: text("role", { enum: ["technician", "subcontractor", "office_staff", "management"] }).notNull(),
   isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
@@ -256,6 +270,10 @@ export const timeEntries = sqliteTable("timeEntries", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   employeeId: integer("employeeId").notNull(),
   jobId: integer("jobId"),
+  // Optional — which of the job's tasks this time was logged against, so a
+  // job dashboard can show "who worked on what, and when" rather than just
+  // one undifferentiated total per job.
+  taskId: integer("taskId"),
   date: text("date").notNull(),
   clockInTime: text("clockInTime"),
   clockOutTime: text("clockOutTime"),
@@ -273,6 +291,7 @@ export type InsertTimeEntry = typeof timeEntries.$inferInsert;
 export const schedules = sqliteTable("schedules", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   jobId: integer("jobId").notNull(),
+  taskId: integer("taskId"),
   employeeId: integer("employeeId"),
   scheduledDate: text("scheduledDate").notNull(),
   startTime: text("startTime"),
@@ -294,6 +313,9 @@ export const documents = sqliteTable("documents", {
   vesselId: integer("vesselId"),
   jobId: integer("jobId"),
   quoteId: integer("quoteId"),
+  // Set when a photo/file was added against one specific task on the job,
+  // so the customer can see progress task by task.
+  taskId: integer("taskId"),
   fileName: text("fileName").notNull(),
   fileType: text("fileType"),
   fileSize: integer("fileSize"),
@@ -552,6 +574,10 @@ export const jobCosts = sqliteTable("jobCosts", {
     enum: ["labour", "subcontractor", "travel", "equipment", "material"],
   }).notNull(),
   description: text("description").notNull(),
+  // Supplier-bill style line: the supplier's/your own item code, and any
+  // per-line discount taken off before tax.
+  itemCode: text("itemCode"),
+  discountPercent: real("discountPercent").default(0),
   quantity: real("quantity").default(1).notNull(),
   unitCost: real("unitCost").notNull(),
   totalCost: real("totalCost").notNull(),
@@ -559,6 +585,9 @@ export const jobCosts = sqliteTable("jobCosts", {
   invoiceNumber: text("invoiceNumber"),
   purchaseDate: text("purchaseDate"),
   gstAmount: real("gstAmount").default(0),
+  // The uploaded supplier invoice/receipt backing this line, if any — same
+  // `documents` table photos/receipts already use elsewhere.
+  documentId: integer("documentId"),
   notes: text("notes"),
   createdBy: integer("createdBy"),
   createdAt: text("createdAt").default(now).notNull(),
@@ -809,3 +838,26 @@ export const errorEvents = sqliteTable("errorEvents", {
 });
 export type ErrorEvent = typeof errorEvents.$inferSelect;
 export type InsertErrorEvent = typeof errorEvents.$inferInsert;
+
+
+/** Task Assignments - a task can be shared by several technicians; each one
+ * starts/pauses it on their own phone and gets their own time entry. */
+export const taskAssignments = sqliteTable("taskAssignments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  taskId: integer("taskId").notNull(),
+  employeeId: integer("employeeId").notNull(),
+  createdAt: text("createdAt").default(now).notNull(),
+});
+export type TaskAssignment = typeof taskAssignments.$inferSelect;
+
+/** Document Comments - back-and-forth notes on a photo between staff and the customer. */
+export const documentComments = sqliteTable("documentComments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  documentId: integer("documentId").notNull(),
+  authorUserId: integer("authorUserId"),
+  authorName: text("authorName").notNull(),
+  authorRole: text("authorRole").notNull(),
+  body: text("body").notNull(),
+  createdAt: text("createdAt").default(now).notNull(),
+});
+export type DocumentComment = typeof documentComments.$inferSelect;
