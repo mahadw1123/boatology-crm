@@ -1,0 +1,53 @@
+# Render Blueprint for the Boatology CRM.
+# SQLite + uploads live on the persistent disk, so this must stay a single instance on a paid plan.
+services:
+  - type: web
+    name: boatology-crm
+    runtime: node
+    region: singapore
+    plan: starter
+    buildCommand: npm ci && npm run build
+    # Migrations run automatically on startup (server/index.ts), after the disk is mounted.
+    startCommand: npm start
+    healthCheckPath: /
+    disk:
+      name: boatology-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.1
+      - key: NODE_ENV
+        value: production
+      - key: PERSISTENT_DATA_DIR
+        value: /var/data
+      - key: SCHEDULER_TIMEZONE
+        value: Australia/Sydney
+      # Secrets: generated once by Render (do not rotate later, or sessions/Xero tokens break).
+      - key: JWT_SECRET
+        generateValue: true
+      - key: INTEGRATION_ENCRYPTION_KEY
+        generateValue: true
+      # Enter these in the Render dashboard when prompted (never commit real values).
+      - key: APP_URL # https://your-domain
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM # e.g. Boatology <quotes@your-domain>, on a domain verified in Resend
+        sync: false
+      - key: STRIPE_SECRET_KEY # sk_live_...
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY # pk_live_...
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET # whsec_... from the live webhook endpoint
+        sync: false
+      - key: GOOGLE_REVIEW_URL
+        sync: false
+      - key: XERO_CLIENT_ID
+        sync: false
+      - key: XERO_CLIENT_SECRET
+        sync: false
+      - key: XERO_REDIRECT_URI # https://your-domain/api/xero/callback
+        sync: false
+      - key: ANTHROPIC_API_KEY # optional, receipt OCR
+        sync: false
