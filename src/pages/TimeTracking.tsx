@@ -51,7 +51,6 @@ export default function TimeTracking() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Time Tracking</h1>
-              <p className="mt-1 text-sm text-slate-600">Log and review hours worked on jobs and tasks</p>
             </div>
             <Clock className="h-8 w-8 text-[#2d4160]" />
           </div>

@@ -50,9 +50,6 @@ export default function Vessels() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Vessels</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Manage vessel information and service history
-              </p>
             </div>
             <div className="flex gap-2">
               <DownloadButton data={allVessels} filename="boatology-vessels" />

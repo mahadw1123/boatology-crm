@@ -61,9 +61,6 @@ export default function Analytics() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Analytics</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Business insights and performance metrics
-              </p>
             </div>
             <div className="rounded-lg bg-blue-50 p-3">
               <BarChart3 className="h-6 w-6 text-[#2d4160]" />

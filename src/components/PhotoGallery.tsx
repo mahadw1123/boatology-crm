@@ -55,7 +55,7 @@ function PhotoDeleteButton({ doc }: { doc: any }) {
   const utils = trpc.useUtils();
   const deleteMutation = trpc.documents.delete.useMutation({
     onSuccess: () => {
-      toast.success("Removed");
+      toast.success("Document removed");
       utils.documents.listByJob.invalidate();
       utils.documents.listByQuote.invalidate();
       utils.documents.listByVessel.invalidate();
@@ -255,7 +255,7 @@ export function PhotoGallery({ entity, readOnly = false }: { entity: EntityRef; 
                 ) : (
                   <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-400">
                     <FileText className="h-8 w-8" />
-                    <span className="px-2 text-center text-[10px] leading-tight">{doc.fileName}</span>
+                    <span className="px-2 text-center text-xs leading-tight">{doc.fileName}</span>
                   </div>
                 )}
               </a>

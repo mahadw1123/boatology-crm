@@ -158,7 +158,7 @@ export default function TaskCentre() {
 
   const claimMutation = trpc.staffTasks.claim.useMutation({
     onSuccess: () => {
-      toast.success("Claimed");
+      toast.success("Task claimed");
       utils.staffTasks.list.invalidate();
     },
   });
@@ -170,7 +170,7 @@ export default function TaskCentre() {
   });
   const deleteMutation = trpc.staffTasks.delete.useMutation({
     onSuccess: () => {
-      toast.success("Removed");
+      toast.success("Task removed");
       utils.staffTasks.list.invalidate();
       setDeleteTarget(null);
     },
@@ -191,9 +191,6 @@ export default function TaskCentre() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Task Centre</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Office to-dos — some added by you, some created automatically by the system
-              </p>
             </div>
             <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={() => setCreateOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -217,7 +214,7 @@ export default function TaskCentre() {
         ) : filtered.length === 0 ? (
           <Card className="border-slate-200 bg-white p-12 text-center">
             <CheckSquare className="mx-auto h-12 w-12 text-slate-300" />
-            <p className="mt-4 text-slate-600">Nothing here — all caught up.</p>
+            <p className="mt-4 text-slate-600">No tasks to display.</p>
           </Card>
         ) : (
           <div className="space-y-2">

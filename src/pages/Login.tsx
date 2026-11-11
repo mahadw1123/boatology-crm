@@ -166,7 +166,7 @@ export default function Login() {
           onClick={() => setMode(mode === "login" ? "register" : "login")}
           className="mt-4 w-full text-center text-xs font-medium text-sky-300 underline hover:text-sky-200"
         >
-          {mode === "login" ? "Need an account? Create one" : "Already have an account? Sign in"}
+          {mode === "login" ? "Don't have an account? Register" : "Already have an account? Sign in"}
         </button>
       </div>
     </div>

@@ -63,9 +63,6 @@ export default function Administration() {
               <h1 className="text-3xl font-semibold text-slate-900">
                 Administration
               </h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Manage system settings and users
-              </p>
             </div>
             <Settings className="h-8 w-8 text-[#2d4160]" />
           </div>
@@ -403,7 +400,7 @@ function ExistingUsersList() {
                     onValueChange={(v) => relinkMutation.mutate({ userId: u.id, customerId: parseInt(v) })}
                   >
                     <SelectTrigger className="h-7 w-48 border-slate-200 text-xs">
-                      <SelectValue placeholder="Fix — pick correct customer" />
+                      <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
                     <SelectContent>
                       {(customersQuery.data || []).map((c: any) => (
@@ -435,7 +432,7 @@ function ExistingUsersList() {
                     onValueChange={(v) => relinkTechnicianMutation.mutate({ userId: u.id, employeeId: parseInt(v) })}
                   >
                     <SelectTrigger className="h-7 w-48 border-slate-200 text-xs">
-                      <SelectValue placeholder="Fix — pick correct employee" />
+                      <SelectValue placeholder="Select employee" />
                     </SelectTrigger>
                     <SelectContent>
                       {(techniciansQuery.data || []).map((e: any) => (
@@ -1348,7 +1345,7 @@ function SystemErrorsTabContent() {
                   {entry.stack && (
                     <details className="mt-3">
                       <summary className="cursor-pointer text-xs font-medium text-slate-600">Technical details</summary>
-                      <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-[11px] text-slate-100">
+                      <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-3 text-xs text-slate-100">
                         {entry.stack}
                       </pre>
                     </details>

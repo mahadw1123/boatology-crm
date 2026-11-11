@@ -414,7 +414,7 @@ function NotificationsBell() {
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[10px] font-bold text-white">
+          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-xs font-bold text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -441,7 +441,7 @@ function NotificationsBell() {
                   >
                     <p className="text-sm font-medium text-ink">{n.title}</p>
                     {n.message && <p className="mt-0.5 text-xs text-ink-light">{n.message}</p>}
-                    <p className="mt-1 text-[10px] text-ink-light">
+                    <p className="mt-1 text-xs text-ink-light">
                       {new Date(n.createdAt).toLocaleString()}
                     </p>
                   </button>

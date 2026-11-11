@@ -101,7 +101,6 @@ export default function Invoices() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Invoices</h1>
-              <p className="mt-1 text-sm text-slate-600">Every invoice sent, across all customers</p>
             </div>
             <DownloadButton data={invoices} filename="boatology-invoices" />
           </div>

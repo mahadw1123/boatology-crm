@@ -107,7 +107,6 @@ export default function VesselDetail() {
                 <h1 className="text-2xl font-semibold text-slate-900">
                   {(vessel as any)?.boatName || `Vessel #${(vessel as any)?.id}`}
                 </h1>
-                <p className="mt-1 text-sm text-slate-600">Vessel Details</p>
               </div>
             </div>
             {!isEditing ? (

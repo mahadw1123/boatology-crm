@@ -96,9 +96,6 @@ export default function Jobs() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Jobs</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Track and manage all service jobs
-              </p>
             </div>
             <div className="flex gap-2">
               <DownloadButton data={jobs} filename="boatology-jobs" />

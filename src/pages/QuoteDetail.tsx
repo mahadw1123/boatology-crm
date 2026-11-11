@@ -229,7 +229,6 @@ export default function QuoteDetail() {
                 <h1 className="text-2xl font-semibold text-slate-900">
                   {(quote as any)?.quoteNumber || `Quote #${(quote as any)?.id}`}
                 </h1>
-                <p className="mt-1 text-sm text-slate-600">Quote Details</p>
                 {((quote as any)?.status === "draft" || (quote as any)?.status === "pending_approval") && (
                   <p className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600">
                     {(quote as any)?.status === "draft" ? "Draft" : "Pending approval"} — the customer can't see this until you send it

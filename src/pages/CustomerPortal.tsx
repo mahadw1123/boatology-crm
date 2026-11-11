@@ -208,9 +208,6 @@ export default function CustomerPortal() {
             <h1 className="text-3xl font-semibold text-white">
               Customer Portal
             </h1>
-            <p className="mt-1 text-sm text-white/80">
-              View quotes and track your jobs
-            </p>
           </div>
         </div>
       </div>
@@ -637,7 +634,7 @@ function ContactUsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
               value={message}
               onChange={(e) => setMessage(e.target.value.slice(0, 600))}
               rows={4}
-              placeholder="Please let us know what's on your mind. Have a question for us? Ask away."
+              placeholder="Please enter your message or question for our team."
               className="mt-1 border-slate-200"
             />
             <p className="mt-1 text-right text-xs text-slate-400">{message.length} of 600 max characters</p>
@@ -677,7 +674,7 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
 
   const claimDiscountMutation = trpc.invoices.claimReviewDiscount.useMutation({
     onSuccess: () => {
-      toast.success("Discount applied — thank you!");
+      toast.success("Discount applied");
       utils.invoices.listMine.invalidate();
     },
     onError: (err) => showErrorToast(err),

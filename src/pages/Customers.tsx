@@ -41,9 +41,6 @@ export default function Customers() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Customers</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Manage customer information and contact details
-              </p>
             </div>
             <div className="flex gap-2">
               <DownloadButton data={customers} filename="boatology-customers" />

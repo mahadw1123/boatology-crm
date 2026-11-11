@@ -241,9 +241,6 @@ export default function Inventory() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Inventory</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Material stock levels — what's on hand and what needs ordering
-              </p>
             </div>
             <div className="flex gap-2">
               <DownloadButton data={items} filename="boatology-inventory" />

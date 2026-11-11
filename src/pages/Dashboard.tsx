@@ -251,7 +251,7 @@ export default function Dashboard() {
               {jobsQuery.isLoading ? (
                 <p className="text-sm text-slate-500">Loading...</p>
               ) : !jobWindow.nextJob ? (
-                <p className="text-sm text-slate-500">Nothing scheduled — you're all caught up.</p>
+                <p className="text-sm text-slate-500">No items scheduled.</p>
               ) : (
                 <button
                   className="w-full text-left"
@@ -302,7 +302,6 @@ export default function Dashboard() {
           <Card className="border-slate-200 bg-white shadow-sm lg:col-span-2">
             <div className="border-b border-slate-200 px-4 py-2.5">
               <h2 className="text-sm font-semibold text-slate-900">Technician Job Completion</h2>
-              <p className="text-[11px] text-slate-500">Active jobs vs. jobs completed in the last 30 days</p>
             </div>
             <div className="flex flex-wrap gap-4 p-4">
               {techJobCountsQuery.isLoading ? (
@@ -320,7 +319,7 @@ export default function Dashboard() {
                     <TechPie active={t.active} completed={t.completed} />
                     <div>
                       <p className="max-w-[100px] truncate text-xs font-medium text-slate-900">{t.name}</p>
-                      <p className="text-[11px] text-slate-500">{t.completed}/{t.total || 0} done</p>
+                      <p className="text-xs text-slate-500">{t.completed}/{t.total || 0} done</p>
                     </div>
                   </button>
                 ))
@@ -441,7 +440,7 @@ function StatTile({ label, value, sub, color }: { label: string; value: number |
     <div className="rounded-lg bg-slate-50 p-3 text-center">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
       <p className="mt-0.5 text-xs text-slate-500">{label}</p>
-      {sub && <p className="text-[10px] text-slate-400">{sub}</p>}
+      {sub && <p className="text-xs text-slate-400">{sub}</p>}
     </div>
   );
 }
@@ -654,17 +653,16 @@ function DailyAgendaPanel() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900">Today's Agenda</h2>
             {items.length > 0 && (
-              <span className="text-[11px] font-medium text-[#2d4160]">
+              <span className="text-xs font-medium text-[#2d4160]">
                 View all by category →
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-[11px] text-slate-500">What actually needs your attention right now</p>
         </button>
         <div className="max-h-40 overflow-y-auto p-2">
           {items.length === 0 ? (
             <div className="p-4 text-center text-sm text-slate-500">
-              Nothing needs attention right now — you're all caught up.
+              No items require attention.
             </div>
           ) : (
             <div className="space-y-1">
@@ -719,13 +717,13 @@ function DailyAgendaPanel() {
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {category}
                   </h3>
-                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600">
                     {categoryItems.length}
                   </span>
                   <button
                     onClick={() => muteMutation.mutate({ category })}
                     disabled={muteMutation.isPending}
-                    className="ml-auto text-[10px] font-medium text-slate-400 hover:text-slate-700"
+                    className="ml-auto text-xs font-medium text-slate-400 hover:text-slate-700"
                     title={`Stop showing "${category}" reminders for you`}
                   >
                     Mute
@@ -743,7 +741,7 @@ function DailyAgendaPanel() {
                           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${colors.dot}`} />
                           <span className={colors.text}>{item.title}</span>
                           {item.assignedTo != null && item.assignedTo === user?.id && (
-                            <span className="shrink-0 rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                            <span className="shrink-0 rounded-full bg-white/70 px-1.5 py-0.5 text-xs font-semibold text-slate-600">
                               Mine
                             </span>
                           )}
@@ -776,7 +774,7 @@ function DailyAgendaPanel() {
                   <button
                     key={category}
                     onClick={() => unmuteMutation.mutate({ category })}
-                    className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                    className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-200 hover:text-slate-700"
                     title="Unmute"
                   >
                     {category} ✕
@@ -805,7 +803,7 @@ function RevisionCallbackPopup({ items, onNavigate }: { items: any[]; onNavigate
 
   const dismissMutation = trpc.quotes.dismissRevisionFollowUp.useMutation({
     onSuccess: () => {
-      toast.success("Marked as called");
+      toast.success("Marked as contacted");
       utils.agenda.today.invalidate();
     },
     onError: (err) => showErrorToast(err),
@@ -817,7 +815,7 @@ function RevisionCallbackPopup({ items, onNavigate }: { items: any[]; onNavigate
     <Dialog open onOpenChange={() => {}}>
       <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>This customer needs a phone call</DialogTitle>
+          <DialogTitle>Customer follow-up required</DialogTitle>
           <DialogDescription>{popupItem.title}</DialogDescription>
         </DialogHeader>
         <p className="text-sm text-slate-600">

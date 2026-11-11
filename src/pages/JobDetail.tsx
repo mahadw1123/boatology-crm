@@ -182,7 +182,6 @@ export default function JobDetail() {
               <h1 className="truncate text-2xl font-semibold text-slate-900">
                 {jobQuery.data ? getDisplayName(jobQuery.data as any) : `Job #${jobId}`}
               </h1>
-              <p className="mt-1 text-sm text-slate-600">Job Details</p>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -903,7 +902,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
 
   const deleteMutation = trpc.jobCosts.delete.useMutation({
     onSuccess: () => {
-      toast.success("Removed");
+      toast.success("Cost removed");
       utils.jobCosts.listForJob.invalidate(jobId);
       utils.jobCosts.summaryForJob.invalidate(jobId);
       setDeleteTarget(null);

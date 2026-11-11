@@ -131,7 +131,7 @@ export function CreateCustomerDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 }
-                placeholder="(555) 123-4567"
+                placeholder="0412 345 678"
                 className="mt-1 border-slate-200"
               />
             </div>

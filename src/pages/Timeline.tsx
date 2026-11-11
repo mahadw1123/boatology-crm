@@ -49,9 +49,6 @@ export default function Timeline() {
       <div className="border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-6 py-8">
           <h1 className="text-3xl font-semibold text-slate-900">Operations Timeline</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Everything happening across the business, from overdue to upcoming
-          </p>
         </div>
       </div>
 

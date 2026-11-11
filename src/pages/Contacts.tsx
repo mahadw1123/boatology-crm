@@ -27,7 +27,6 @@ export default function Contacts() {
       <div className="border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto max-w-7xl px-6 py-8">
           <h1 className="text-3xl font-semibold text-slate-900">Contacts</h1>
-          <p className="mt-1 text-sm text-slate-600">Everyone the business deals with — customers and suppliers</p>
         </div>
       </div>
 

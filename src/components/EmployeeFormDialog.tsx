@@ -141,7 +141,7 @@ export function EmployeeFormDialog({
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
               className="mt-1 border-slate-200"
-              placeholder="Anything worth remembering about this employee..."
+              placeholder="Internal notes about this employee"
             />
           </div>
           <DialogFooter>

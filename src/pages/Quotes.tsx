@@ -81,9 +81,6 @@ export default function Quotes() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Quotes</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Create and manage customer quotations
-              </p>
             </div>
             <div className="flex gap-2">
               <DownloadButton data={quotes} filename="boatology-quotes" />

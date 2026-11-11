@@ -104,7 +104,7 @@ export default function Calendar() {
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<any>(null);
   const deleteNoteMutation = trpc.calendarNotes.delete.useMutation({
     onSuccess: () => {
-      toast.success("Removed");
+      toast.success("Calendar note removed");
       utils.calendarNotes.list.invalidate();
       setDeleteNoteTarget(null);
     },
@@ -310,7 +310,7 @@ export default function Calendar() {
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const deletePlanEntryMutation = trpc.jobPlan.delete.useMutation({
     onSuccess: () => {
-      toast.success("Removed");
+      toast.success("Plan entry removed");
       utils.jobPlan.listForJobs.invalidate();
       setDeletePlanEntryTarget(null);
     },
@@ -339,7 +339,6 @@ export default function Calendar() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Calendar</h1>
-              <p className="mt-1 text-sm text-slate-600">View and manage job schedules</p>
             </div>
             <CalendarIcon className="h-8 w-8 text-[#2d4160]" />
           </div>

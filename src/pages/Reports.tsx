@@ -34,7 +34,6 @@ export default function Reports() {
       <div className="border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto max-w-4xl px-6 py-8">
           <h1 className="text-3xl font-semibold text-slate-900">Reports</h1>
-          <p className="mt-1 text-sm text-slate-600">Generated automatically from live data — nothing stale</p>
         </div>
       </div>
 

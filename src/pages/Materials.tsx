@@ -47,7 +47,6 @@ export function MaterialsPanel() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Materials</h1>
-          <p className="text-sm text-slate-500">Check stock, request what's needed, and track your requests.</p>
         </div>
         <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={() => setRequestDialogOpen(true)}>
           <Plus className="mr-1.5 h-4 w-4" />

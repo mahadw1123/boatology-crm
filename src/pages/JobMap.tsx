@@ -131,13 +131,13 @@ export default function JobMap() {
                     </div>
                     {j.vesselName && <p className="mt-1 truncate text-xs text-slate-500">{j.vesselName}</p>}
                     <div className="mt-1.5 flex flex-wrap gap-1">
-                      <Badge className={`${priorityColors[j.priority]?.bg} ${priorityColors[j.priority]?.text} border-0 text-[10px]`}>
+                      <Badge className={`${priorityColors[j.priority]?.bg} ${priorityColors[j.priority]?.text} border-0 text-xs`}>
                         {j.priority}
                       </Badge>
                       {j.technicians.length === 0 ? (
-                        <Badge className="border-0 bg-red-100 text-[10px] text-red-700">Unassigned</Badge>
+                        <Badge className="border-0 bg-red-100 text-xs text-red-700">Unassigned</Badge>
                       ) : (
-                        <Badge className="border-0 bg-emerald-100 text-[10px] text-emerald-700">
+                        <Badge className="border-0 bg-emerald-100 text-xs text-emerald-700">
                           {j.technicians.map((t: any) => t.name).join(", ")}
                         </Badge>
                       )}

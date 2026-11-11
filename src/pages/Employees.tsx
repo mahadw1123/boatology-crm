@@ -62,9 +62,6 @@ export default function Employees() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-semibold text-slate-900">Employees</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                Manage team members and technicians
-              </p>
             </div>
             <div className="flex gap-2">
               <DownloadButton data={employees} filename="boatology-employees" />
