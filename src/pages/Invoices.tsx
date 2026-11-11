@@ -209,12 +209,12 @@ export default function Invoices() {
                         <Badge className={`${statusColors[inv.status]?.bg} ${statusColors[inv.status]?.text} border-0`}>
                           {inv.status}
                         </Badge>
-                        {inv.emailStatus === "failed" && (
+                        {inv.emailStatus === "failed" && ["draft", "sent"].includes(inv.status) && (
                           <p className="mt-1 max-w-48 text-xs text-red-600" title={inv.emailError || undefined}>
                             Email failed{inv.emailError ? `: ${inv.emailError}` : ""}
                           </p>
                         )}
-                        {inv.emailStatus === "pending" && (
+                        {inv.emailStatus === "pending" && ["draft", "sent"].includes(inv.status) && (
                           <p className="mt-1 text-xs text-amber-600">Email pending</p>
                         )}
                         {inv.status === "paid" && inv.paidAt && (

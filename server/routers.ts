@@ -4052,6 +4052,10 @@ const tasksRouter = router({
       // Each person who presses Start gets their own timesheet entry, so
       // several people starting the same task together are each logged.
       if (ctx.user.employeeId) await startTaskTimer(ctx.user.employeeId, task);
+      // Work has started, so a job that was only created or scheduled is now in progress.
+      if (job && (job.status === "created" || job.status === "scheduled")) {
+        await db.updateJob(job.id, { status: "in_progress" });
+      }
       return await db.updateTask(input.id, {
         status: "in_progress",
         startedAt: task.status === "in_progress" && task.startedAt ? task.startedAt : new Date().toISOString(),
@@ -4107,6 +4111,19 @@ const tasksRouter = router({
     const job = await db.getJobById(task.jobId);
     if (job && (job.status === "closed" || job.status === "cancelled")) {
       throw new TRPCError({ code: "BAD_REQUEST", message: `This job is ${job.status}, so its tasks can't be reopened.` });
+    }
+    // A job that finished automatically when its last task was completed is no longer finished
+    // once one of those tasks is reopened. If an invoice has already been issued, keep it locked.
+    if (job && job.status === "completed") {
+      const issuedInvoice = await db.getInvoiceByJob(job.id);
+      if (issuedInvoice && !["draft", "void", "reversed"].includes(issuedInvoice.status)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `This job's invoice (${issuedInvoice.invoiceNumber}) has already been issued, so its tasks can't be reopened. Void the invoice first if the work genuinely isn't finished.`,
+        });
+      }
+      await db.updateJob(job.id, { status: "in_progress", completedAt: null });
+      await (await import("./_core/taskRules")).resolveTask(`JOB_NEEDS_FINAL_INVOICE:${job.id}`);
     }
     return await db.updateTask(input.id, { status: "not_started", completedAt: null, startedAt: null, pausedAt: null });
   }),
@@ -6851,6 +6868,9 @@ const analyticsRouter = router({
       const depositsOutstandingCount = depositInvoices.length;
       const depositsOutstandingAmount = depositInvoices.reduce((sum, i) => sum + Math.max(0, i.totalDue - (i.refundedAmount || 0)), 0);
 
+      const draftInvoices = invoices.filter((i) => i.status === "draft");
+      const draftInvoicesCount = draftInvoices.length;
+      const draftInvoicesAmount = draftInvoices.reduce((sum, i) => sum + i.totalDue, 0);
       const unpaidInvoices = invoices.filter((i) => i.status === "sent" && i.invoiceType !== "deposit");
       const invoicesOutstandingCount = unpaidInvoices.length;
       const invoicesOutstandingAmount = unpaidInvoices.reduce((sum, i) => sum + Math.max(0, i.totalDue - (i.refundedAmount || 0)), 0);
@@ -6897,6 +6917,8 @@ const analyticsRouter = router({
         depositsOutstandingAmount,
         invoicesOutstandingCount,
         invoicesOutstandingAmount,
+        draftInvoicesCount,
+        draftInvoicesAmount,
         stockShortages,
         materialRequestsAwaitingApproval,
         technicianWorkload,

@@ -163,9 +163,9 @@ export default function Jobs() {
                     <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Job #</th>
                     <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Status</th>
                     <th className="px-3 py-2.5 hidden lg:table-cell text-left text-xs font-medium text-slate-500">Priority</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Due Date</th>
+                    <th className="hidden lg:table-cell px-3 py-2.5 text-left text-xs font-medium text-slate-500">Due Date</th>
                     <th className="px-3 py-2.5 hidden lg:table-cell text-left text-xs font-medium text-slate-500">Est. Hours</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Assigned To</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Responsible Staff</th>
                     <th className="px-3 py-2.5 text-right text-xs font-medium text-slate-500">Actions</th>
                   </tr>
                 </thead>
@@ -193,7 +193,7 @@ export default function Jobs() {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-sm text-slate-600">{formatDate(job.dueDate)}</td>
+                      <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">{formatDate(job.dueDate)}</td>
                       <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">{job.estimatedLaborHours || "—"}</td>
                       <td className="px-3 py-3 text-sm text-slate-600">
                         <select

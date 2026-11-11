@@ -110,8 +110,14 @@ export default function JobDetail() {
     }
   }, [jobQuery.data]);
 
-  const handleSave = async () => {
+  const [confirmReopen, setConfirmReopen] = useState(false);
+
+  const handleSave = async (reopenConfirmed = false) => {
     if (!jobId) return;
+    if (!reopenConfirmed && (job as any)?.status === "completed" && formData.status === "in_progress") {
+      setConfirmReopen(true);
+      return;
+    }
     try {
       await updateMutation.mutateAsync({
         id: jobId,
@@ -225,7 +231,7 @@ export default function JobDetail() {
                 </Button>
                 <Button
                   className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
-                  onClick={handleSave}
+                  onClick={() => handleSave()}
                   disabled={updateMutation.isPending}
                 >
                   <Save className="mr-2 h-4 w-4" />
@@ -236,6 +242,31 @@ export default function JobDetail() {
           </div>
         </div>
       </div>
+
+      <Dialog open={confirmReopen} onOpenChange={setConfirmReopen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reopen this completed job?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            The job will go back to In Progress. If a final invoice has already been created for it, that invoice stays
+            attached, so check it before continuing.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReopen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmReopen(false);
+                handleSave(true);
+              }}
+            >
+              Reopen job
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isCancelling} onOpenChange={setIsCancelling}>
         <DialogContent>
@@ -368,7 +399,7 @@ export default function JobDetail() {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-900">
-                    Assigned To
+                    Responsible Staff Member
                   </label>
                   <Select
                     value={formData.assignedUserId || "unassigned"}
@@ -448,7 +479,7 @@ export default function JobDetail() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-600">Assigned To</p>
+                    <p className="text-sm font-medium text-slate-600">Responsible Staff Member</p>
                     <p className="mt-1 text-lg font-semibold text-slate-900">
                       {(staffUsersQuery.data || []).find((u: any) => u.id === (job as any)?.assignedUserId)?.name || "Unassigned"}
                     </p>
@@ -665,6 +696,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
   const quoteAmount = (quoteQuery.data as any)?.totalAmount || 0;
 
   const [isEditingAmount, setIsEditingAmount] = useState(false);
+  const [confirmingSend, setConfirmingSend] = useState(false);
   const [editedAmount, setEditedAmount] = useState("");
   const [adjustmentReason, setAdjustmentReason] = useState("");
 
@@ -767,7 +799,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
               setAdjustmentReason(job.additionalWorkNotes || "");
               setIsEditingAmount(true);
             } else {
-              handleCreate();
+              setConfirmingSend(true);
             }
           }}
         >
@@ -788,6 +820,30 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
           </Button>
         )}
       </div>
+      <Dialog open={confirmingSend} onOpenChange={setConfirmingSend}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create and send final invoice</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            This will create the final invoice for ${Number(quoteAmount).toFixed(2)} and email it to the customer. Please check the amount is correct.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmingSend(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={createMutation.isPending}
+              onClick={() => {
+                setConfirmingSend(false);
+                handleCreate();
+              }}
+            >
+              Create and send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1280,6 +1336,11 @@ function TasksSection({ jobId }: { jobId: number }) {
     data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
   };
 
+  // Only people already assigned to the job can be given one of its tasks.
+  const jobAssignmentsQuery = trpc.jobs.getAssignments.useQuery(jobId);
+  const jobAssignedIds = new Set((jobAssignmentsQuery.data || []).map((a: any) => a.employeeId));
+  const taskAssignableEmployees = (employeesQuery.data || []).filter((e: any) => jobAssignedIds.has(e.id));
+
   const createMutation = trpc.tasks.create.useMutation({
     onSuccess: () => {
       toast.success("Task added");
@@ -1438,10 +1499,10 @@ function TasksSection({ jobId }: { jobId: number }) {
               </Select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-900">Assigned To (pick one or more)</label>
+              <label className="block text-xs font-medium text-slate-900">Assign to (pick one or more)</label>
               <div className="mt-1 max-h-28 space-y-1 overflow-y-auto rounded-md border border-slate-200 p-2">
-                {(employeesQuery.data || []).length === 0 && <p className="text-xs text-slate-400">No technicians available</p>}
-                {(employeesQuery.data || []).map((e: any) => (
+                {taskAssignableEmployees.length === 0 && <p className="text-xs text-slate-400">No technicians are assigned to this job yet. Add them on the Technicians tab first.</p>}
+                {taskAssignableEmployees.map((e: any) => (
                   <label key={e.id} className="flex items-center gap-2 text-sm text-slate-700">
                     <input
                       type="checkbox"

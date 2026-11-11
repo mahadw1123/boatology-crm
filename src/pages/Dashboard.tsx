@@ -207,7 +207,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-slate-600">Open Invoices</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
-                    {invoicesQuery.isLoading ? "—" : `$${invoiceStats.openTotal.toFixed(0)}`}
+                    {invoicesQuery.isLoading ? "—" : `${invoiceStats.openTotal.toFixed(2)}`}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">{invoiceStats.open.length} awaiting payment</p>
                 </div>
@@ -227,9 +227,9 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-slate-600">Paid This Month</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
-                    {invoicesQuery.isLoading ? "—" : `$${invoiceStats.paidTotal.toFixed(0)}`}
+                    {invoicesQuery.isLoading ? "—" : `${invoiceStats.paidTotal.toFixed(2)}`}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">{invoiceStats.paidThisMonthCount} invoices</p>
+                  <p className="mt-1 text-xs text-slate-500">{invoiceStats.paidThisMonthCount} {invoiceStats.paidThisMonthCount === 1 ? "invoice" : "invoices"}</p>
                 </div>
                 <div className="rounded-lg bg-emerald-50 p-2.5">
                   <DollarSign className="h-5 w-5 text-emerald-600" />
@@ -904,6 +904,12 @@ function RoleFocusPanel({ role }: { role?: string }) {
               <span className="text-slate-600">Final invoices outstanding</span>
               <span className="font-semibold text-amber-700">
                 {s.invoicesOutstandingCount} (${s.invoicesOutstandingAmount.toFixed(2)})
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Draft invoices (not yet sent)</span>
+              <span className="font-semibold text-slate-700">
+                {s.draftInvoicesCount ?? 0} (${(s.draftInvoicesAmount ?? 0).toFixed(2)})
               </span>
             </div>
             <button onClick={() => navigate("/invoices")} className="text-xs text-[#2d4160] hover:underline">
