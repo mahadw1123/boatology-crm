@@ -226,7 +226,7 @@ export default function QuoteDetail() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-2xl font-semibold text-slate-900">
+                <h1 className="whitespace-nowrap text-2xl font-semibold text-slate-900">
                   {(quote as any)?.quoteNumber || `Quote #${(quote as any)?.id}`}
                 </h1>
                 {((quote as any)?.status === "draft" || (quote as any)?.status === "pending_approval") && (
@@ -373,7 +373,7 @@ export default function QuoteDetail() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-900">
-                      Labor Cost
+                      Labour Cost
                     </label>
                     <Input
                       type="number"
@@ -493,18 +493,23 @@ export default function QuoteDetail() {
                 )}
 
                 <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">Labor Cost</p>
-                    <p className="mt-1 text-lg font-semibold text-slate-900">
-                      {formatCurrency(Number((quote as any)?.laborCost || 0))}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">Parts Cost</p>
-                    <p className="mt-1 text-lg font-semibold text-slate-900">
-                      {formatCurrency(Number((quote as any)?.partsCost || 0))}
-                    </p>
-                  </div>
+                  {/* Quotes built from line items carry their own breakdown; the separate labour/parts totals only apply to older quotes without line items. */}
+                  {lineItems.length === 0 && (
+                    <>
+                      <div>
+                        <p className="text-sm font-medium text-slate-600">Labour Cost</p>
+                        <p className="mt-1 text-lg font-semibold text-slate-900">
+                          {formatCurrency(Number((quote as any)?.laborCost || 0))}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-600">Parts Cost</p>
+                        <p className="mt-1 text-lg font-semibold text-slate-900">
+                          {formatCurrency(Number((quote as any)?.partsCost || 0))}
+                        </p>
+                      </div>
+                    </>
+                  )}
                   <div>
                     <p className="text-sm font-medium text-slate-600">Total</p>
                     <p className="mt-1 text-lg font-semibold text-[#0c1e38]">

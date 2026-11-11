@@ -240,7 +240,7 @@ export function CreateQuoteDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-900">
-                Labor Cost
+                Labour Cost
               </label>
               <Input
                 type="number"

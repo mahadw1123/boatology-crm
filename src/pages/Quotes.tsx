@@ -97,7 +97,7 @@ export default function Quotes() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="w-full px-6 py-6">
         {/* Search Bar */}
         <div className="mb-8">
           <div className="relative">
@@ -133,25 +133,25 @@ export default function Quotes() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Quote #
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Customer
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Amount
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Assigned To
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Expires
                     </th>
-                    <th className="px-6 py-3 text-right text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">
                       Actions
                     </th>
                   </tr>
@@ -159,20 +159,20 @@ export default function Quotes() {
                 <tbody className="divide-y divide-slate-200">
                   {filteredQuotes.map((quote: any) => (
                     <tr key={quote.id} className="hover:bg-slate-50">
-                      <td className="px-6 py-4">
-                        <span className="font-medium text-slate-900">
+                      <td className="px-3 py-3">
+                        <span className="whitespace-nowrap font-medium text-slate-900">
                           {quote.quoteNumber || `#${quote.id}`}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-3 py-3 text-sm text-slate-600">
                         {customersById.get(quote.customerId)?.name || `Customer #${quote.customerId}`}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <span className="font-semibold text-slate-900">
                           {formatCurrency(Number(quote.totalAmount || 0))}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-3 py-3 text-sm text-slate-600">
                         <select
                           value={quote.assignedUserId?.toString() || ""}
                           onChange={(e) =>
@@ -191,7 +191,7 @@ export default function Quotes() {
                           ))}
                         </select>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <Badge
                           title={quote.status === "rejected" ? quote.rejectionReason || undefined : undefined}
                           className={`${statusColors[quote.status]?.bg} ${statusColors[quote.status]?.text} border-0`}
@@ -204,10 +204,10 @@ export default function Quotes() {
                           </p>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-3 py-3 text-sm text-slate-600">
                         {formatDate(quote.expiryDate)}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-3 py-3 text-right">
                         <Button
                           variant="ghost"
                           size="sm"

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -134,10 +133,9 @@ export function MaterialsPanel() {
 }
 
 export default function Materials() {
-  const [, navigate] = useLocation();
   return (
     <div className="mx-auto max-w-3xl p-4 pb-24 md:p-6">
-      <button onClick={() => navigate("/technician-home")} className="mb-4 flex items-center gap-1 text-sm text-slate-500">
+      <button onClick={() => window.history.back()} className="mb-4 flex items-center gap-1 text-sm text-slate-500">
         <ArrowLeft className="h-4 w-4" />
         Back
       </button>

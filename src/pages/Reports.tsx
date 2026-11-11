@@ -126,18 +126,12 @@ export default function Reports() {
           </div>
         </Card>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
-          Other report types (Weekly Operations, Technician Performance, Inventory Status) use the same
-          underlying data already shown on the Analytics and Timeline pages — this is the flagship,
-          exportable version of it.
-        </p>
-
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <OtherReportCard
             reportKey="end-of-day-summary"
             title="End-of-Day Summary"
             query={trpc.reports.endOfDaySummary.useQuery()}
-            summarize={(d: any) => `${d.jobsCompletedToday.length} jobs, ${d.tasksCompletedToday.length} tasks completed today`}
+            summarize={(d: any) => `${d.jobsCompletedToday.length} ${d.jobsCompletedToday.length === 1 ? "job" : "jobs"}, ${d.tasksCompletedToday.length} ${d.tasksCompletedToday.length === 1 ? "task" : "tasks"} completed today`}
           />
           <OtherReportCard
             reportKey="weekly-operations-report"
@@ -173,7 +167,7 @@ export default function Reports() {
             reportKey="upcoming-services"
             title="Upcoming Services"
             query={trpc.reports.upcomingServices.useQuery()}
-            summarize={(d: any) => `${d.jobs.length} job(s) in the next 14 days`}
+            summarize={(d: any) => `${d.jobs.length} ${d.jobs.length === 1 ? "job" : "jobs"} in the next 14 days`}
           />
           <OtherReportCard
             reportKey="technician-performance"

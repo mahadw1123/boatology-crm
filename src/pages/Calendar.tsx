@@ -22,7 +22,7 @@ import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { trpc } from "@/lib/trpc";
 import { useJobDisplayName } from "@/lib/jobNaming";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, CloudRain, Sun, Cloud, Users, Plus, X, StickyNote, Package, Clock, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errors";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -384,7 +384,7 @@ export default function Calendar() {
                       className="flex items-center justify-between rounded-lg border border-slate-200 p-3"
                     >
                       <span className="text-sm font-medium text-slate-900">{emp.name}</span>
-                      <Badge className="border-0 bg-[#0c1e38] text-white">{emp.activeJobCount} job(s)</Badge>
+                      <Badge className="border-0 bg-[#0c1e38] text-white">{emp.activeJobCount} {emp.activeJobCount === 1 ? "job" : "jobs"}</Badge>
                     </div>
                   ))}
                 </div>
@@ -1127,6 +1127,10 @@ function NewAppointmentDialog({
     notes: "",
   });
   const emptyForm = () => ({ scheduledDate: defaultDate || toDateKey(new Date()), startTime: "08:30", endTime: "09:30", jobId: "", taskId: "", employeeId: "", notes: "" });
+  // The form state is created once, so re-apply the chosen day each time the dialog opens.
+  useEffect(() => {
+    if (open) setForm((prev) => ({ ...prev, scheduledDate: defaultDate || toDateKey(new Date()) }));
+  }, [open, defaultDate]);
   const jobTasksQuery = trpc.tasks.listForJob.useQuery(parseInt(form.jobId || "0"), { enabled: open && !!form.jobId, retry: false });
 
   const createMutation = trpc.schedules.create.useMutation({
