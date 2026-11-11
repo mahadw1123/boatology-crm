@@ -6847,11 +6847,11 @@ const analyticsRouter = router({
       const jobsOverdue = jobs.filter((j) => j.dueDate && j.dueDate < todayStr && j.status !== "completed" && j.status !== "closed").length;
       const quotesAwaitingApproval = quotes.filter((q) => q.status === "sent").length;
 
-      const depositInvoices = invoices.filter((i) => i.invoiceType === "deposit" && !["paid", "void", "refunded"].includes(i.status));
+      const depositInvoices = invoices.filter((i) => i.invoiceType === "deposit" && i.status === "sent");
       const depositsOutstandingCount = depositInvoices.length;
       const depositsOutstandingAmount = depositInvoices.reduce((sum, i) => sum + Math.max(0, i.totalDue - (i.refundedAmount || 0)), 0);
 
-      const unpaidInvoices = invoices.filter((i) => !["paid", "void", "refunded"].includes(i.status) && i.invoiceType !== "deposit");
+      const unpaidInvoices = invoices.filter((i) => i.status === "sent" && i.invoiceType !== "deposit");
       const invoicesOutstandingCount = unpaidInvoices.length;
       const invoicesOutstandingAmount = unpaidInvoices.reduce((sum, i) => sum + Math.max(0, i.totalDue - (i.refundedAmount || 0)), 0);
 

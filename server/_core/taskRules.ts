@@ -136,6 +136,33 @@ async function checkJobsCompletedWithoutFinalInvoice() {
   return created;
 }
 
+/** An accepted quote with no job created against it yet → office follow-up, so accepted work
+ * does not wait unnoticed. Clears itself once a job is created from the quote. */
+async function checkAcceptedQuotesWithoutJob() {
+  const [quotes, jobs] = await Promise.all([db.getQuotes(), db.getJobs()]);
+  const jobbedQuoteIds = new Set(jobs.filter((j) => j.quoteId != null).map((j) => j.quoteId));
+  let created = 0;
+  for (const quote of quotes) {
+    const ruleKey = `QUOTE_NEEDS_JOB:${quote.id}`;
+    if (quote.status === "accepted" && !jobbedQuoteIds.has(quote.id)) {
+      if (
+        await ensureTask(ruleKey, {
+          title: `Create a job — ${quote.quoteNumber || `Quote ${quote.id}`}`,
+          description: `Quote ${quote.quoteNumber || quote.id} has been accepted and has no job yet.`,
+          priority: "high",
+          linkedQuoteId: quote.id,
+          linkedCustomerId: quote.customerId,
+        })
+      ) {
+        created++;
+      }
+    } else {
+      await resolveTask(ruleKey);
+    }
+  }
+  return created;
+}
+
 /** A material request approved but not actually ordered after 2 days →
  * purchasing reminder, distinct from the existing "approve this" task. */
 async function checkMaterialRequestsNotOrdered() {
@@ -225,6 +252,7 @@ export async function runAllTaskRules() {
     depositsUnpaid: await checkDepositInvoicesUnpaid(),
     unassignedJobs: await checkUnassignedJobs(),
     jobsNeedingFinalInvoice: await checkJobsCompletedWithoutFinalInvoice(),
+    quotesNeedingJob: await checkAcceptedQuotesWithoutJob(),
     materialsNotOrdered: await checkMaterialRequestsNotOrdered(),
     invoicesNotSyncedToXero: await checkInvoicesNotSyncedToXero(),
   };
@@ -238,6 +266,7 @@ export const _internal = {
   checkDepositInvoicesUnpaid,
   checkUnassignedJobs,
   checkJobsCompletedWithoutFinalInvoice,
+  checkAcceptedQuotesWithoutJob,
   checkMaterialRequestsNotOrdered,
   checkInvoicesNotSyncedToXero,
 };

@@ -1885,7 +1885,7 @@ export async function getWeeklyOperationsReportData() {
 export async function getOutstandingPaymentsData() {
   const [invoices, customers] = await Promise.all([getAllInvoices(), getCustomers()]);
   const customersById = new Map(customers.map((c) => [c.id, c]));
-  const unpaid = invoices.filter((i) => !["paid", "void", "refunded"].includes(i.status));
+  const unpaid = invoices.filter((i) => i.status === "sent");
   return {
     generatedAt: new Date().toISOString(),
     invoices: unpaid.map((i) => {

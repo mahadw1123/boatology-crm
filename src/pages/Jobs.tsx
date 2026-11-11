@@ -172,7 +172,7 @@ export default function Jobs() {
                 <tbody>
                   {filteredJobs.map((job: any) => (
                     <tr key={job.id} className="border-b border-slate-100">
-                      <td className="px-3 py-3 text-sm font-medium text-slate-900">
+                      <td className="max-w-[16rem] px-3 py-3 text-sm font-medium text-slate-900">
                         <div className="flex items-center gap-1.5">
                           {getDisplayName(job)}
                           {job.priority === "urgent" && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />}
@@ -204,7 +204,7 @@ export default function Jobs() {
                               assignedUserId: e.target.value ? parseInt(e.target.value) : null,
                             })
                           }
-                          className="rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs"
+                          className="w-28 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-xs"
                         >
                           <option value="">Unassigned</option>
                           {(staffUsersQuery.data || []).map((u: any) => (
@@ -215,7 +215,7 @@ export default function Jobs() {
                         </select>
                       </td>
                       <td className="px-3 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => setLocation(`/jobs/${job.id}`)}>
                             View
                           </Button>

@@ -897,13 +897,13 @@ function RoleFocusPanel({ role }: { role?: string }) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Deposits outstanding</span>
               <span className="font-semibold text-amber-700">
-                {s.depositsOutstandingCount} (${s.depositsOutstandingAmount.toFixed(0)})
+                {s.depositsOutstandingCount} (${s.depositsOutstandingAmount.toFixed(2)})
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-600">Final invoices outstanding</span>
               <span className="font-semibold text-amber-700">
-                {s.invoicesOutstandingCount} (${s.invoicesOutstandingAmount.toFixed(0)})
+                {s.invoicesOutstandingCount} (${s.invoicesOutstandingAmount.toFixed(2)})
               </span>
             </div>
             <button onClick={() => navigate("/invoices")} className="text-xs text-[#2d4160] hover:underline">
