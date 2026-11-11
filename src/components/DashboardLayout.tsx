@@ -173,7 +173,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
           <span className="text-sm font-semibold tracking-wide">{companyNameQuery.data?.name || "Boatology"}</span>
         </Link>
-        <nav className="flex-1 space-y-0.5 px-3 py-4">
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
           {visibleNavItems.map((item) => {
             // /customers/:id is a Customer Detail page reached from Contacts,
             // not its own nav item (customers/* is hidden — see NAV_ITEMS
@@ -188,7 +188,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors ${
                   active
                     ? "bg-white/10 font-medium text-white"
                     : "text-white/70 hover:bg-white/5 hover:text-white"
