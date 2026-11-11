@@ -229,7 +229,7 @@ export default function CustomerPortal() {
         {agendaQuery.data && agendaQuery.data.length > 0 && (
           <Card className="mb-6 border-slate-200 bg-white shadow-sm">
             <div className="p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Needs Your Attention</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Notifications</h2>
               <div className="mt-3 space-y-1.5">
                 {(agendaQuery.data as any[]).map((item) => (
                   <button
@@ -281,7 +281,7 @@ export default function CustomerPortal() {
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-slate-900">
-                          Quote
+                          Quote {quote.customerQuoteNumber}
                         </h3>
                         <p className="text-sm text-slate-600 mt-1">
                           Created: {formatDate(quote.createdAt)}

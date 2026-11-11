@@ -1377,11 +1377,17 @@ const quotesRouter = router({
             .map((quote) => technicianQuoteView(quote!));
         }
         if (ctx.user.role === "customer") {
-          const records = await db.getQuotes(ctx.user.customerId ?? -1, input?.status);
+          const records = await db.getQuotes(ctx.user.customerId ?? -1);
           // A customer must never see a quote still in internal drafting/
           // approval — only ones that have actually been sent to them (or
           // moved on from there) belong in their portal.
-          return records.filter((quote) => quote.status !== "draft" && quote.status !== "pending_approval");
+          // Customers see "Quote 1", "Quote 2"… counted per customer in the
+          // order created, instead of the internal quote number.
+          return records
+            .filter((quote) => quote.status !== "draft" && quote.status !== "pending_approval")
+            .sort((a, b) => a.id - b.id)
+            .map((quote, index) => ({ ...quote, customerQuoteNumber: index + 1 }))
+            .filter((quote) => !input?.status || quote.status === input.status);
         }
         return await db.getQuotes(input?.customerId, input?.status);
       } catch (error) {
@@ -5158,8 +5164,8 @@ const agendaRouter = router({
           items.push({
             id: `my-invoice-payment-due-${inv.id}`,
             title: overdue
-              ? `Invoice ${inv.invoiceNumber} is overdue — $${inv.totalDue.toFixed(2)} due`
-              : `Payment due: ${inv.invoiceNumber} — $${inv.totalDue.toFixed(2)}`,
+              ? `Payment overdue: $${inv.totalDue.toFixed(2)}`
+              : `Payment due: $${inv.totalDue.toFixed(2)}`,
             category: "Payment Due",
             urgency: overdue ? "urgent" : "normal",
             linkType: "invoice",
