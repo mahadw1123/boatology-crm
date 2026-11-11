@@ -541,7 +541,7 @@ function ImportCsvDialog({
         {step === "preview" && (
           <div className="space-y-4">
             <p className="text-sm text-slate-600">
-              <span className="font-medium">{fileName}</span> — {parsedRows.length} row(s) found.
+              <span className="font-medium">{fileName}</span> — {parsedRows.length} {parsedRows.length === 1 ? "row" : "rows"} found.
             </p>
             <div className="flex gap-4 text-sm">
               <span className="text-emerald-700">{readyCount} ready to import</span>
@@ -625,7 +625,7 @@ function ImportCsvDialog({
                 onClick={handleConfirmImport}
                 disabled={importMutation.isPending || parsedRows.length === 0}
               >
-                {importMutation.isPending ? "Importing..." : `Import ${parsedRows.length} Row(s)`}
+                {importMutation.isPending ? "Importing..." : `Import ${parsedRows.length} ${parsedRows.length === 1 ? "Row" : "Rows"}`}
               </Button>
             </>
           )}

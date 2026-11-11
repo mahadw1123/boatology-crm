@@ -41,7 +41,6 @@ export function CreateVesselDialog({
     registration: "",
     location: "",
     insuranceDetails: "",
-    notes: "",
   });
 
   useEffect(() => {
@@ -81,7 +80,6 @@ export function CreateVesselDialog({
         registration: "",
         location: "",
         insuranceDetails: "",
-        notes: "",
       });
       utils.vessels.list.invalidate();
       onOpenChange(false);
@@ -212,21 +210,6 @@ export function CreateVesselDialog({
                 })
               }
               placeholder="Insurance information..."
-              className="mt-1 border-slate-200"
-              rows={2}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-900">
-              Notes
-            </label>
-            <Textarea
-              value={formData.notes}
-              onChange={(e) =>
-                setFormData({ ...formData, notes: e.target.value })
-              }
-              placeholder="Any additional notes..."
               className="mt-1 border-slate-200"
               rows={2}
             />

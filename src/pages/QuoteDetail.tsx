@@ -229,6 +229,16 @@ export default function QuoteDetail() {
                 <h1 className="whitespace-nowrap text-2xl font-semibold text-slate-900">
                   {(quote as any)?.quoteNumber || `Quote #${(quote as any)?.id}`}
                 </h1>
+                {(() => {
+                  const customerName = (customersQuery.data || []).find((c: any) => c.id === (quote as any)?.customerId)?.name;
+                  const vesselName = (vesselsQuery.data || []).find((v: any) => v.id === (quote as any)?.vesselId)?.name;
+                  if (!customerName && !vesselName) return null;
+                  return (
+                    <p className="mt-0.5 text-sm text-slate-600">
+                      {[customerName, vesselName].filter(Boolean).join(" · ")}
+                    </p>
+                  );
+                })()}
                 {((quote as any)?.status === "draft" || (quote as any)?.status === "pending_approval") && (
                   <p className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600">
                     {(quote as any)?.status === "draft" ? "Draft" : "Pending approval"} — the customer can't see this until you send it

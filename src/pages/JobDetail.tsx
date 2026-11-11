@@ -189,7 +189,7 @@ export default function JobDetail() {
               <>
                 <QRCodeButton jobId={jobId!} />
                 <CreateInvoiceButton jobId={jobId!} />
-                {(job as any)?.status !== "closed" && (job as any)?.status !== "cancelled" && (
+                {(job as any)?.status !== "closed" && (job as any)?.status !== "cancelled" && (job as any)?.status !== "completed" && (
                   <Button
                     variant="outline"
                     className="border-red-300 text-red-700 hover:bg-red-50"
@@ -828,7 +828,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
     onSuccess: (result: any) => {
       if (result.largeCostWarning) {
         toast.warning(
-          `Cost added — but heads up, this single entry ($${result.largeCostWarning.totalCost.toFixed(2)}) is more than the job's entire agreed price ($${result.largeCostWarning.revenue.toFixed(2)}). Worth double-checking for a typo.`,
+          `Cost added. Note that this single entry ($${result.largeCostWarning.totalCost.toFixed(2)}) is more than the job's entire agreed price ($${result.largeCostWarning.revenue.toFixed(2)}). Please check it for a typing error.`,
           { duration: 8000 }
         );
       } else {
@@ -1006,7 +1006,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-xs text-slate-500">Gross Profit</p>
             <p className={`text-lg font-semibold ${summary.grossProfit >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-              ${summary.grossProfit.toFixed(2)}
+              {summary.grossProfit < 0 ? "-" : ""}${Math.abs(summary.grossProfit).toFixed(2)}
             </p>
           </div>
           <div className="rounded-lg bg-slate-50 p-3">

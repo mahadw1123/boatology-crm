@@ -983,6 +983,14 @@ const auditActionLabels: Record<string, string> = {
   invite_staff: "Invited staff member",
   update_setting: "Changed a setting",
   password_reset: "Reset password",
+  quote_status_change: "Quote status changed",
+  create: "Created",
+  update: "Updated",
+};
+
+const humanizeAction = (action: string) => {
+  const text = action.replace(/_/g, " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
 const auditActionColors: Record<string, { bg: string; text: string }> = {
@@ -1095,7 +1103,7 @@ function AuditLogTabContent() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <Badge className={`${auditActionColors[entry.action]?.bg || "bg-slate-100"} ${auditActionColors[entry.action]?.text || "text-slate-600"} border-0 text-xs`}>
-                      {auditActionLabels[entry.action] || entry.action}
+                      {auditActionLabels[entry.action] || humanizeAction(entry.action)}
                     </Badge>
                     <span className="text-sm text-slate-900">
                       {entry.entityType}

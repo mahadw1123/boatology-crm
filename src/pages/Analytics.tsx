@@ -252,7 +252,7 @@ function XeroRevenueSection() {
               </div>
               <div className="sm:col-span-3">
                 <p className="text-xs text-slate-500">
-                  {revenueQuery.data.invoiceCount} invoice(s) in {revenueQuery.data.tenantName}
+                  {revenueQuery.data.invoiceCount} {revenueQuery.data.invoiceCount === 1 ? "invoice" : "invoices"} in {revenueQuery.data.tenantName}
                 </p>
               </div>
             </div>
@@ -427,7 +427,7 @@ function PaymentStatusSection() {
                         <td className="px-3 py-3 text-sm text-slate-600">{row.invoiceNumber || "—"}</td>
                         <td className="px-3 py-3 text-sm text-slate-900">${row.totalDue.toFixed(2)}</td>
                         <td className="px-3 py-3 text-sm text-slate-600">
-                          {row.daysSinceSent === null ? "—" : `${row.daysSinceSent} day(s)`}
+                          {row.daysSinceSent === null ? "—" : `${row.daysSinceSent} ${row.daysSinceSent === 1 ? "day" : "days"}`}
                         </td>
                         <td className="px-3 py-3">
                           <Badge className={`${style.bg} ${style.text} border-0`}>{style.label}</Badge>
@@ -535,7 +535,7 @@ function BusinessHealthSection() {
     { label: "Purchase orders pending", value: h.purchaseOrdersPending, tone: "blue" },
     { label: "Workshop utilization", value: `${h.workshopUtilization}%`, tone: "emerald" },
     { label: "Gross profit (active jobs)", value: `${h.totalGrossProfit < 0 ? "-" : ""}$${Math.abs(h.totalGrossProfit).toFixed(0)}`, tone: h.totalGrossProfit >= 0 ? "emerald" : "red" },
-    { label: "Weekly cash flow", value: `$${h.weeklyCashFlow.toFixed(0)}`, tone: h.weeklyCashFlow >= 0 ? "emerald" : "red" },
+    { label: "Weekly cash flow", value: `${h.weeklyCashFlow < 0 ? "-" : ""}${Math.abs(h.weeklyCashFlow).toFixed(0)}`, tone: h.weeklyCashFlow >= 0 ? "emerald" : "red" },
   ];
 
   const toneClasses: Record<string, string> = {

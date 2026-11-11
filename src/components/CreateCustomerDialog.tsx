@@ -49,7 +49,7 @@ export function CreateCustomerDialog({
       const customer = await createMutation.mutateAsync({ ...formData, sendWelcomeEmail: sendWelcomeEmail && !!formData.email });
       toast.success("Customer created successfully");
       if (customer.duplicateWarning) {
-        toast.warning(`Heads up — "${customer.duplicateWarning.existingCustomerName}" already uses this email. Might be a duplicate entry.`, { duration: 8000 });
+        toast.warning(`Note: "${customer.duplicateWarning.existingCustomerName}" already uses this email. This may be a duplicate.`, { duration: 8000 });
       }
       setFormData({
         name: "",

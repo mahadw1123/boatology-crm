@@ -279,7 +279,14 @@ export function CreateJobDialog({
               </label>
               <Select
                 value={formData.quoteId || "none"}
-                onValueChange={(value) => setFormData({ ...formData, quoteId: value === "none" ? "" : value })}
+                onValueChange={(value) => {
+                  const picked = acceptedQuotes.find((quote: any) => quote.id.toString() === value);
+                  setFormData({
+                    ...formData,
+                    quoteId: value === "none" ? "" : value,
+                    vesselId: picked?.vesselId ? picked.vesselId.toString() : formData.vesselId,
+                  });
+                }}
               >
                 <SelectTrigger className="mt-1 border-slate-200">
                   <SelectValue placeholder="No quote — invoice amount added later" />

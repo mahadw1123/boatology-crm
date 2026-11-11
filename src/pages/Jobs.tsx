@@ -177,7 +177,7 @@ export default function Jobs() {
                       <td className="px-6 py-4">
                         {job.priority && (
                           <span className={`text-xs font-medium ${priorityColors[job.priority]}`}>
-                            {job.priority.toUpperCase()}
+                            {job.priority.charAt(0).toUpperCase() + job.priority.slice(1)}
                           </span>
                         )}
                       </td>

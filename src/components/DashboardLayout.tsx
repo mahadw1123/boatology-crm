@@ -204,7 +204,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main column */}
-      <div className="flex flex-1 flex-col pl-60">
+      <div className="flex min-w-0 flex-1 flex-col pl-60">
         {/* Top bar */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white px-6">
           <GlobalSearch canSearchInvoices={role !== "technician"} />
@@ -241,7 +241,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1">
+        <main className="flex-1 overflow-x-auto">
           {pageAllowed ? (
             children
           ) : (

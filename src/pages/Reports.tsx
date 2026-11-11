@@ -155,7 +155,7 @@ export default function Reports() {
             reportKey="material-requirements"
             title="Material Requirements"
             query={trpc.reports.materialRequirements.useQuery()}
-            summarize={(d: any) => `${d.requests.length} pending request(s)`}
+            summarize={(d: any) => `${d.requests.length} pending ${d.requests.length === 1 ? "request" : "requests"}`}
           />
           <OtherReportCard
             reportKey="inventory-status"
@@ -173,7 +173,7 @@ export default function Reports() {
             reportKey="technician-performance"
             title="Technician Performance"
             query={trpc.reports.technicianPerformance.useQuery()}
-            summarize={(d: any) => `${d.technicians.length} technician(s), last 30 days`}
+            summarize={(d: any) => `${d.technicians.length} ${d.technicians.length === 1 ? "technician" : "technicians"}, last 30 days`}
           />
           <OtherReportCard
             reportKey="workshop-capacity"
