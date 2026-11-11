@@ -281,7 +281,7 @@ export default function CustomerPortal() {
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-slate-900">
-                          {quote.quoteNumber || `Quote #${quote.id}`}
+                          Quote
                         </h3>
                         <p className="text-sm text-slate-600 mt-1">
                           Created: {formatDate(quote.createdAt)}
@@ -298,10 +298,6 @@ export default function CustomerPortal() {
                       <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
                         <p className="text-sm font-medium text-amber-900">
                           This quote was updated
-                          {(() => {
-                            const parent = quotes.find((q: any) => q.id === quote.parentQuoteId);
-                            return parent ? ` from ${parent.quoteNumber}` : "";
-                          })()}
                         </p>
                         <p className="mt-1 text-sm text-amber-800">{quote.revisionReason}</p>
                       </div>
