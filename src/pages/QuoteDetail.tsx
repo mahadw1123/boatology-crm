@@ -253,6 +253,11 @@ export default function QuoteDetail() {
                 </Button>
                 <SendQuoteButton quoteId={quoteId} status={(quote as any)?.status} />
                 <AcceptOnBehalfButton quoteId={quoteId} status={(quote as any)?.status} />
+                {(quote as any)?.status === "accepted" && quoteId && (
+                  <Button variant="outline" onClick={() => setLocation(`/jobs?newJobQuote=${quoteId}`)}>
+                    Create Job
+                  </Button>
+                )}
                 <CreateRevisionButton quoteId={quoteId} status={(quote as any)?.status} />
                 <Button
                   className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"

@@ -8,7 +8,7 @@ import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { trpc } from "@/lib/trpc";
 import { useJobDisplayName } from "@/lib/jobNaming";
 import { AlertCircle, Briefcase, Plus, Search, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errors";
@@ -45,6 +45,18 @@ export default function Jobs() {
   const deletePreviewQuery = trpc.jobs.deletePreview.useQuery(deleteTarget?.id ?? 0, { enabled: !!deleteTarget });
   const taskCountToDelete = deletePreviewQuery.data?.taskCount ?? 0;
   const [, setLocation] = useLocation();
+  // Arriving from an accepted quote (/jobs?newJobQuote=<id>) opens the New Job form with that quote filled in.
+  const quoteIdFromLink = Number(new URLSearchParams(window.location.search).get("newJobQuote")) || null;
+  const linkedQuoteQuery = trpc.quotes.getById.useQuery(quoteIdFromLink || 0, { enabled: !!quoteIdFromLink });
+  const [initialQuote, setInitialQuote] = useState<{ quoteId: number; customerId: number; vesselId?: number | null } | null>(null);
+  useEffect(() => {
+    const quote: any = linkedQuoteQuery.data;
+    if (quoteIdFromLink && quote && quote.id === quoteIdFromLink) {
+      setInitialQuote({ quoteId: quote.id, customerId: quote.customerId, vesselId: quote.vesselId });
+      setCreateDialogOpen(true);
+      setLocation("/jobs", { replace: true });
+    }
+  }, [linkedQuoteQuery.data, quoteIdFromLink]);
   const jobsQuery = trpc.jobs.list.useQuery();
   const { getDisplayName } = useJobDisplayName();
   const utils = trpc.useUtils();
@@ -148,19 +160,19 @@ export default function Jobs() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Job #</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Priority</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Due Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Est. Hours</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Assigned To</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-500">Actions</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Job #</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Status</th>
+                    <th className="px-3 py-2.5 hidden lg:table-cell text-left text-xs font-medium text-slate-500">Priority</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Due Date</th>
+                    <th className="px-3 py-2.5 hidden lg:table-cell text-left text-xs font-medium text-slate-500">Est. Hours</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Assigned To</th>
+                    <th className="px-3 py-2.5 text-right text-xs font-medium text-slate-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredJobs.map((job: any) => (
                     <tr key={job.id} className="border-b border-slate-100">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900">
+                      <td className="px-3 py-3 text-sm font-medium text-slate-900">
                         <div className="flex items-center gap-1.5">
                           {getDisplayName(job)}
                           {job.priority === "urgent" && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />}
@@ -169,21 +181,21 @@ export default function Jobs() {
                           <p className="mt-0.5 max-w-xs truncate text-xs text-slate-500">{job.description}</p>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <Badge className={`${statusColors[job.status]?.bg} ${statusColors[job.status]?.text} border-0`}>
                           {job.status.replace(/_/g, " ")}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden lg:table-cell px-3 py-3">
                         {job.priority && (
                           <span className={`text-xs font-medium ${priorityColors[job.priority]}`}>
                             {job.priority.charAt(0).toUpperCase() + job.priority.slice(1)}
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{formatDate(job.dueDate)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{job.estimatedLaborHours || "—"}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-3 py-3 text-sm text-slate-600">{formatDate(job.dueDate)}</td>
+                      <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">{job.estimatedLaborHours || "—"}</td>
+                      <td className="px-3 py-3 text-sm text-slate-600">
                         <select
                           value={job.assignedUserId?.toString() || ""}
                           onChange={(e) =>
@@ -202,7 +214,7 @@ export default function Jobs() {
                           ))}
                         </select>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-3 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => setLocation(`/jobs/${job.id}`)}>
                             View
@@ -229,6 +241,7 @@ export default function Jobs() {
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
           onSuccess={() => jobsQuery.refetch()}
+          initialQuote={initialQuote}
         />
 
         <DeleteConfirmDialog

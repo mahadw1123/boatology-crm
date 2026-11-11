@@ -142,13 +142,13 @@ export default function Quotes() {
                     <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Amount
                     </th>
-                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
+                    <th className="hidden lg:table-cell px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Assigned To
                     </th>
                     <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Status
                     </th>
-                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
+                    <th className="hidden lg:table-cell px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
                       Expires
                     </th>
                     <th className="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">
@@ -172,7 +172,7 @@ export default function Quotes() {
                           {formatCurrency(Number(quote.totalAmount || 0))}
                         </span>
                       </td>
-                      <td className="px-3 py-3 text-sm text-slate-600">
+                      <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">
                         <select
                           value={quote.assignedUserId?.toString() || ""}
                           onChange={(e) =>
@@ -204,7 +204,7 @@ export default function Quotes() {
                           </p>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-sm text-slate-600">
+                      <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">
                         {formatDate(quote.expiryDate)}
                       </td>
                       <td className="px-3 py-3 text-right">

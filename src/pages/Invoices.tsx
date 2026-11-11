@@ -143,8 +143,8 @@ export default function Invoices() {
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Invoice #</th>
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Customer</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Job</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Assigned To</th>
+                  <th className="hidden lg:table-cell px-3 py-2.5 text-left text-xs font-medium text-slate-500">Job</th>
+                  <th className="hidden lg:table-cell px-3 py-2.5 text-left text-xs font-medium text-slate-500">Assigned To</th>
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Total Due</th>
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Status</th>
                   <th className="px-3 py-2.5 text-right text-xs font-medium text-slate-500">Actions</th>
@@ -177,10 +177,10 @@ export default function Invoices() {
                       <td className="px-3 py-3 text-sm text-slate-600">
                         {customersById.get(inv.customerId)?.name || `Customer #${inv.customerId}`}
                       </td>
-                      <td className="px-3 py-3 text-sm text-slate-600">
+                      <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">
                         {job ? getDisplayName(job) : inv.jobId ? `Job #${inv.jobId}` : "—"}
                       </td>
-                      <td className="px-3 py-3 text-sm text-slate-600">
+                      <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">
                         <select
                           value={inv.assignedUserId?.toString() || ""}
                           onChange={(e) =>

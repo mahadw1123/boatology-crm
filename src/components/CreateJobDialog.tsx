@@ -82,12 +82,15 @@ interface CreateJobDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  // Pre-fills the form when a job is started from an accepted quote.
+  initialQuote?: { quoteId: number; customerId: number; vesselId?: number | null } | null;
 }
 
 export function CreateJobDialog({
   open,
   onOpenChange,
   onSuccess,
+  initialQuote,
 }: CreateJobDialogProps) {
   const [formData, setFormData] = useState({
     customerId: "",
@@ -150,6 +153,17 @@ export function CreateJobDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+  useEffect(() => {
+    if (open && initialQuote) {
+      setFormData((prev) => ({
+        ...prev,
+        customerId: String(initialQuote.customerId),
+        vesselId: initialQuote.vesselId ? String(initialQuote.vesselId) : "",
+        quoteId: String(initialQuote.quoteId),
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialQuote?.quoteId]);
   const createMutation = trpc.jobs.create.useMutation();
   const assignMutation = trpc.jobs.assignTechnician.useMutation();
 

@@ -12,6 +12,20 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // A page file that no longer exists means a new version was deployed while this tab was open.
+    // Reloading once picks up the new version; the timestamp stops it looping if the cause is something else.
+    if (/dynamically imported module|importing a module script|not a valid javascript mime type/i.test(error?.message || "")) {
+      try {
+        const last = Number(sessionStorage.getItem("page-reload-at") || 0);
+        if (Date.now() - last > 10000) {
+          sessionStorage.setItem("page-reload-at", String(Date.now()));
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // Fall through to the normal error screen.
+      }
+    }
     console.error("[ErrorBoundary]", error, info);
     reportClientError(error, { componentStack: info.componentStack || undefined });
   }
