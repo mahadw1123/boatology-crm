@@ -107,7 +107,7 @@ export default function Invoices() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="w-full px-6 py-6">
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
@@ -131,16 +131,16 @@ export default function Invoices() {
           </Card>
         ) : (
           <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
-            <table className="w-full">
+            <table className="w-full table-auto">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Invoice #</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Job</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Assigned To</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Total Due</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500">Actions</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Invoice #</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Customer</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Job</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Assigned To</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Total Due</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Status</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-medium text-slate-500">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,7 +148,7 @@ export default function Invoices() {
                   const job = jobsById.get(inv.jobId);
                   return (
                     <tr key={inv.id} className="border-b border-slate-100">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900">
+                      <td className="px-3 py-3 text-sm font-medium text-slate-900">
                         {inv.invoiceNumber}
                         {inv.invoiceType === "deposit" && (
                           <Badge className="ml-2 border-0 bg-blue-100 text-xs text-blue-700">Deposit</Badge>
@@ -163,13 +163,13 @@ export default function Invoices() {
                           <Badge className="ml-2 border-0 bg-red-200 text-xs text-red-800">Dispute Lost</Badge>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-3 py-3 text-sm text-slate-600">
                         {customersById.get(inv.customerId)?.name || `Customer #${inv.customerId}`}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-3 py-3 text-sm text-slate-600">
                         {job ? getDisplayName(job) : inv.jobId ? `Job #${inv.jobId}` : "—"}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-3 py-3 text-sm text-slate-600">
                         <select
                           value={inv.assignedUserId?.toString() || ""}
                           onChange={(e) =>
@@ -188,13 +188,13 @@ export default function Invoices() {
                           ))}
                         </select>
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-slate-900">
+                      <td className="px-3 py-3 text-sm font-semibold text-slate-900">
                         ${inv.totalDue.toFixed(2)}
                         {inv.requiresApproval && !inv.approvedAt && (
                           <span className="ml-1 text-xs font-normal text-amber-600">(awaiting approval)</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3">
                         <Badge className={`${statusColors[inv.status]?.bg} ${statusColors[inv.status]?.text} border-0`}>
                           {inv.status}
                         </Badge>
@@ -220,8 +220,8 @@ export default function Invoices() {
                           </p>
                         ) : null}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="px-3 py-3 text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
                           {inv.emailStatus !== "sent" && !["void", "refunded", "reversed"].includes(inv.status) && (
                             <Button
                               variant="ghost"
