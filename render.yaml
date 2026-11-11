@@ -6,7 +6,8 @@ services:
     runtime: node
     region: singapore
     plan: starter
-    buildCommand: npm ci && npm run build
+    # NODE_ENV=production makes plain `npm ci` skip devDependencies, but the Vite build needs them.
+    buildCommand: npm ci --include=dev && npm run build
     # Migrations run automatically on startup (server/index.ts), after the disk is mounted.
     startCommand: npm start
     healthCheckPath: /
