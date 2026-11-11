@@ -267,7 +267,7 @@ export default function Dashboard() {
                     </Badge>
                     <span className="text-xs text-slate-500">
                       Due{" "}
-                      {new Date(jobWindow.nextJob.dueDate as string).toLocaleDateString("en-US", {
+                      {new Date(jobWindow.nextJob.dueDate as string).toLocaleDateString("en-AU", {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
@@ -374,7 +374,7 @@ export default function Dashboard() {
                             {getDisplayName(job)}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {job.dueDate === todayISO() ? "Today" : new Date(job.dueDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                            {job.dueDate === todayISO() ? "Today" : new Date(job.dueDate).toLocaleDateString("en-AU", { weekday: "short", month: "short", day: "numeric" })}
                             {" — "}{job.status.replace(/_/g, " ")}
                           </p>
                         </div>
@@ -616,7 +616,7 @@ function DailyAgendaPanel() {
         navigate(`/quotes/${item.linkId}`);
         break;
       case "invoice":
-        navigate(`/invoices`);
+        navigate(item.linkId ? `/invoices?invoice=${item.linkId}` : `/invoices`);
         break;
       case "job":
         navigate(`/jobs/${item.linkId}`);
@@ -901,7 +901,7 @@ function RoleFocusPanel({ role }: { role?: string }) {
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">Invoices outstanding</span>
+              <span className="text-slate-600">Final invoices outstanding</span>
               <span className="font-semibold text-amber-700">
                 {s.invoicesOutstandingCount} (${s.invoicesOutstandingAmount.toFixed(0)})
               </span>

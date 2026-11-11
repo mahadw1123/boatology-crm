@@ -14,7 +14,7 @@ export default function VesselDetail() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    boatName: "",
+    name: "",
     make: "",
     model: "",
     registration: "",
@@ -23,19 +23,19 @@ export default function VesselDetail() {
     longitude: "",
     insuranceDetails: "",
     insuranceExpiryDate: "",
-    notes: "",
   });
 
   const vesselQuery = trpc.vessels.getById.useQuery(vesselId || 0, {
     enabled: !!vesselId,
   });
 
+  const customersQuery = trpc.customers.list.useQuery();
   const updateMutation = trpc.vessels.update.useMutation();
 
   useEffect(() => {
     if (vesselQuery.data) {
       setFormData({
-        boatName: (vesselQuery.data as any)?.boatName || "",
+        name: (vesselQuery.data as any)?.name || "",
         make: (vesselQuery.data as any)?.make || "",
         model: (vesselQuery.data as any)?.model || "",
         registration: (vesselQuery.data as any)?.registration || "",
@@ -44,10 +44,11 @@ export default function VesselDetail() {
         longitude: (vesselQuery.data as any)?.longitude?.toString() || "",
         insuranceDetails: (vesselQuery.data as any)?.insuranceDetails || "",
         insuranceExpiryDate: (vesselQuery.data as any)?.insuranceExpiryDate || "",
-        notes: (vesselQuery.data as any)?.notes || "",
       });
     }
   }, [vesselQuery.data]);
+
+  const ownerName = (customersQuery.data || []).find((c: any) => c.id === (vesselQuery.data as any)?.customerId)?.name;
 
   const handleSave = async () => {
     if (!vesselId) return;
@@ -105,8 +106,9 @@ export default function VesselDetail() {
               </Button>
               <div>
                 <h1 className="text-2xl font-semibold text-slate-900">
-                  {(vessel as any)?.boatName || `Vessel #${(vessel as any)?.id}`}
+                  {(vessel as any)?.name || `Vessel #${(vessel as any)?.id}`}
                 </h1>
+                {ownerName && <p className="mt-0.5 text-sm text-slate-600">Owner: {ownerName}</p>}
               </div>
             </div>
             {!isEditing ? (
@@ -149,9 +151,9 @@ export default function VesselDetail() {
                     Boat Name
                   </label>
                   <Input
-                    value={formData.boatName}
+                    value={formData.name}
                     onChange={(e) =>
-                      setFormData({ ...formData, boatName: e.target.value })
+                      setFormData({ ...formData, name: e.target.value })
                     }
                     className="mt-1 border-slate-200"
                   />
@@ -271,20 +273,6 @@ export default function VesselDetail() {
                     Optional — set this to get a Today's Agenda reminder 30 days before it lapses.
                   </p>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-900">
-                    Notes
-                  </label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) =>
-                      setFormData({ ...formData, notes: e.target.value })
-                    }
-                    className="mt-1 border-slate-200"
-                    rows={3}
-                  />
-                </div>
               </div>
             ) : (
               <div className="space-y-6">
@@ -340,15 +328,6 @@ export default function VesselDetail() {
                         month: "short",
                         year: "numeric",
                       })}
-                    </p>
-                  </div>
-                )}
-
-                {(vessel as any)?.notes && (
-                  <div>
-                    <h3 className="font-medium text-slate-900">Notes</h3>
-                    <p className="mt-1 text-slate-600 whitespace-pre-wrap">
-                      {(vessel as any).notes}
                     </p>
                   </div>
                 )}

@@ -124,10 +124,13 @@ export function CreateJobDialog({
   const customerVessels = (vesselsQuery.data || []).filter(
     (v: any) => v.customerId === parseInt(formData.customerId || "0")
   );
+  // Only an accepted quote (with its deposit paid) can have a job created against it.
   const quotesQuery = trpc.quotes.list.useQuery(
     formData.customerId ? { customerId: parseInt(formData.customerId) } : undefined,
     { enabled: !!formData.customerId, refetchOnMount: "always", staleTime: 0 }
   );
+
+  const acceptedQuotes = (quotesQuery.data || []).filter((quote: any) => quote.status === "accepted");
 
   // Opening the dialog always starts clean and re-reads customers/quotes, so
   // a quote or customer created a moment ago shows up without a page refresh,
@@ -283,12 +286,12 @@ export function CreateJobDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No quote — invoice amount added later</SelectItem>
-                  {(quotesQuery.data || []).length === 0 ? (
+                  {acceptedQuotes.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-slate-500">
-                      No quotes for this customer yet
+                      No accepted quotes for this customer. A quote must be accepted before a job can be linked to it.
                     </div>
                   ) : (
-                    (quotesQuery.data || []).map((quote: any) => (
+                    acceptedQuotes.map((quote: any) => (
                       <SelectItem key={quote.id} value={quote.id.toString()}>
                         {quote.quoteNumber} — ${(quote.totalAmount || 0).toFixed(2)} ({quote.status})
                       </SelectItem>

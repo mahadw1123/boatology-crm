@@ -131,7 +131,7 @@ export default function Calendar() {
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleDateString("en-AU", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -262,7 +262,7 @@ export default function Calendar() {
     return days;
   };
 
-  const monthName = currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthName = currentDate.toLocaleDateString("en-AU", { month: "long", year: "numeric" });
 
   const jobsDueThisWeek = jobs
     .filter((job: any) => {
@@ -415,7 +415,7 @@ export default function Calendar() {
                 {(weatherQuery.data || []).slice(0, 7).map((day: DayForecast) => (
                   <div key={day.date} className="rounded-lg border border-slate-200 p-2 text-center">
                     <p className="text-xs font-medium text-slate-600">
-                      {new Date(day.date).toLocaleDateString("en-US", { weekday: "short" })}
+                      {new Date(day.date).toLocaleDateString("en-AU", { weekday: "short" })}
                     </p>
                     <div className="my-1 flex justify-center">
                       <WeatherIcon rainChancePercent={day.rainChancePercent} />
@@ -670,7 +670,7 @@ export default function Calendar() {
                             <div key={entry.id} className="group flex items-center justify-between p-3">
                               <div className="flex items-center gap-3">
                                 <div className="w-28 shrink-0 text-xs font-medium text-slate-500">
-                                  {new Date(entry.date).toLocaleDateString("en-US", {
+                                  {new Date(entry.date).toLocaleDateString("en-AU", {
                                     weekday: "short",
                                     month: "short",
                                     day: "numeric",
@@ -785,7 +785,7 @@ export default function Calendar() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Add to {noteDialogDate ? new Date(noteDialogDate).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) : ""}
+              Add to {noteDialogDate ? new Date(noteDialogDate).toLocaleDateString("en-AU", { weekday: "long", month: "long", day: "numeric" }) : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -940,7 +940,7 @@ function DayViewPopup({
 }) {
   const jobsById = new Map(jobs.map((j) => [j.id, j]));
   const employeesById = new Map(employees.map((e: any) => [e.id, e]));
-  const displayDate = new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+  const displayDate = new Date(date + "T00:00:00").toLocaleDateString("en-AU", {
     weekday: "long",
     month: "long",
     day: "numeric",

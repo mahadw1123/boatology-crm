@@ -242,6 +242,7 @@ export default function QuoteDetail() {
                   Preview / Download PDF
                 </Button>
                 <SendQuoteButton quoteId={quoteId} status={(quote as any)?.status} />
+                <AcceptOnBehalfButton quoteId={quoteId} status={(quote as any)?.status} />
                 <CreateRevisionButton quoteId={quoteId} status={(quote as any)?.status} />
                 <Button
                   className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
@@ -610,6 +611,55 @@ function SendQuoteButton({ quoteId, status }: { quoteId: number | null; status?:
         </Button>
       )}
     </div>
+  );
+}
+
+// Staff can record a customer's acceptance (e.g. agreed by phone or email). It runs the same server
+// path as the customer's own acceptance, so the deposit invoice is created and sent as normal.
+function AcceptOnBehalfButton({ quoteId, status }: { quoteId: number | null; status?: string }) {
+  const utils = trpc.useUtils();
+  const [open, setOpen] = useState(false);
+  const updateMutation = trpc.quotes.update.useMutation({
+    onSuccess: () => {
+      toast.success("Quote accepted. The deposit invoice has been created.");
+      setOpen(false);
+      if (quoteId) utils.quotes.getById.invalidate(quoteId);
+      utils.quotes.list.invalidate();
+      utils.invoices.listAll.invalidate();
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  if (status !== "sent") return null;
+
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)} disabled={!quoteId}>
+        Record Customer Acceptance
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record customer acceptance</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            Use this only when the customer has agreed to the quote outside the portal, for example by phone or email.
+            The quote will be marked accepted and the deposit invoice will be created and sent.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => quoteId && updateMutation.mutate({ id: quoteId, status: "accepted" })}
+              disabled={!quoteId || updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Recording..." : "Record acceptance"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

@@ -81,7 +81,7 @@ export default function Jobs() {
 
   const formatDate = (date: Date | null) => {
     if (!date) return "—";
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(date).toLocaleDateString("en-AU", {
       year: "numeric",
       month: "short",
       day: "numeric",

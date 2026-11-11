@@ -207,7 +207,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-1 flex-col pl-60">
         {/* Top bar */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white px-6">
-          <GlobalSearch />
+          <GlobalSearch canSearchInvoices={role !== "technician"} />
           <div className="flex items-center gap-4">
             <NotificationsBell />
             <div className="relative">
@@ -259,7 +259,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   );
 }
 
-function GlobalSearch() {
+function GlobalSearch({ canSearchInvoices }: { canSearchInvoices: boolean }) {
   const [, navigate] = useLocation();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -267,6 +267,8 @@ function GlobalSearch() {
   const customersQuery = trpc.customers.list.useQuery(undefined, { enabled: query.length > 1 });
   const vesselsQuery = trpc.vessels.list.useQuery(undefined, { enabled: query.length > 1 });
   const jobsQuery = trpc.jobs.list.useQuery(undefined, { enabled: query.length > 1 });
+  const quotesQuery = trpc.quotes.list.useQuery(undefined, { enabled: query.length > 1 });
+  const invoicesQuery = trpc.invoices.listAll.useQuery(undefined, { enabled: query.length > 1 && canSearchInvoices });
 
   const q = query.trim().toLowerCase();
 
@@ -284,7 +286,13 @@ function GlobalSearch() {
           .slice(0, 5)
       : [];
 
-  const hasResults = matchedCustomers.length > 0 || matchedVessels.length > 0 || matchedJobs.length > 0;
+  const matchedQuotes =
+    q.length > 1 ? (quotesQuery.data || []).filter((qt: any) => qt.quoteNumber?.toLowerCase().includes(q)).slice(0, 5) : [];
+  const matchedInvoices =
+    q.length > 1 ? (invoicesQuery.data || []).filter((i: any) => i.invoiceNumber?.toLowerCase().includes(q)).slice(0, 5) : [];
+
+  const hasResults =
+    matchedCustomers.length > 0 || matchedVessels.length > 0 || matchedJobs.length > 0 || matchedQuotes.length > 0 || matchedInvoices.length > 0;
 
   const goTo = (path: string) => {
     navigate(path);
@@ -304,7 +312,7 @@ function GlobalSearch() {
           }}
           onFocus={() => setIsOpen(true)}
           onBlur={() => setTimeout(() => setIsOpen(false), 150)}
-          placeholder="Search customers, vessels, jobs..."
+          placeholder="Search customers, vessels, jobs, quotes, invoices..."
           className="w-full bg-transparent text-sm outline-none placeholder:text-ink-light"
         />
       </div>
@@ -363,6 +371,34 @@ function GlobalSearch() {
                   ))}
                 </div>
               )}
+              {matchedQuotes.length > 0 && (
+                <div className="border-t border-border">
+                  <p className="px-3 pt-2 text-xs font-medium uppercase tracking-wide text-ink-light">Quotes</p>
+                  {matchedQuotes.map((qt: any) => (
+                    <button
+                      key={"q-" + qt.id}
+                      className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface-muted"
+                      onMouseDown={() => goTo("/quotes/" + qt.id)}
+                    >
+                      {qt.quoteNumber}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {matchedInvoices.length > 0 && (
+                <div className="border-t border-border">
+                  <p className="px-3 pt-2 text-xs font-medium uppercase tracking-wide text-ink-light">Invoices</p>
+                  {matchedInvoices.map((i: any) => (
+                    <button
+                      key={"i-" + i.id}
+                      className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-surface-muted"
+                      onMouseDown={() => goTo("/invoices?invoice=" + i.id)}
+                    >
+                      {i.invoiceNumber}
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -399,7 +435,7 @@ function NotificationsBell() {
         navigate(`/quotes/${n.relatedEntityId}`);
         break;
       case "invoice":
-        navigate(`/invoices`);
+        navigate(n.relatedEntityId ? `/invoices?invoice=${n.relatedEntityId}` : `/invoices`);
         break;
       default:
         break;

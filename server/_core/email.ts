@@ -77,7 +77,7 @@ export async function sendEmail({ to, subject, html, text, attachments }: SendEm
 
   const recipientDomain = to.includes("@") ? to.split("@").pop() : "unknown";
   if (!ENV.resendApiKey) {
-    const error = new Error("Email is not configured. Add RESEND_API_KEY before sending customer emails.");
+    const error = new Error("Email sending is not set up yet. Ask your administrator to complete the email setup before sending customer emails.");
     captureSystemError(error, { source: "email", severity: "warning", route: "resend.send", context: { recipientDomain, subject: finalSubject } });
     throw error;
   }
@@ -139,25 +139,23 @@ export async function sendEmail({ to, subject, html, text, attachments }: SendEm
 
     let userMessage = `Email provider rejected the message (${res.status}).`;
     if (res.status === 401) {
-      userMessage = "Resend rejected the API key. Replace RESEND_API_KEY in the server .env file, then restart the CRM.";
+      userMessage = "The email service did not accept the current credentials. Ask your administrator to update the email settings.";
     } else if (res.status === 403) {
       userMessage = ENV.emailFrom.includes("onboarding@resend.dev")
-        ? "Resend blocked this email because onboarding@resend.dev can only send to the address registered on your Resend account. Verify your business domain in Resend, set EMAIL_FROM to an address on that domain, then restart the CRM."
-        : "Resend blocked this sender. Confirm that the domain used by EMAIL_FROM is verified in Resend and that the API key has sending permission, then restart the CRM.";
+        ? "The email service blocked this message because the sender address is not yet verified. Ask your administrator to verify the business domain in the email service."
+        : "The email service blocked this sender. Ask your administrator to confirm the business email domain is verified.";
     } else if (res.status === 422) {
-      userMessage = "Resend rejected the email details. Check the customer email address and confirm EMAIL_FROM uses a verified sender domain.";
+      userMessage = "The email could not be sent. Check the customer email address is correct, then try again.";
     } else if (res.status === 429) {
-      userMessage = "Resend is temporarily rate-limiting email delivery. Wait a minute, then send the email again.";
+      userMessage = "Email delivery is temporarily limited. Wait a minute, then send the email again.";
     } else if (res.status >= 500) {
-      userMessage = "Resend is temporarily unavailable. Wait a few minutes, then retry from the quote or invoice page.";
+      userMessage = "The email service is temporarily unavailable. Wait a few minutes, then retry from the quote or invoice page.";
     }
-    if (providerMessage) userMessage += ` Provider message: ${providerMessage.slice(0, 300)}`;
-
     const error = new Error(userMessage);
     captureSystemError(error, {
       source: "email",
       route: "resend.send",
-      context: { recipientDomain, subject: finalSubject, status: res.status },
+      context: { recipientDomain, subject: finalSubject, status: res.status, providerMessage: providerMessage.slice(0, 300) },
     });
     throw error;
   }

@@ -137,19 +137,19 @@ export default function Reports() {
             reportKey="weekly-operations-report"
             title="Weekly Operations Report"
             query={trpc.reports.weeklyOperationsReport.useQuery()}
-            summarize={(d: any) => `${d.jobsCompleted} jobs completed, $${d.revenueThisWeek.toFixed(0)} revenue this week`}
+            summarize={(d: any) => `${d.jobsCompleted} jobs completed, $${d.revenueThisWeek.toFixed(2)} revenue this week`}
           />
           <OtherReportCard
             reportKey="outstanding-payments"
             title="Outstanding Payments"
             query={trpc.reports.outstandingPayments.useQuery()}
-            summarize={(d: any) => `${d.invoices.length} unpaid — $${d.totalOutstanding.toFixed(0)} total`}
+            summarize={(d: any) => `${d.invoices.length} unpaid — $${d.totalOutstanding.toFixed(2)} total`}
           />
           <OtherReportCard
             reportKey="outstanding-quotes"
             title="Outstanding Quotes"
             query={trpc.reports.outstandingQuotes.useQuery()}
-            summarize={(d: any) => `${d.quotes.length} unresolved — $${d.totalValue.toFixed(0)} in value`}
+            summarize={(d: any) => `${d.quotes.length} unresolved — $${d.totalValue.toFixed(2)} in value`}
           />
           <OtherReportCard
             reportKey="material-requirements"

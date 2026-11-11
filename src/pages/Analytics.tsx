@@ -235,19 +235,19 @@ function XeroRevenueSection() {
               <div>
                 <p className="text-sm font-medium text-slate-600">Total Invoiced</p>
                 <p className="mt-1 text-2xl font-bold text-slate-900">
-                  ${revenueQuery.data.totalInvoiced.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  ${revenueQuery.data.totalInvoiced.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-600">Total Paid</p>
                 <p className="mt-1 text-2xl font-bold text-emerald-600">
-                  ${revenueQuery.data.totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  ${revenueQuery.data.totalPaid.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-600">Outstanding</p>
                 <p className="mt-1 text-2xl font-bold text-orange-600">
-                  ${revenueQuery.data.totalOutstanding.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  ${revenueQuery.data.totalOutstanding.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <div className="sm:col-span-3">
@@ -458,7 +458,7 @@ function WeeklyOperationsSummarySection() {
     { label: "Jobs overdue", value: s.jobsOverdue, tone: s.jobsOverdue > 0 ? "red" : "slate" },
     { label: "Quotes awaiting approval", value: s.quotesAwaitingApproval, tone: "blue" },
     { label: "Deposits outstanding", value: `${s.depositsOutstandingCount} ($${s.depositsOutstandingAmount.toFixed(0)})`, tone: "amber" },
-    { label: "Invoices outstanding", value: `${s.invoicesOutstandingCount} ($${s.invoicesOutstandingAmount.toFixed(0)})`, tone: "amber" },
+    { label: "Final invoices outstanding", value: `${s.invoicesOutstandingCount} ($${s.invoicesOutstandingAmount.toFixed(0)})`, tone: "amber" },
     { label: "Stock shortages", value: s.stockShortages, tone: s.stockShortages > 0 ? "red" : "slate" },
     { label: "Material requests pending", value: s.materialRequestsAwaitingApproval, tone: "blue" },
     { label: "Technicians available now", value: `${s.techniciansAvailable}`, tone: "emerald" },
@@ -534,7 +534,7 @@ function BusinessHealthSection() {
     { label: "Stock below minimum", value: h.stockBelowMinimum, tone: h.stockBelowMinimum > 0 ? "red" : "slate" },
     { label: "Purchase orders pending", value: h.purchaseOrdersPending, tone: "blue" },
     { label: "Workshop utilization", value: `${h.workshopUtilization}%`, tone: "emerald" },
-    { label: "Gross profit (active jobs)", value: `$${h.totalGrossProfit.toFixed(0)}`, tone: h.totalGrossProfit >= 0 ? "emerald" : "red" },
+    { label: "Gross profit (active jobs)", value: `${h.totalGrossProfit < 0 ? "-" : ""}$${Math.abs(h.totalGrossProfit).toFixed(0)}`, tone: h.totalGrossProfit >= 0 ? "emerald" : "red" },
     { label: "Weekly cash flow", value: `$${h.weeklyCashFlow.toFixed(0)}`, tone: h.weeklyCashFlow >= 0 ? "emerald" : "red" },
   ];
 
@@ -588,7 +588,7 @@ function BusinessHealthSection() {
                 >
                   <span className="text-slate-700">{j.jobNumber}</span>
                   <span className={`font-medium ${j.grossProfit >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-                    ${j.grossProfit.toFixed(0)} profit
+                    {j.grossProfit < 0 ? "-" : ""}${Math.abs(j.grossProfit).toFixed(0)} profit
                   </span>
                 </button>
               ))}

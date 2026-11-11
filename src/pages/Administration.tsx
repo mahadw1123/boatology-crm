@@ -175,17 +175,7 @@ function XeroIntegrationCard() {
   if (!status?.configured) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        Xero isn't configured yet. Add <code>XERO_CLIENT_ID</code> and{" "}
-        <code>XERO_CLIENT_SECRET</code> to your <code>.env</code> file (from your app at{" "}
-        <a
-          href="https://developer.xero.com/myapps"
-          target="_blank"
-          rel="noreferrer"
-          className="underline"
-        >
-          developer.xero.com
-        </a>
-        ), then restart the server.
+        Xero is not set up yet. Your system administrator needs to add the Xero app credentials (created at developer.xero.com) in the hosting settings. Once that is done, return here to connect.
       </div>
     );
   }
@@ -463,10 +453,7 @@ function EmailSettingsCard() {
       <div className="p-6">
         <h2 className="mb-1 text-lg font-semibold text-slate-900">Email Settings</h2>
         <p className="mb-4 text-sm text-slate-600">
-          Outgoing email (quotes, invoices, notifications) is sent via Resend, configured through
-          the server's environment variables (RESEND_API_KEY, EMAIL_FROM) — not editable here, since
-          that keeps the API key out of the database. Use the button below to confirm it's actually
-          working.
+          Outgoing email (quotes, invoices and notifications) is configured by your system administrator in the hosting settings and cannot be changed here. Use the button below to confirm it is working.
         </p>
         <Button
           variant="outline"
@@ -1188,7 +1175,7 @@ function SystemHealthTabContent() {
                 <StatusPill ok={health.resend.configured} label={health.resend.configured ? "Configured" : "Not configured"} />
               </div>
               <p className="mt-2 text-xs text-slate-500">
-                {health.resend.usingTestSender ? "Using the Resend test-only sender — set a verified domain in EMAIL_FROM." : health.resend.fromAddress}
+                {health.resend.usingTestSender ? "Using a test-only sender. A verified business domain is required." : health.resend.fromAddress}
                 {health.resend.recentFailures > 0 && <span className="mt-1 block text-amber-600">{health.resend.recentFailures} recent unresolved failure(s)</span>}
               </p>
             </div>

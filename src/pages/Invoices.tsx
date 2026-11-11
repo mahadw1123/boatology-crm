@@ -32,6 +32,8 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 export default function Invoices() {
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  // Links from the agenda, notifications and search arrive as /invoices?invoice=<id>.
+  const highlightId = Number(new URLSearchParams(window.location.search).get("invoice")) || null;
 
   const invoicesQuery = trpc.invoices.listAll.useQuery();
   const customersQuery = trpc.customers.list.useQuery();
@@ -39,6 +41,11 @@ export default function Invoices() {
   const { getDisplayName } = useJobDisplayName();
   const utils = trpc.useUtils();
   const staffUsersQuery = trpc.administration.staffUsers.useQuery();
+
+  useEffect(() => {
+    if (!highlightId || !invoicesQuery.data) return;
+    document.getElementById(`invoice-row-${highlightId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightId, invoicesQuery.data]);
 
   const assignMutation = trpc.invoices.assign.useMutation({
     onSuccess: () => {
@@ -147,7 +154,11 @@ export default function Invoices() {
                 {filteredInvoices.map((inv: any) => {
                   const job = jobsById.get(inv.jobId);
                   return (
-                    <tr key={inv.id} className="border-b border-slate-100">
+                    <tr
+                      key={inv.id}
+                      id={`invoice-row-${inv.id}`}
+                      className={`border-b border-slate-100 ${highlightId === inv.id ? "bg-amber-50" : ""}`}
+                    >
                       <td className="px-3 py-3 text-sm font-medium text-slate-900">
                         {inv.invoiceNumber}
                         {inv.invoiceType === "deposit" && (

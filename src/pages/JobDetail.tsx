@@ -158,7 +158,7 @@ export default function JobDetail() {
 
   const formatDate = (date: Date | null | undefined) => {
     if (!date) return "—";
-    return new Date(date).toLocaleDateString("en-US", {
+    return new Date(date).toLocaleDateString("en-AU", {
       year: "numeric",
       month: "short",
       day: "numeric",
