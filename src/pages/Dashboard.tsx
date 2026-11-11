@@ -207,7 +207,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-slate-600">Open Invoices</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
-                    {invoicesQuery.isLoading ? "—" : `${invoiceStats.openTotal.toFixed(2)}`}
+                    {invoicesQuery.isLoading ? "—" : `$${invoiceStats.openTotal.toFixed(2)}`}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">{invoiceStats.open.length} awaiting payment</p>
                 </div>
@@ -227,7 +227,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-slate-600">Paid This Month</p>
                   <p className="mt-1 text-2xl font-bold text-slate-900">
-                    {invoicesQuery.isLoading ? "—" : `${invoiceStats.paidTotal.toFixed(2)}`}
+                    {invoicesQuery.isLoading ? "—" : `$${invoiceStats.paidTotal.toFixed(2)}`}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">{invoiceStats.paidThisMonthCount} {invoiceStats.paidThisMonthCount === 1 ? "invoice" : "invoices"}</p>
                 </div>

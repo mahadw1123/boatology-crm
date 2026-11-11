@@ -2468,6 +2468,20 @@ const jobsRouter = router({
       }
     }),
 
+  // Who is working on each job, for the Jobs list: { [jobId]: ["Name", ...] }.
+  technicianNames: protectedProcedure.query(async ({ ctx }) => {
+    if (!isFinanceStaff(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
+    const [assignments, employeeList] = await Promise.all([db.getAllJobAssignments(), db.getEmployees()]);
+    const nameById = new Map(employeeList.map((e) => [e.id, e.name]));
+    const result: Record<number, string[]> = {};
+    for (const a of assignments) {
+      const name = nameById.get(a.employeeId);
+      if (!name) continue;
+      (result[a.jobId] ||= []).push(name);
+    }
+    return result;
+  }),
+
   getAssignments: protectedProcedure.input(z.number()).query(async ({ input, ctx }) => {
     try {
       if (ctx.user.role === "customer") {
@@ -4125,7 +4139,13 @@ const tasksRouter = router({
       await db.updateJob(job.id, { status: "in_progress", completedAt: null });
       await (await import("./_core/taskRules")).resolveTask(`JOB_NEEDS_FINAL_INVOICE:${job.id}`);
     }
-    return await db.updateTask(input.id, { status: "not_started", completedAt: null, startedAt: null, pausedAt: null });
+    // Work that had already started is paused, not reset; a task that never started goes back to Not Started.
+    return await db.updateTask(
+      input.id,
+      task.startedAt
+        ? { status: "paused", completedAt: null, pausedAt: new Date().toISOString() }
+        : { status: "not_started", completedAt: null, startedAt: null, pausedAt: null }
+    );
   }),
 
   addNote: protectedProcedure

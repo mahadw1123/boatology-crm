@@ -233,7 +233,7 @@ export default function Invoices() {
                       </td>
                       <td className="px-3 py-3 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1">
-                          {inv.emailStatus !== "sent" && !["void", "refunded", "reversed"].includes(inv.status) && (
+                          {inv.emailStatus !== "sent" && !["paid", "void", "refunded", "reversed"].includes(inv.status) && (
                             <Button
                               variant="ghost"
                               size="sm"

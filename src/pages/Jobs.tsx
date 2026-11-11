@@ -45,6 +45,7 @@ export default function Jobs() {
   const deletePreviewQuery = trpc.jobs.deletePreview.useQuery(deleteTarget?.id ?? 0, { enabled: !!deleteTarget });
   const taskCountToDelete = deletePreviewQuery.data?.taskCount ?? 0;
   const [, setLocation] = useLocation();
+  const technicianNamesQuery = trpc.jobs.technicianNames.useQuery();
   // Arriving from an accepted quote (/jobs?newJobQuote=<id>) opens the New Job form with that quote filled in.
   const quoteIdFromLink = Number(new URLSearchParams(window.location.search).get("newJobQuote")) || null;
   const linkedQuoteQuery = trpc.quotes.getById.useQuery(quoteIdFromLink || 0, { enabled: !!quoteIdFromLink });
@@ -165,6 +166,7 @@ export default function Jobs() {
                     <th className="px-3 py-2.5 hidden lg:table-cell text-left text-xs font-medium text-slate-500">Priority</th>
                     <th className="hidden lg:table-cell px-3 py-2.5 text-left text-xs font-medium text-slate-500">Due Date</th>
                     <th className="px-3 py-2.5 hidden lg:table-cell text-left text-xs font-medium text-slate-500">Est. Hours</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Technicians</th>
                     <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Responsible Staff</th>
                     <th className="px-3 py-2.5 text-right text-xs font-medium text-slate-500">Actions</th>
                   </tr>
@@ -195,6 +197,9 @@ export default function Jobs() {
                       </td>
                       <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">{formatDate(job.dueDate)}</td>
                       <td className="hidden lg:table-cell px-3 py-3 text-sm text-slate-600">{job.estimatedLaborHours || "—"}</td>
+                      <td className="px-3 py-3 text-sm text-slate-600">
+                        {(technicianNamesQuery.data?.[job.id] || []).join(", ") || "—"}
+                      </td>
                       <td className="px-3 py-3 text-sm text-slate-600">
                         <select
                           value={job.assignedUserId?.toString() || ""}

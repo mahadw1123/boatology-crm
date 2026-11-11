@@ -535,7 +535,7 @@ function BusinessHealthSection() {
     { label: "Purchase orders pending", value: h.purchaseOrdersPending, tone: "blue" },
     { label: "Workshop utilization", value: `${h.workshopUtilization}%`, tone: "emerald" },
     { label: "Gross profit (active jobs)", value: `${h.totalGrossProfit < 0 ? "-" : ""}$${Math.abs(h.totalGrossProfit).toFixed(0)}`, tone: h.totalGrossProfit >= 0 ? "emerald" : "red" },
-    { label: "Weekly cash flow", value: `${h.weeklyCashFlow < 0 ? "-" : ""}${Math.abs(h.weeklyCashFlow).toFixed(0)}`, tone: h.weeklyCashFlow >= 0 ? "emerald" : "red" },
+    { label: "Weekly cash flow", value: `${h.weeklyCashFlow < 0 ? "-" : ""}$${Math.abs(h.weeklyCashFlow).toFixed(0)}`, tone: h.weeklyCashFlow >= 0 ? "emerald" : "red" },
   ];
 
   const toneClasses: Record<string, string> = {
