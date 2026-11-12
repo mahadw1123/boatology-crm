@@ -28,6 +28,7 @@ import {
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { BoatologyLogo } from "@/components/BoatologyLogo";
+import { HelpAssistant } from "@/components/HelpAssistant";
 import { ROLE_LABELS, type Role } from "@shared/const";
 import Login from "@/pages/Login";
 import SetupAdmin from "@/pages/SetupAdmin";
@@ -255,6 +256,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           )}
         </main>
       </div>
+      <HelpAssistant />
     </div>
   );
 }

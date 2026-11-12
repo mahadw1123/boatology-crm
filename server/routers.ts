@@ -3,6 +3,7 @@ import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { COOKIE_NAME } from "@shared/const";
+import { assistantEnabled, askAssistant, takeAssistantQuota } from "./_core/assistant";
 import { ACCESS_MODULES, ACCESS_ACTIONS, CONFIGURABLE_ROLES, loadAccessRules, sanitizeAccessRules, clearAccessRulesCache } from "./_core/accessControl";
 import { quoteBreakdown, type QuoteTaxMode, type QuoteDiscountType } from "@shared/quoteMath";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -8129,6 +8130,44 @@ const predictionsRouter = router({
 });
 
 // ============================================================================
+// STAFF HELP ASSISTANT (answers from the built-in guide only; sees no CRM data)
+// ============================================================================
+
+const assistantRouter = router({
+  status: protectedProcedure.query(({ ctx }) => ({
+    enabled: ctx.user.role !== "customer" && assistantEnabled(),
+  })),
+
+  ask: protectedProcedure
+    .input(
+      z.object({
+        messages: z
+          .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().trim().min(1).max(1000) }))
+          .min(1)
+          .max(10),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role === "customer") throw new TRPCError({ code: "FORBIDDEN" });
+      if (!assistantEnabled()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "The help assistant has not been switched on yet. Ask an administrator." });
+      }
+      if (input.messages[input.messages.length - 1].role !== "user") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Ask a question first." });
+      }
+      if (!takeAssistantQuota(ctx.user.id)) {
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "You have reached today's limit for the help assistant. Try again tomorrow, or ask an administrator." });
+      }
+      try {
+        return { answer: await askAssistant(input.messages) };
+      } catch (error) {
+        console.error("Help assistant failed:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The help assistant is unavailable right now. Please try again shortly." });
+      }
+    }),
+});
+
+// ============================================================================
 // MAIN APP ROUTER
 // ============================================================================
 
@@ -8164,6 +8203,7 @@ export const appRouter = router({
   antifouling: antifoulingRouter,
   invoices: invoicesRouter,
   imports: importsRouter,
+  assistant: assistantRouter,
 });
 
 export type AppRouter = typeof appRouter;

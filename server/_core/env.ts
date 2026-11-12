@@ -40,6 +40,10 @@ export const ENV = {
 
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
 
+  // Optional staff help assistant (Google Gemini). Off unless a key is set.
+  geminiApiKey: process.env.GEMINI_API_KEY || "",
+  geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+
   // Defaults to Sydney since Boatology operates there; override via env if
   // deployed for a business elsewhere, so the 7am briefing actually lands
   // at 7am local time rather than 7am server time (often UTC by default).

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { ManualHoursCard } from "@/components/ManualHoursCard";
 import { MaterialsPanel } from "@/pages/Materials";
+import { HelpAssistant } from "@/components/HelpAssistant";
 import {
   LogOut,
   Calendar as CalendarIcon,
@@ -248,6 +249,7 @@ export default function TechnicianHome() {
           <MaterialsPanel />
         </DialogContent>
       </Dialog>
+      <HelpAssistant aboveMobileNav />
     </div>
   );
 }
