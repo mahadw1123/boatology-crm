@@ -11,7 +11,6 @@ const ROLE_LABELS: Record<string, string> = {
   management: "Management",
   office_staff: "Office staff",
   technician: "Technicians",
-  customer: "Customers (portal)",
 };
 
 const ACTION_LABELS: Record<string, string> = { view: "View", add: "Add", edit: "Edit", delete: "Delete" };

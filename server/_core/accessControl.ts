@@ -8,7 +8,10 @@ import * as db from "../db";
 export const ACCESS_ACTIONS = ["view", "add", "edit", "delete"] as const;
 export type AccessAction = (typeof ACCESS_ACTIONS)[number];
 
-export const CONFIGURABLE_ROLES = ["management", "office_staff", "technician", "customer"] as const;
+// Customers are deliberately not configurable: their access is governed by the
+// built-in ownership checks on the customer portal, and these staff-area
+// switches could only break the portal.
+export const CONFIGURABLE_ROLES = ["management", "office_staff", "technician"] as const;
 
 export const ACCESS_MODULES: Array<{ key: string; label: string; routers: string[] }> = [
   { key: "customers", label: "Customers", routers: ["customers", "customerMessages"] },
@@ -58,7 +61,7 @@ export function classifyAction(type: "query" | "mutation" | "subscription", proc
 }
 
 export async function isAccessAllowed(role: string, path: string, type: "query" | "mutation" | "subscription"): Promise<boolean> {
-  if (role === "admin") return true;
+  if (role === "admin" || role === "customer") return true;
   const [routerKey, ...rest] = path.split(".");
   const moduleKey = routerToModule.get(routerKey);
   if (!moduleKey) return true;
