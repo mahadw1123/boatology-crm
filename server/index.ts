@@ -692,7 +692,7 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
   const customer = await db.getCustomerById(quote.customerId);
   const vessel = quote.vesselId ? await db.getVesselById(quote.vesselId) : null;
   let companyName = "Boatology";
-  const business = { legalName: "", abn: "", address: "", phone: "", email: "" };
+  const business = { legalName: "", abn: "", address: "", email: "" };
   try {
     const all = await db.getSettings();
     const read = (key: string) => all.find((s) => s.key === key)?.value?.trim() || "";
@@ -700,7 +700,6 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
     business.legalName = read("company_legal_name");
     business.abn = read("company_abn");
     business.address = read("company_address");
-    business.phone = read("company_phone");
     business.email = read("company_email");
   } catch {}
 
@@ -716,7 +715,7 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
   const businessLines = [
     business.abn ? `ABN ${business.abn}` : "",
     business.address,
-    [business.phone ? `Phone ${business.phone}` : "", business.email].filter(Boolean).join("   "),
+    business.email,
   ].filter(Boolean);
   if (businessLines.length > 0) {
     doc.fontSize(9).fillColor("#666");

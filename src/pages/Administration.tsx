@@ -617,7 +617,6 @@ function SystemSettingsCard() {
   const [companyLegalName, setCompanyLegalName] = useState("");
   const [companyAbn, setCompanyAbn] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
-  const [companyPhone, setCompanyPhone] = useState("");
   const [waitingPartsAlertDays, setWaitingPartsAlertDays] = useState("7");
   const [backupRecipientEmail, setBackupRecipientEmail] = useState("");
 
@@ -632,7 +631,6 @@ function SystemSettingsCard() {
       setCompanyLegalName(get("company_legal_name") || "");
       setCompanyAbn(get("company_abn") || "");
       setCompanyAddress(get("company_address") || "");
-      setCompanyPhone(get("company_phone") || "");
       setWaitingPartsAlertDays(get("waiting_parts_alert_days") || "7");
       setBackupRecipientEmail(get("backup_recipient_email") || "");
     }
@@ -665,7 +663,6 @@ function SystemSettingsCard() {
         updateMutation.mutateAsync({ key: "company_legal_name", value: companyLegalName }),
         updateMutation.mutateAsync({ key: "company_abn", value: companyAbn }),
         updateMutation.mutateAsync({ key: "company_address", value: companyAddress }),
-        updateMutation.mutateAsync({ key: "company_phone", value: companyPhone }),
         updateMutation.mutateAsync({
           key: "waiting_parts_alert_days",
           value: waitingPartsAlertDays,
@@ -794,11 +791,6 @@ function SystemSettingsCard() {
           <div>
             <label className="block text-sm font-medium text-slate-900">Business Address</label>
             <Input value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} className="mt-1 border-slate-200" />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-900">Phone Number</label>
-            <Input value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} className="mt-1 border-slate-200" />
           </div>
 
           <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSave} disabled={updateMutation.isPending}>
