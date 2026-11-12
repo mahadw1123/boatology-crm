@@ -692,9 +692,16 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
   const customer = await db.getCustomerById(quote.customerId);
   const vessel = quote.vesselId ? await db.getVesselById(quote.vesselId) : null;
   let companyName = "Boatology";
+  const business = { legalName: "", abn: "", address: "", phone: "", email: "" };
   try {
-    const setting = (await db.getSettings()).find((s) => s.key === "company_name");
-    if (setting?.value) companyName = setting.value;
+    const all = await db.getSettings();
+    const read = (key: string) => all.find((s) => s.key === key)?.value?.trim() || "";
+    if (read("company_name")) companyName = read("company_name");
+    business.legalName = read("company_legal_name");
+    business.abn = read("company_abn");
+    business.address = read("company_address");
+    business.phone = read("company_phone");
+    business.email = read("company_email");
   } catch {}
 
   const money = (n: number) => `$${(n || 0).toFixed(2)}`;
@@ -705,7 +712,17 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
   res.setHeader("Content-Disposition", `inline; filename="${(quote.quoteNumber || `quote-${quote.id}`).replace(/[^A-Za-z0-9._-]/g, "_")}.pdf"`);
   doc.pipe(res);
 
-  doc.fontSize(22).fillColor("#0B2341").text(companyName);
+  doc.fontSize(22).fillColor("#0B2341").text(business.legalName || companyName);
+  const businessLines = [
+    business.abn ? `ABN ${business.abn}` : "",
+    business.address,
+    [business.phone ? `Phone ${business.phone}` : "", business.email].filter(Boolean).join("   "),
+  ].filter(Boolean);
+  if (businessLines.length > 0) {
+    doc.fontSize(9).fillColor("#666");
+    for (const line of businessLines) doc.text(line);
+    doc.moveDown(0.6);
+  }
   doc.fontSize(12).fillColor("#666").text(`Quote ${quote.quoteNumber || `#${quote.id}`}${quote.status === "draft" ? "  (DRAFT)" : ""}`);
   doc.moveDown(0.8);
   doc.fontSize(10).fillColor("#333");
