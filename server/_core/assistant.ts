@@ -37,13 +37,15 @@ export function takeAssistantQuota(userId: number): boolean {
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
-// Google retires model names over time, so when the configured one is
-// missing we ask Google which models this key can use and pick a current
-// Flash model instead of failing. The choice is cached for an hour.
-let discovered: { name: string; at: number } | null = null;
+// Google retires model names and its free tier is often overloaded for the
+// newest models, so we keep a ranked list of the Flash models this key can
+// use (newest first, then the lighter Flash-Lite ones) and fall back through
+// it. The list is cached for an hour.
+let modelList: { names: string[]; at: number } | null = null;
+let lastWorking: string | null = null;
 
-async function discoverModel(): Promise<string> {
-  if (discovered && Date.now() - discovered.at < 60 * 60 * 1000) return discovered.name;
+async function listModels(): Promise<string[]> {
+  if (modelList && Date.now() - modelList.at < 60 * 60 * 1000) return modelList.names;
   const response = await fetch(`${API_BASE}/models?pageSize=200`, {
     headers: { "x-goog-api-key": ENV.geminiApiKey },
     signal: AbortSignal.timeout(15000),
@@ -54,15 +56,18 @@ async function discoverModel(): Promise<string> {
     throw new AssistantError(explain(response.status, detail));
   }
   const data: any = await response.json();
-  const candidates: string[] = (data?.models || [])
+  const all: string[] = (data?.models || [])
     .filter((m: any) => (m?.supportedGenerationMethods || []).includes("generateContent"))
-    .map((m: any) => String(m?.name || "").replace(/^models\//, ""))
-    .filter((name: string) => /^gemini-[\d.]+-flash$/.test(name));
-  if (candidates.length === 0) throw new AssistantError("This Gemini key has no usable model. An administrator should create a new key at aistudio.google.com.");
-  // Highest version number first, e.g. gemini-3.0-flash before gemini-2.5-flash.
-  candidates.sort((a, b) => parseFloat(b.split("-")[1]) - parseFloat(a.split("-")[1]));
-  discovered = { name: candidates[0], at: Date.now() };
-  return discovered.name;
+    .map((m: any) => String(m?.name || "").replace(/^models\//, ""));
+  const version = (name: string) => parseFloat(name.split("-")[1]);
+  const flash = all.filter((n) => /^gemini-[\d.]+-flash$/.test(n)).sort((x, y) => version(y) - version(x));
+  const lite = all.filter((n) => /^gemini-[\d.]+-flash-lite$/.test(n)).sort((x, y) => version(y) - version(x));
+  const names = [...flash, ...lite];
+  if (names.length === 0) {
+    throw new AssistantError("This Gemini key has no usable model. An administrator should create a new key at aistudio.google.com.");
+  }
+  modelList = { names, at: Date.now() };
+  return names;
 }
 
 async function generate(model: string, history: AssistantTurn[]) {
@@ -95,24 +100,39 @@ function explain(status: number, detail: string): string {
   return `The help assistant could not get an answer (error ${status}). An administrator can check the server logs.`;
 }
 
+const RETRYABLE = new Set([404, 429, 500, 503]);
+
 export async function askAssistant(history: AssistantTurn[]): Promise<string> {
-  let response = await generate(discovered?.name || ENV.geminiModel, history);
-  if (response.status === 404) {
-    // The configured model no longer exists: look up a current one and retry once.
-    discovered = null;
-    response = await generate(await discoverModel(), history);
+  const first = lastWorking || ENV.geminiModel;
+  let response = await generate(first, history);
+  let model = first;
+
+  if (!response.ok && RETRYABLE.has(response.status)) {
+    // That model is missing or busy: try the other Flash models, newest first.
+    let others: string[] = [];
+    try {
+      others = (await listModels()).filter((name) => name !== first).slice(0, 4);
+    } catch (error) {
+      if (response.status === 404) throw error;
+    }
+    for (const name of others) {
+      const attempt = await generate(name, history);
+      if (attempt.ok) {
+        response = attempt;
+        model = name;
+        break;
+      }
+      response = attempt;
+      if (!RETRYABLE.has(attempt.status)) break;
+    }
   }
-  // Google's free tier is often briefly overloaded (503) or rate-limited (429):
-  // wait a moment and try again a couple of times before giving up.
-  for (let attempt = 0; attempt < 2 && (response.status === 503 || response.status === 429); attempt++) {
-    await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
-    response = await generate(discovered?.name || ENV.geminiModel, history);
-  }
+
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     console.error(`Gemini request failed (${response.status}): ${detail.slice(0, 300)}`);
     throw new AssistantError(explain(response.status, detail));
   }
+  lastWorking = model;
   const data: any = await response.json();
   const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || "").join("").trim();
   if (!text) throw new Error("Gemini returned no answer.");
