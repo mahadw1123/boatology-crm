@@ -5936,6 +5936,16 @@ const notificationsRouter = router({
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
     }
   }),
+
+  markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
+    try {
+      await db.markAllNotificationsRead(ctx.user.id);
+      return { success: true } as const;
+    } catch (error) {
+      console.error("Error marking all notifications read:", error);
+      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+    }
+  }),
 });
 
 const calendarNotesRouter = router({

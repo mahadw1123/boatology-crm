@@ -14,8 +14,9 @@ import {
   FolderOpen,
   ShieldCheck,
   Search,
-  Bell,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   LogOut,
   ShieldAlert,
   Clock,
@@ -29,6 +30,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { BoatologyLogo } from "@/components/BoatologyLogo";
 import { HelpAssistant } from "@/components/HelpAssistant";
+import { NotificationsBell } from "@/components/NotificationsBell";
 import { ROLE_LABELS, type Role } from "@shared/const";
 import Login from "@/pages/Login";
 import SetupAdmin from "@/pages/SetupAdmin";
@@ -84,6 +86,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     enabled: !isAuthenticated,
   });
   const [menuOpen, setMenuOpen] = useState(false);
+  // Sidebar collapse is a per-device preference, remembered in the browser.
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("sidebarCollapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleSidebar = () => {
+    setCollapsed((value) => {
+      try {
+        localStorage.setItem("sidebarCollapsed", value ? "0" : "1");
+      } catch {
+        // Storage can be unavailable (private windows); the toggle still works.
+      }
+      return !value;
+    });
+  };
 
   if (isLoading) {
     return (
@@ -167,15 +187,24 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-surface-muted">
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-60 flex-col bg-navy text-white">
-        <Link href="/" className="flex h-16 items-center gap-2 px-5 hover:bg-white/5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
+      <aside className={`fixed inset-y-0 left-0 z-20 flex flex-col bg-navy text-white transition-[width] duration-200 ${collapsed ? "w-16" : "w-60"}`}>
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="absolute -right-3 top-5 z-30 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-navy shadow-md hover:bg-slate-50"
+        >
+          {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+        </button>
+        <Link href="/" title={collapsed ? companyNameQuery.data?.name || "Boatology" : undefined} className={`flex h-16 items-center gap-2 hover:bg-white/5 ${collapsed ? "justify-center px-0" : "px-5"}`}>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
             <BoatologyLogo variant="emblem" light className="h-5 w-5" />
           </div>
-          <span className="text-sm font-semibold tracking-wide">{companyNameQuery.data?.name || "Boatology"}</span>
+          {!collapsed && <span className="truncate text-sm font-semibold tracking-wide">{companyNameQuery.data?.name || "Boatology"}</span>}
         </Link>
         {/* Items share the available height (capped at h-9), so the whole menu fits without scrolling. */}
-        <nav className="flex min-h-0 flex-1 flex-col gap-px px-3 py-2">
+        <nav className={`flex min-h-0 flex-1 flex-col gap-px py-2 ${collapsed ? "px-2" : "px-3"}`}>
           {visibleNavItems.map((item) => {
             // /customers/:id is a Customer Detail page reached from Contacts,
             // not its own nav item (customers/* is hidden — see NAV_ITEMS
@@ -190,14 +219,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex min-h-0 max-h-9 flex-1 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${
+                title={collapsed ? item.label : undefined}
+                aria-label={item.label}
+                className={`flex min-h-0 max-h-9 flex-1 items-center rounded-lg text-[13px] transition-colors ${
+                  collapsed ? "justify-center px-0" : "gap-3 px-3"
+                } ${
                   active
                     ? "bg-white/10 font-medium text-white"
                     : "text-white/70 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
@@ -205,12 +238,32 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main column */}
-      <div className="flex min-w-0 flex-1 flex-col pl-60">
+      <div className={`flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ${collapsed ? "pl-16" : "pl-60"}`}>
         {/* Top bar */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white px-6">
           <GlobalSearch canSearchInvoices={role !== "technician"} />
           <div className="flex items-center gap-4">
-            <NotificationsBell />
+            <NotificationsBell
+              onOpen={(n) => {
+                if (!n.relatedEntityId) return;
+                switch (n.relatedEntityType) {
+                  case "customer":
+                    navigate(`/customers/${n.relatedEntityId}`);
+                    break;
+                  case "job":
+                    navigate(`/jobs/${n.relatedEntityId}`);
+                    break;
+                  case "quote":
+                    navigate(`/quotes/${n.relatedEntityId}`);
+                    break;
+                  case "invoice":
+                    navigate(`/invoices?invoice=${n.relatedEntityId}`);
+                    break;
+                  default:
+                    break;
+                }
+              }}
+            />
             <div className="relative">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
@@ -404,90 +457,6 @@ function GlobalSearch({ canSearchInvoices }: { canSearchInvoices: boolean }) {
             </>
           )}
         </div>
-      )}
-    </div>
-  );
-}
-
-function NotificationsBell() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [, navigate] = useLocation();
-  const notificationsQuery = trpc.notifications.list.useQuery(undefined, { refetchInterval: 30000 });
-  const utils = trpc.useUtils();
-
-  const markReadMutation = trpc.notifications.markRead.useMutation({
-    onSuccess: () => utils.notifications.list.invalidate(),
-  });
-
-  const notifications = notificationsQuery.data || [];
-  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
-
-  const goToNotification = (n: any) => {
-    if (!n.isRead) markReadMutation.mutate({ id: n.id });
-    setIsOpen(false);
-    if (!n.relatedEntityId) return;
-    switch (n.relatedEntityType) {
-      case "customer":
-        navigate(`/customers/${n.relatedEntityId}`);
-        break;
-      case "job":
-        navigate(`/jobs/${n.relatedEntityId}`);
-        break;
-      case "quote":
-        navigate(`/quotes/${n.relatedEntityId}`);
-        break;
-      case "invoice":
-        navigate(n.relatedEntityId ? `/invoices?invoice=${n.relatedEntityId}` : `/invoices`);
-        break;
-      default:
-        break;
-    }
-  };
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen((v) => !v)}
-        className="relative rounded-lg p-2 text-ink-light hover:bg-surface-muted"
-      >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-xs font-bold text-white">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-2 w-80 rounded-lg border border-border bg-white py-2 shadow-cardHover">
-            <div className="border-b border-border px-4 py-2">
-              <p className="text-sm font-semibold text-navy">Notifications</p>
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-ink-light">No notifications yet.</p>
-              ) : (
-                notifications.map((n: any) => (
-                  <button
-                    key={n.id}
-                    onClick={() => goToNotification(n)}
-                    className={`block w-full border-b border-border/50 px-4 py-3 text-left last:border-0 hover:bg-surface-muted ${
-                      !n.isRead ? "bg-ocean-50" : ""
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-ink">{n.title}</p>
-                    {n.message && <p className="mt-0.5 text-xs text-ink-light">{n.message}</p>}
-                    <p className="mt-1 text-xs text-ink-light">
-                      {new Date(n.createdAt).toLocaleString()}
-                    </p>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </>
       )}
     </div>
   );

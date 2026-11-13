@@ -11,6 +11,7 @@ import { PhotoGallery } from "@/components/PhotoGallery";
 import { ManualHoursCard } from "@/components/ManualHoursCard";
 import { MaterialsPanel } from "@/pages/Materials";
 import { HelpAssistant } from "@/components/HelpAssistant";
+import { NotificationsBell } from "@/components/NotificationsBell";
 import {
   LogOut,
   Calendar as CalendarIcon,
@@ -18,7 +19,6 @@ import {
   ChevronDown,
   ChevronUp,
   Package,
-  Bell,
 } from "lucide-react";
 import { InAppQrScanner } from "@/components/InAppQrScanner";
 import { TechnicianSidebar } from "@/components/TechnicianSidebar";
@@ -103,7 +103,11 @@ export default function TechnicianHome() {
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6">
           <h1 className="text-lg font-semibold text-slate-900">Today</h1>
           <div className="flex items-center gap-3">
-            <TechnicianNotifications onSelectJob={goToJob} />
+            <NotificationsBell
+              onOpen={(n) => {
+                if (n.relatedEntityType === "job" && n.relatedEntityId) goToJob(n.relatedEntityId);
+              }}
+            />
             <div className="hidden text-right leading-tight sm:block">
               <p className="text-sm font-medium text-slate-900">{user?.name}</p>
               <p className="text-xs text-slate-500">Technician</p>
@@ -250,73 +254,6 @@ export default function TechnicianHome() {
         </DialogContent>
       </Dialog>
       <HelpAssistant aboveMobileNav />
-    </div>
-  );
-}
-
-function TechnicianNotifications({ onSelectJob }: { onSelectJob: (jobId: number) => void }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const notificationsQuery = trpc.notifications.list.useQuery(undefined, { refetchInterval: 30000 });
-  const utils = trpc.useUtils();
-
-  const markReadMutation = trpc.notifications.markRead.useMutation({
-    onSuccess: () => utils.notifications.list.invalidate(),
-  });
-
-  const notifications = notificationsQuery.data || [];
-  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
-
-  const handleSelect = (n: any) => {
-    if (!n.isRead) markReadMutation.mutate({ id: n.id });
-    setIsOpen(false);
-    if (n.relatedEntityType === "job" && n.relatedEntityId) {
-      onSelectJob(n.relatedEntityId);
-    }
-  };
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen((v) => !v)}
-        className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-      >
-        <Bell className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-2 w-80 rounded-lg border border-slate-200 bg-white py-2 text-slate-900 shadow-lg">
-            <div className="border-b border-slate-100 px-4 py-2">
-              <p className="text-sm font-semibold text-slate-900">Notifications</p>
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-slate-500">No notifications yet.</p>
-              ) : (
-                notifications.map((n: any) => (
-                  <button
-                    key={n.id}
-                    onClick={() => handleSelect(n)}
-                    className={`block w-full border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50 ${
-                      !n.isRead ? "bg-blue-50/60" : ""
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-slate-900">{n.title}</p>
-                    {n.message && <p className="mt-0.5 text-xs text-slate-500">{n.message}</p>}
-                    <p className="mt-1 text-xs text-slate-400">{new Date(n.createdAt).toLocaleString()}</p>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
