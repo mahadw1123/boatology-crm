@@ -3,7 +3,7 @@ import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { COOKIE_NAME } from "@shared/const";
-import { assistantEnabled, askAssistant, takeAssistantQuota } from "./_core/assistant";
+import { assistantEnabled, askAssistant, takeAssistantQuota, AssistantError } from "./_core/assistant";
 import { ACCESS_MODULES, ACCESS_ACTIONS, CONFIGURABLE_ROLES, loadAccessRules, sanitizeAccessRules, clearAccessRulesCache } from "./_core/accessControl";
 import { quoteBreakdown, type QuoteTaxMode, type QuoteDiscountType } from "@shared/quoteMath";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -8162,7 +8162,12 @@ const assistantRouter = router({
         return { answer: await askAssistant(input.messages) };
       } catch (error) {
         console.error("Help assistant failed:", error);
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The help assistant is unavailable right now. Please try again shortly." });
+        throw new TRPCError({
+          // BAD_REQUEST so the screen shows this message as-is instead of the
+          // generic "refresh the record" advice that suits record edits.
+          code: "BAD_REQUEST",
+          message: error instanceof AssistantError ? error.message : "The help assistant is unavailable right now. Please try again shortly.",
+        });
       }
     }),
 });
