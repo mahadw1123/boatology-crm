@@ -71,13 +71,24 @@ async function listModels(): Promise<string[]> {
 }
 
 async function generate(model: string, history: AssistantTurn[]) {
+  try {
+    return await rawGenerate(model, history);
+  } catch (error) {
+    console.error("Gemini request could not be sent:", error);
+    throw new AssistantError("The help assistant could not reach Google's Gemini service, or it took too long to answer. Try again in a minute.");
+  }
+}
+
+async function rawGenerate(model: string, history: AssistantTurn[]) {
   return fetch(`${API_BASE}/models/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": ENV.geminiApiKey },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: history.map((turn) => ({ role: turn.role === "assistant" ? "model" : "user", parts: [{ text: turn.text }] })),
-      generationConfig: { temperature: 0.2, maxOutputTokens: 700 },
+      // Newer Gemini models spend part of this budget "thinking" before they
+      // answer, so it has to be generous or the visible reply comes back empty.
+      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
     }),
     signal: AbortSignal.timeout(20000),
   });
@@ -135,6 +146,11 @@ export async function askAssistant(history: AssistantTurn[]): Promise<string> {
   lastWorking = model;
   const data: any = await response.json();
   const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || "").join("").trim();
-  if (!text) throw new Error("Gemini returned no answer.");
+  if (!text) {
+    console.error(
+      `Gemini returned no text (model ${model}, finishReason ${data?.candidates?.[0]?.finishReason ?? "none"}, blockReason ${data?.promptFeedback?.blockReason ?? "none"}).`
+    );
+    throw new AssistantError("The help assistant did not return an answer. Try rephrasing the question.");
+  }
   return text;
 }
