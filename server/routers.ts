@@ -8142,9 +8142,14 @@ const assistantRouter = router({
     .input(
       z.object({
         messages: z
-          .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().trim().min(1).max(1000) }))
+          // Assistant answers sent back as history can be long; only what
+          // staff type is held to the shorter limit (checked below).
+          .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().trim().min(1).max(10000) }))
           .min(1)
-          .max(10),
+          .max(10)
+          .refine((turns) => turns.every((turn) => turn.role !== "user" || turn.text.length <= 2000), {
+            message: "Keep each question under 2000 characters.",
+          }),
       })
     )
     .mutation(async ({ input, ctx }) => {

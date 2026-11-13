@@ -100,7 +100,7 @@ export function HelpAssistant({ aboveMobileNav = false }: { aboveMobileNav?: boo
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              maxLength={1000}
+              maxLength={2000}
               placeholder="Type your question"
               className="h-9 flex-1 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
             />
