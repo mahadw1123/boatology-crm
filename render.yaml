@@ -52,5 +52,7 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY # optional, receipt OCR
         sync: false
-      - key: GEMINI_API_KEY # optional, staff help assistant
+      - key: GROQ_API_KEY # optional, staff help assistant (free tier)
+        sync: false
+      - key: GEMINI_API_KEY # optional, staff help assistant fallback
         sync: false

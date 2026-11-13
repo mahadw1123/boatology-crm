@@ -40,7 +40,10 @@ export const ENV = {
 
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
 
-  // Optional staff help assistant (Google Gemini). Off unless a key is set.
+  // Optional staff help assistant. Groq is used first when its key is set,
+  // then Google Gemini. Off unless at least one key is set.
+  groqApiKey: process.env.GROQ_API_KEY || "",
+  groqModel: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
   geminiApiKey: process.env.GEMINI_API_KEY || "",
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
 

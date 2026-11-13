@@ -15,7 +15,7 @@ GUIDE:
 ${HELP_GUIDE}`;
 
 export function assistantEnabled() {
-  return Boolean(ENV.geminiApiKey);
+  return Boolean(ENV.groqApiKey || ENV.geminiApiKey);
 }
 
 // Simple per-user daily cap so cost and free-tier limits cannot be exhausted
@@ -88,9 +88,15 @@ async function rawGenerate(model: string, history: AssistantTurn[]) {
       contents: history.map((turn) => ({ role: turn.role === "assistant" ? "model" : "user", parts: [{ text: turn.text }] })),
       // Newer Gemini models spend part of this budget "thinking" before they
       // answer, so it has to be generous or the visible reply comes back empty.
-      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 4096,
+        // Gemini 2.5 models can have thinking switched off, which makes short
+        // help answers much faster. Other versions use their own defaults.
+        ...(/^gemini-2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      },
     }),
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(45000),
   });
 }
 
@@ -113,7 +119,7 @@ function explain(status: number, detail: string): string {
 
 const RETRYABLE = new Set([404, 429, 500, 503]);
 
-export async function askAssistant(history: AssistantTurn[]): Promise<string> {
+async function askGemini(history: AssistantTurn[]): Promise<string> {
   const first = lastWorking || ENV.geminiModel;
   let response = await generate(first, history);
   let model = first;
@@ -153,4 +159,118 @@ export async function askAssistant(history: AssistantTurn[]): Promise<string> {
     throw new AssistantError("The help assistant did not return an answer. Try rephrasing the question.");
   }
   return text;
+}
+
+// ---------------------------------------------------------------------------
+// Groq (free tier, OpenAI-compatible). Used first when GROQ_API_KEY is set.
+// ---------------------------------------------------------------------------
+
+const GROQ_BASE = "https://api.groq.com/openai/v1";
+let groqModelList: { names: string[]; at: number } | null = null;
+let groqLastWorking: string | null = null;
+
+function explainGroq(status: number, detail: string): string {
+  const lower = detail.toLowerCase();
+  if (status === 401 || status === 403) {
+    return "Groq refused the API key. An administrator should create a new key at console.groq.com and update GROQ_API_KEY in Render.";
+  }
+  if (status === 429) return "The free limit for the help assistant has been reached for now. Try again in a minute or later today.";
+  if (status === 404 || lower.includes("model")) return "No Groq model could be found. An administrator should set GROQ_MODEL in Render to a current model name.";
+  if (status >= 500) return "Groq's service is busy right now. Try again in a minute.";
+  return `The help assistant could not get an answer (error ${status}). An administrator can check the server logs.`;
+}
+
+async function listGroqModels(): Promise<string[]> {
+  if (groqModelList && Date.now() - groqModelList.at < 60 * 60 * 1000) return groqModelList.names;
+  const response = await fetch(`${GROQ_BASE}/models`, {
+    headers: { Authorization: `Bearer ${ENV.groqApiKey}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    console.error(`Groq model lookup failed (${response.status}): ${detail.slice(0, 300)}`);
+    throw new AssistantError(explainGroq(response.status, detail));
+  }
+  const data: any = await response.json();
+  const ids: string[] = (data?.data || []).map((m: any) => String(m?.id || ""));
+  // Chat models only: skip speech, safety and embedding models.
+  const chat = ids.filter((id) => id && !/whisper|guard|tts|prompt|embed|orpheus|distil/i.test(id));
+  const rank = (id: string) => (/llama/i.test(id) ? 0 : /gpt-oss|qwen|mixtral|gemma/i.test(id) ? 1 : 2) * 1000 - (parseFloat((id.match(/(\d+)b/i) || [])[1]) || 0);
+  const names = chat.sort((a, b) => rank(a) - rank(b));
+  if (names.length === 0) throw new AssistantError("This Groq key has no usable chat model. An administrator should create a new key at console.groq.com.");
+  groqModelList = { names, at: Date.now() };
+  return names;
+}
+
+async function groqGenerate(model: string, history: AssistantTurn[]) {
+  try {
+    return await fetch(`${GROQ_BASE}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ENV.groqApiKey}` },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        max_tokens: 1200,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...history.map((turn) => ({ role: turn.role, content: turn.text })),
+        ],
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch (error) {
+    console.error("Groq request could not be sent:", error);
+    throw new AssistantError("The help assistant could not reach Groq, or it took too long to answer. Try again in a minute.");
+  }
+}
+
+async function askGroq(history: AssistantTurn[]): Promise<string> {
+  const first = groqLastWorking || ENV.groqModel;
+  let response = await groqGenerate(first, history);
+  let model = first;
+
+  if (!response.ok && (response.status === 404 || response.status === 400 || response.status === 429 || response.status >= 500)) {
+    // Missing, retired or busy model: try other chat models this key can use.
+    let others: string[] = [];
+    try {
+      others = (await listGroqModels()).filter((name) => name !== first).slice(0, 3);
+    } catch (error) {
+      if (response.status === 404 || response.status === 400) throw error;
+    }
+    for (const name of others) {
+      const attempt = await groqGenerate(name, history);
+      response = attempt;
+      if (attempt.ok) {
+        model = name;
+        break;
+      }
+    }
+  }
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    console.error(`Groq request failed (${response.status}): ${detail.slice(0, 300)}`);
+    throw new AssistantError(explainGroq(response.status, detail));
+  }
+  groqLastWorking = model;
+  const data: any = await response.json();
+  const text = String(data?.choices?.[0]?.message?.content || "").trim();
+  if (!text) {
+    console.error(`Groq returned no text (model ${model}, finish_reason ${data?.choices?.[0]?.finish_reason ?? "none"}).`);
+    throw new AssistantError("The help assistant did not return an answer. Try rephrasing the question.");
+  }
+  return text;
+}
+
+export async function askAssistant(history: AssistantTurn[]): Promise<string> {
+  if (ENV.groqApiKey) {
+    try {
+      return await askGroq(history);
+    } catch (error) {
+      // Fall back to Gemini only if it is also configured.
+      if (!ENV.geminiApiKey) throw error;
+      console.error("Groq failed, falling back to Gemini:", error);
+    }
+  }
+  return askGemini(history);
 }
