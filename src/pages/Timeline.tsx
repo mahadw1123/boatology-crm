@@ -45,16 +45,16 @@ export default function Timeline() {
     new Date(dateStr).toLocaleDateString("en-AU", { weekday: "short", month: "short", day: "numeric" });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <h1 className="text-3xl font-semibold text-slate-900">Operations Timeline</h1>
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <h1 className="text-2xl font-semibold tracking-tight text-navy">Operations Timeline</h1>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {timelineQuery.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-32 skeleton rounded-lg" />
         ) : (
           <>
             {/* Summary */}
@@ -63,7 +63,7 @@ export default function Timeline() {
                 const count = ((buckets as any)[section.key] || []).length;
                 const Icon = section.icon;
                 return (
-                  <Card key={section.key} className="border-slate-200 bg-white p-3 text-center shadow-sm">
+                  <Card key={section.key} className="p-3 text-center shadow-sm">
                     <Icon className={`mx-auto h-4 w-4 ${section.tone}`} />
                     <p className={`mt-1 text-xl font-bold ${count > 0 ? section.tone : "text-slate-300"}`}>{count}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{section.label}</p>
@@ -95,7 +95,7 @@ export default function Timeline() {
                       {events.map((event: any) => (
                         <Card
                           key={event.jobId}
-                          className="cursor-pointer border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                          className="cursor-pointer p-4 shadow-sm transition-shadow hover:shadow-md"
                           onClick={() => navigate(`/jobs/${event.jobId}`)}
                         >
                           <div className="flex items-start justify-between">

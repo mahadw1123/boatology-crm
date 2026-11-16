@@ -164,7 +164,7 @@ export function TimeEntryDialog({
           <div>
             <label className="block text-sm font-medium text-slate-900">Employee *</label>
             <Select value={employeeId} onValueChange={setEmployeeId} disabled={isTechnician || !!entry}>
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="Employee" className="mt-1 border-slate-200">
                 <SelectValue placeholder="Select employee" />
               </SelectTrigger>
               <SelectContent>
@@ -221,7 +221,7 @@ export function TimeEntryDialog({
             <div>
               <label className="block text-sm font-medium text-slate-900">Task</label>
               <Select value={taskId} onValueChange={setTaskId}>
-                <SelectTrigger className="mt-1 border-slate-200">
+                <SelectTrigger aria-label="Task" className="mt-1 border-slate-200">
                   <SelectValue placeholder="Whole job (no specific task)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -239,15 +239,15 @@ export function TimeEntryDialog({
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-900">Date *</label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 border-slate-200" />
+              <Input aria-label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Started *</label>
-              <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="mt-1 border-slate-200" />
+              <Input aria-label="Started" type="time" value={start} onChange={(e) => setStart(e.target.value)} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Finished *</label>
-              <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="mt-1 border-slate-200" />
+              <Input aria-label="Finished" type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="mt-1 border-slate-200" />
             </div>
           </div>
           <p className="text-sm text-slate-600">
@@ -256,14 +256,14 @@ export function TimeEntryDialog({
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Notes</label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 border-slate-200" />
+            <Textarea aria-label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 border-slate-200" />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSave} disabled={saving}>
+          <Button className="bg-navy hover:bg-navy-700" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>

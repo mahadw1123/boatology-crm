@@ -25,7 +25,42 @@
   }
   body {
     @apply bg-surface-muted text-ink font-sans antialiased;
-    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* One visible, consistent keyboard focus style everywhere. Components that
+     draw their own ring (buttons, inputs) switch this outline off. */
+  :focus-visible {
+    outline: 2px solid rgba(90, 156, 196, 0.9);
+    outline-offset: 2px;
+  }
+  /* Grid cells default to "never narrower than my content", which lets one
+     long line push a whole page wider than a phone. Let them shrink. */
+  .grid > * {
+    min-width: 0;
+  }
+  /* Figures line up in columns: amounts, hours, counts. */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* iOS zooms the page when a focused field's text is under 16px. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
   h1,
   h2,
@@ -47,6 +82,37 @@
 }
 
 @layer components {
+  /* Loading placeholder: a soft sweep rather than a hard pulse. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    background-color: #eceff3;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+    animation: skeleton-sweep 1.4s ease-in-out infinite;
+  }
+  @keyframes skeleton-sweep {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  /* Content arriving on a page: a short fade and rise, once. */
+  .enter {
+    animation: enter 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+
   .container {
     width: 100%;
     margin-left: auto;

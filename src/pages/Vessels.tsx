@@ -43,18 +43,18 @@ export default function Vessels() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Vessels</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Vessels</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <DownloadButton data={allVessels} filename="boatology-vessels" />
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => setCreateDialogOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -66,7 +66,7 @@ export default function Vessels() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {/* Search Bar */}
         <div className="mb-8">
           <div className="relative">
@@ -85,11 +85,11 @@ export default function Vessels() {
         {vesselsQuery.isLoading ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Card key={i} className="h-48 animate-pulse border-slate-200 bg-slate-100" />
+              <Card key={i} className="h-48 skeleton border-transparent" />
             ))}
           </div>
         ) : filteredVessels.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 py-12 text-center">
+          <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 px-6 py-12 text-center">
             <Anchor className="mx-auto h-12 w-12 text-slate-400" />
             <h3 className="mt-4 text-lg font-medium text-slate-900">
               {search ? "No vessels found" : "No vessels yet"}
@@ -105,7 +105,7 @@ export default function Vessels() {
             {filteredVessels.map((vessel: any) => (
               <Card
                 key={vessel.id}
-                className="border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow"
+                className="hover:shadow-md transition-shadow"
               >
                 <div className="p-6">
                   <div className="flex items-start justify-between">
@@ -120,7 +120,7 @@ export default function Vessels() {
                       )}
                       <p className="mt-1 text-xs text-slate-500">Owner: {vessel.customerName}</p>
                     </div>
-                    <Anchor className="h-5 w-5 text-[#2d4160]" />
+                    <Anchor className="h-5 w-5 text-ink-light" />
                   </div>
 
                   <div className="mt-4 space-y-2">
@@ -147,7 +147,7 @@ export default function Vessels() {
                     >
                       View
                     </Button>
-                    <Button
+                    <Button aria-label="Delete"
                       variant="outline"
                       size="sm"
                       className="border-red-200 text-red-600 hover:bg-red-50"

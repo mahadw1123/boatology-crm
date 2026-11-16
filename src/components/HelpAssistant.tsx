@@ -44,7 +44,7 @@ export function HelpAssistant({ aboveMobileNav = false }: { aboveMobileNav?: boo
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`fixed ${bottom} right-5 z-40 flex h-11 items-center gap-2 rounded-full bg-[#0c1e38] px-4 text-sm font-medium text-white shadow-lg hover:bg-[#0c1e38]/90`}
+          className={`fixed ${bottom} right-5 z-40 flex h-11 items-center gap-2 rounded-full bg-navy px-4 text-sm font-medium text-white shadow-lg hover:bg-navy-700`}
         >
           <HelpCircle className="h-4 w-4" />
           Help
@@ -52,7 +52,7 @@ export function HelpAssistant({ aboveMobileNav = false }: { aboveMobileNav?: boo
       )}
       {open && (
         <div className={`fixed ${bottom} right-5 z-40 flex h-[28rem] max-h-[calc(100vh-6rem)] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col rounded-xl border border-slate-200 bg-white shadow-xl`}>
-          <div className="flex items-center justify-between rounded-t-xl bg-[#0c1e38] px-4 py-3 text-white">
+          <div className="flex items-center justify-between rounded-t-xl bg-navy px-4 py-3 text-white">
             <span className="text-sm font-semibold">CRM Help</span>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close help">
               <X className="h-4 w-4" />
@@ -79,7 +79,7 @@ export function HelpAssistant({ aboveMobileNav = false }: { aboveMobileNav?: boo
                 <div
                   className={
                     turn.role === "user"
-                      ? "max-w-[85%] whitespace-pre-wrap rounded-lg bg-[#0c1e38] px-3 py-2 text-white"
+                      ? "max-w-[85%] whitespace-pre-wrap rounded-lg bg-navy px-3 py-2 text-white"
                       : "max-w-[85%] whitespace-pre-wrap rounded-lg bg-slate-100 px-3 py-2 text-slate-800"
                   }
                 >
@@ -104,7 +104,7 @@ export function HelpAssistant({ aboveMobileNav = false }: { aboveMobileNav?: boo
               placeholder="Type your question"
               className="h-9 flex-1 rounded-md border border-slate-200 px-3 text-sm outline-none focus:border-slate-400"
             />
-            <Button type="submit" size="icon" className="h-9 w-9 bg-[#0c1e38] hover:bg-[#0c1e38]/90" disabled={askMutation.isPending || !input.trim()}>
+            <Button aria-label="Send" type="submit" size="icon" className="h-9 w-9 bg-navy hover:bg-navy-700" disabled={askMutation.isPending || !input.trim()}>
               <Send className="h-4 w-4" />
             </Button>
           </form>

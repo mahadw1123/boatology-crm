@@ -59,7 +59,7 @@ export function AccessControlCard() {
   };
 
   return (
-    <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+    <Card className="mb-6">
       <div className="p-6">
         <h2 className="mb-1 text-lg font-semibold text-slate-900">Who can see and change what</h2>
         <p className="mb-4 text-sm text-slate-600">
@@ -69,7 +69,7 @@ export function AccessControlCard() {
 
         <div className="mb-4 flex flex-wrap gap-2">
           {roles.map((r) => (
-            <Button key={r} size="sm" variant={role === r ? "default" : "outline"} className={role === r ? "bg-[#0c1e38]" : ""} onClick={() => setRole(r)}>
+            <Button key={r} size="sm" variant={role === r ? "default" : "outline"} className={role === r ? "bg-navy" : ""} onClick={() => setRole(r)}>
               {ROLE_LABELS[r] || r}
             </Button>
           ))}
@@ -78,7 +78,7 @@ export function AccessControlCard() {
         <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-600">
+              <tr className="border-b border-border bg-surface-muted/60 text-left text-xs text-slate-500">
                 <th className="px-3 py-2">Area</th>
                 {actions.map((a) => (
                   <th key={a} className="px-3 py-2 text-center">
@@ -89,7 +89,7 @@ export function AccessControlCard() {
             </thead>
             <tbody>
               {modules.map((m) => (
-                <tr key={m.key} className="border-b border-slate-100 last:border-0">
+                <tr key={m.key} className="border-b border-border/70 last:border-0">
                   <td className="px-3 py-2 text-slate-800">{m.label}</td>
                   {actions.map((a) => (
                     <td key={a} className="px-3 py-2 text-center">
@@ -103,7 +103,7 @@ export function AccessControlCard() {
         </div>
 
         <div className="mt-4 flex gap-2">
-          <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={() => saveMutation.mutate({ rules })} disabled={saveMutation.isPending}>
+          <Button className="bg-navy hover:bg-navy-700" onClick={() => saveMutation.mutate({ rules })} disabled={saveMutation.isPending}>
             {saveMutation.isPending ? "Saving..." : "Save access settings"}
           </Button>
           <Button variant="outline" onClick={resetRole}>

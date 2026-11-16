@@ -66,7 +66,7 @@ function BusinessExpensesPanel() {
 
   if (expensesQuery.error) {
     return (
-      <Card className="mb-8 border-slate-200 bg-white shadow-sm">
+      <Card className="mb-8">
         <div className="p-6 text-sm text-slate-500">
           Only admin, management, and office staff accounts can view business expenses.
         </div>
@@ -79,7 +79,7 @@ function BusinessExpensesPanel() {
 
   return (
     <>
-      <Card className="mb-8 border-slate-200 bg-white shadow-sm">
+      <Card className="mb-8">
         <div className="p-6">
           <h2 className="mb-1 text-lg font-semibold text-slate-900">Log a Business Expense</h2>
           <p className="mb-4 flex items-center gap-1.5 text-xs text-slate-500">
@@ -91,7 +91,7 @@ function BusinessExpensesPanel() {
             <div>
               <label className="block text-sm font-medium text-slate-900">Category</label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="mt-1 border-slate-200">
+                <SelectTrigger aria-label="Category" className="mt-1 border-slate-200">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -108,7 +108,7 @@ function BusinessExpensesPanel() {
 
             <div>
               <label className="block text-sm font-medium text-slate-900">Description</label>
-              <Input
+              <Input aria-label="Description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. Marina berth rent — September"
@@ -118,7 +118,7 @@ function BusinessExpensesPanel() {
 
             <div>
               <label className="block text-sm font-medium text-slate-900">Amount ($)</label>
-              <Input
+              <Input aria-label="Amount ($)"
                 type="number"
                 step="0.01"
                 min="0"
@@ -131,7 +131,7 @@ function BusinessExpensesPanel() {
 
             <div>
               <label className="block text-sm font-medium text-slate-900">Date</label>
-              <Input
+              <Input aria-label="Date"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
@@ -141,7 +141,7 @@ function BusinessExpensesPanel() {
 
             <div className="flex items-end">
               <Button
-                className="w-full bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="w-full bg-navy hover:bg-navy-700"
                 onClick={handleSubmit}
                 disabled={!category || !description.trim() || !amount || !date || createMutation.isPending}
               >
@@ -153,7 +153,7 @@ function BusinessExpensesPanel() {
         </div>
       </Card>
 
-      <Card className="mb-8 border-slate-200 bg-white shadow-sm">
+      <Card className="mb-8">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="font-semibold text-slate-900">Business Expenses</h2>
           <div className="flex items-center gap-4">
@@ -171,25 +171,25 @@ function BusinessExpensesPanel() {
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Notes</th>
+                <tr className="border-b border-border bg-surface-muted/60">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Date</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Category</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Description</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Amount</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Notes</th>
                   <th className="px-6 py-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {expenses.map((e: any) => (
-                  <tr key={e.id} className="border-b border-slate-100">
-                    <td className="px-6 py-3 text-sm text-slate-600">{e.date}</td>
-                    <td className="px-6 py-3 text-sm text-slate-900 capitalize">{e.category}</td>
-                    <td className="px-6 py-3 text-sm text-slate-900">{e.description}</td>
-                    <td className="px-6 py-3 text-sm font-medium text-slate-900">${e.amount.toFixed(2)}</td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{e.notes || "—"}</td>
-                    <td className="px-6 py-3 text-right">
-                      <button
+                  <tr key={e.id} className="border-b border-border/70">
+                    <td className="px-4 py-3 text-sm text-slate-600">{e.date}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900 capitalize">{e.category}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900">{e.description}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">${e.amount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{e.notes || "—"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button aria-label="Delete"
                         onClick={() => deleteMutation.mutate({ id: e.id })}
                         className="text-slate-300 hover:text-red-600"
                       >
@@ -213,7 +213,7 @@ function InternalCostSummary() {
 
   if (summaryQuery.error) {
     return (
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="p-6 text-sm text-slate-500">
           Only admin and management accounts can view the internal cost summary.
         </div>
@@ -226,7 +226,7 @@ function InternalCostSummary() {
 
   return (
     <>
-      <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+      <Card className="mb-6">
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="font-semibold text-slate-900">Total Internal Hours by Employee</h2>
           <p className="mt-1 text-xs text-slate-500">
@@ -236,7 +236,7 @@ function InternalCostSummary() {
         </div>
         <div className="p-6">
           {summaryQuery.isLoading ? (
-            <div className="h-16 animate-pulse rounded bg-slate-100" />
+            <div className="h-16 skeleton" />
           ) : !summary || summary.byEmployee.length === 0 ? (
             <p className="text-sm text-slate-500">No internal/admin time logged yet.</p>
           ) : (
@@ -244,7 +244,7 @@ function InternalCostSummary() {
               {summary.byEmployee.map((e) => (
                 <div key={e.employeeId} className="rounded-lg border border-slate-200 p-3">
                   <p className="text-sm font-medium text-slate-900">{e.employeeName}</p>
-                  <p className="text-2xl font-bold text-[#0c1e38]">{e.totalHours} hrs</p>
+                  <p className="text-2xl font-bold text-navy">{e.totalHours} hrs</p>
                 </div>
               ))}
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -256,7 +256,7 @@ function InternalCostSummary() {
         </div>
       </Card>
 
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="font-semibold text-slate-900">Recent Internal Time Entries</h2>
           <DownloadButton data={entries} filename="boatology-internal-costs" />
@@ -267,20 +267,20 @@ function InternalCostSummary() {
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Employee</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Hours</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Notes</th>
+                <tr className="border-b border-border bg-surface-muted/60">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Employee</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Date</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Hours</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {entries.map((e: any) => (
-                  <tr key={e.id} className="border-b border-slate-100">
-                    <td className="px-6 py-3 text-sm text-slate-900">{e.employeeName}</td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{e.date}</td>
-                    <td className="px-6 py-3 text-sm text-slate-900">{e.hoursWorked ?? "—"}</td>
-                    <td className="px-6 py-3 text-sm text-slate-600">{e.notes || "—"}</td>
+                  <tr key={e.id} className="border-b border-border/70">
+                    <td className="px-4 py-3 text-sm text-slate-900">{e.employeeName}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{e.date}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900">{e.hoursWorked ?? "—"}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{e.notes || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -294,22 +294,22 @@ function InternalCostSummary() {
 
 export default function Costs() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Costs</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Costs</h1>
               <p className="mt-1 text-sm text-slate-600">
                 Internal & admin time — tracked as business overhead, separate from customer billing
               </p>
             </div>
-            <DollarSign className="h-8 w-8 text-[#2d4160]" />
+            <DollarSign className="h-8 w-8 text-ink-light" />
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         <InternalCostSummary />
         <BusinessExpensesPanel />
       </div>

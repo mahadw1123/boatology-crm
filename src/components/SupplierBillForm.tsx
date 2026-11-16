@@ -122,7 +122,7 @@ export function SupplierBillForm({ jobId, onDone }: { jobId: number; onDone: () 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label className="block text-xs font-medium text-slate-900">Supplier *</label>
-          <Input list="bill-suppliers" value={supplier} onChange={(e) => setSupplier(e.target.value)} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Supplier" list="bill-suppliers" value={supplier} onChange={(e) => setSupplier(e.target.value)} className="mt-1 h-9 border-slate-200" />
           <datalist id="bill-suppliers">
             {(suppliersQuery.data || []).map((s: any) => (
               <option key={s.id} value={s.name} />
@@ -131,11 +131,11 @@ export function SupplierBillForm({ jobId, onDone }: { jobId: number; onDone: () 
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-900">Invoice Number</label>
-          <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Invoice Number" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className="mt-1 h-9 border-slate-200" />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-900">Invoice Date</label>
-          <Input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Invoice Date" type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="mt-1 h-9 border-slate-200" />
         </div>
       </div>
 
@@ -173,7 +173,7 @@ export function SupplierBillForm({ jobId, onDone }: { jobId: number; onDone: () 
                 </SelectContent>
               </Select>
               <span className="w-24 text-right text-sm font-medium text-slate-800">{lineAmount(l).toFixed(2)}</span>
-              <button
+              <button aria-label="Delete"
                 type="button"
                 className="w-8 text-slate-300 hover:text-red-600"
                 onClick={() => setLines(lines.length > 1 ? lines.filter((x) => x.id !== l.id) : [blankLine(defaultTax)])}
@@ -216,7 +216,7 @@ export function SupplierBillForm({ jobId, onDone }: { jobId: number; onDone: () 
       </div>
 
       <div className="flex gap-2">
-        <Button size="sm" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSave} disabled={saving}>
+        <Button size="sm" className="bg-navy hover:bg-navy-700" onClick={handleSave} disabled={saving}>
           {saving ? "Saving..." : "Save Bill"}
         </Button>
         <Button size="sm" variant="outline" onClick={onDone}>

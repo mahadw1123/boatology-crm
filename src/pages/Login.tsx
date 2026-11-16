@@ -86,7 +86,7 @@ export default function Login() {
           >
             <div>
               <label className="mb-1 block text-xs font-medium text-white/85">Email</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input aria-label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between">
@@ -95,7 +95,7 @@ export default function Login() {
                   Forgot password?
                 </Link>
               </div>
-              <Input
+              <Input aria-label="Password"
                 type="password"
                 maxLength={72}
                 value={password}
@@ -130,11 +130,11 @@ export default function Login() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/85">Full name</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} required />
+              <Input aria-label="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/85">Email</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input aria-label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               <p className="mt-1 text-xs text-white/70">
                 For security, a new account is not linked automatically. After registration, ask office staff
                 to verify your identity and link it in Administration → Users.
@@ -142,7 +142,7 @@ export default function Login() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-white/85">Password</label>
-              <Input
+              <Input aria-label="Password"
                 type="password"
                 maxLength={72}
                 value={password}

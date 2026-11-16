@@ -80,15 +80,15 @@ export default function Documents() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Documents</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Documents</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <DownloadButton data={documents} filename="boatology-documents" />
               <input
                 ref={fileInputRef}
@@ -99,7 +99,7 @@ export default function Documents() {
                 onChange={handleUpload}
               />
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
               >
@@ -112,10 +112,10 @@ export default function Documents() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {/* Filters */}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-          <div className="relative flex-1">
+          <div className="relative min-w-[14rem] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="Search documents..."
@@ -141,9 +141,9 @@ export default function Documents() {
 
         {/* Documents Grid */}
         {documentsQuery.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-32 skeleton rounded-lg" />
         ) : filteredDocuments.length === 0 ? (
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-12 text-center">
               <FileText className="mx-auto h-12 w-12 text-slate-300" />
               <p className="mt-4 text-slate-600">
@@ -161,7 +161,7 @@ export default function Documents() {
                 rel="noreferrer"
                 className="group block"
               >
-                <Card className="overflow-hidden border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+                <Card className="overflow-hidden transition-shadow hover:shadow-md">
                   <div className="flex aspect-square items-center justify-center bg-slate-50">
                     {doc.fileType?.startsWith("image/") ? (
                       <img

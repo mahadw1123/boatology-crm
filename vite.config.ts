@@ -15,6 +15,9 @@ export default defineConfig({
     proxy: {
       "/trpc": "http://localhost:4000",
       "/api": "http://localhost:4000",
+      // Uploaded files are served by the API (with its access checks), in
+      // development as in production.
+      "/uploads": "http://localhost:4000",
     },
   },
   build: {

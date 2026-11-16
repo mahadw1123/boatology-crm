@@ -117,20 +117,20 @@ function ItemFormDialog({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-900">Material Name *</label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 border-slate-200" />
+            <Input aria-label="Material Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 border-slate-200" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-900">Part Number</label>
-              <Input value={form.partNumber} onChange={(e) => setForm({ ...form, partNumber: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Part Number" value={form.partNumber} onChange={(e) => setForm({ ...form, partNumber: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Supplier</label>
-              <Input value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Supplier" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Unit</label>
-              <Input
+              <Input aria-label="Unit"
                 value={form.unit}
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
                 placeholder="e.g. litres, each"
@@ -139,22 +139,22 @@ function ItemFormDialog({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Unit Cost</label>
-              <Input type="number" step="0.01" value={form.unitCost} onChange={(e) => setForm({ ...form, unitCost: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Unit Cost" type="number" step="0.01" value={form.unitCost} onChange={(e) => setForm({ ...form, unitCost: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             {!item && (
               <div>
                 <label className="block text-sm font-medium text-slate-900">Starting Stock</label>
-                <Input type="number" step="0.01" value={form.currentStock} onChange={(e) => setForm({ ...form, currentStock: e.target.value })} className="mt-1 border-slate-200" />
+                <Input aria-label="Starting Stock" type="number" step="0.01" value={form.currentStock} onChange={(e) => setForm({ ...form, currentStock: e.target.value })} className="mt-1 border-slate-200" />
               </div>
             )}
             <div>
               <label className="block text-sm font-medium text-slate-900">Minimum Stock</label>
-              <Input type="number" step="0.01" value={form.minimumStock} onChange={(e) => setForm({ ...form, minimumStock: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Minimum Stock" type="number" step="0.01" value={form.minimumStock} onChange={(e) => setForm({ ...form, minimumStock: e.target.value })} className="mt-1 border-slate-200" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Notes</label>
-            <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="mt-1 border-slate-200" />
+            <Textarea aria-label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="mt-1 border-slate-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Assigned To</label>
@@ -162,7 +162,7 @@ function ItemFormDialog({
               value={form.assignedUserId || "unassigned"}
               onValueChange={(value) => setForm({ ...form, assignedUserId: value === "unassigned" ? "" : value })}
             >
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="Assigned To" className="mt-1 border-slate-200">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
@@ -181,7 +181,7 @@ function ItemFormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSubmit} disabled={isPending}>
+          <Button className="bg-navy hover:bg-navy-700" onClick={handleSubmit} disabled={isPending}>
             {isPending ? "Saving..." : item ? "Save Changes" : "Add Item"}
           </Button>
         </DialogFooter>
@@ -235,17 +235,17 @@ export default function Inventory() {
   const lowStockCount = items.filter((i: any) => i.currentStock <= i.minimumStock).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Inventory</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Inventory</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <DownloadButton data={items} filename="boatology-inventory" />
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => {
                   setEditingItem(null);
                   setFormOpen(true);
@@ -259,7 +259,7 @@ export default function Inventory() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {lowStockCount > 0 && (
           <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
@@ -280,9 +280,9 @@ export default function Inventory() {
         </div>
 
         {itemsQuery.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-32 skeleton rounded-lg" />
         ) : filteredItems.length === 0 ? (
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-12 text-center">
               <Package className="mx-auto h-12 w-12 text-slate-300" />
               <p className="mt-4 text-slate-600">
@@ -291,16 +291,16 @@ export default function Inventory() {
             </div>
           </Card>
         ) : (
-          <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+          <Card className="overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Material</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Part #</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Supplier</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Stock</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500">Assigned To</th>
+                <tr className="border-b border-border bg-surface-muted/60">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Material</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Part #</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Supplier</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Stock</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Status</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500">Assigned To</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500">Actions</th>
                 </tr>
               </thead>
@@ -308,12 +308,12 @@ export default function Inventory() {
                 {filteredItems.map((item: any) => {
                   const isLow = item.currentStock <= item.minimumStock;
                   return (
-                    <tr key={item.id} className="border-b border-slate-100">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{item.name}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{item.partNumber || "—"}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{item.supplier || "—"}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                    <tr key={item.id} className="border-b border-border/70">
+                      <td className="px-4 py-3 text-sm font-medium text-slate-900">{item.name}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{item.partNumber || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{item.supplier || "—"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
@@ -336,14 +336,14 @@ export default function Inventory() {
                         </div>
                         <p className="mt-0.5 text-xs text-slate-400">Min: {item.minimumStock}</p>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         {isLow ? (
                           <Badge className="border-0 bg-red-100 text-red-700">Low stock</Badge>
                         ) : (
                           <Badge className="border-0 bg-emerald-100 text-emerald-700">In stock</Badge>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
+                      <td className="px-4 py-3 text-sm text-slate-600">
                         <select
                           value={item.assignedUserId?.toString() || ""}
                           onChange={(e) =>
@@ -362,8 +362,8 @@ export default function Inventory() {
                           ))}
                         </select>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <Button
+                      <td className="px-4 py-3 text-right">
+                        <Button aria-label="Edit"
                           variant="ghost"
                           size="sm"
                           onClick={() => {
@@ -373,7 +373,7 @@ export default function Inventory() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
+                        <Button aria-label="Delete"
                           variant="ghost"
                           size="sm"
                           className="text-red-600 hover:bg-red-50"
@@ -457,16 +457,16 @@ function MaterialRequestsSection() {
       </p>
 
       {pending.length === 0 ? (
-        <Card className="border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+        <Card className="p-6 text-center text-sm text-slate-500">
           No pending requests.
         </Card>
       ) : (
         <div className="space-y-2">
           {pending.map((req: any) => (
-            <Card key={req.id} className="border-slate-200 bg-white p-4">
+            <Card key={req.id} className="p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-slate-900">
                       {req.quantity}x {req.materialName}
                     </span>
@@ -480,7 +480,7 @@ function MaterialRequestsSection() {
                   </p>
                   {req.reason && <p className="mt-1 text-sm text-slate-600">{req.reason}</p>}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -492,7 +492,7 @@ function MaterialRequestsSection() {
                   </Button>
                   <Button
                     size="sm"
-                    className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                    className="bg-navy hover:bg-navy-700"
                     onClick={() => approveMutation.mutate({ id: req.id })}
                     disabled={approveMutation.isPending}
                   >
@@ -514,7 +514,7 @@ function MaterialRequestsSection() {
                 <span className="text-slate-600">
                   {req.quantity}x {req.materialName} — Job {jobsById.get(req.jobId)?.jobNumber || `#${req.jobId}`}
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     className={`border-0 text-xs ${
                       req.status === "ordered"

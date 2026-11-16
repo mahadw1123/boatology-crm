@@ -4,15 +4,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import AdmZip from "adm-zip";
 import { ENV } from "./env";
+import { uploadsDir } from "./paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** Same fallback used at server startup (server/index.ts) for where
  * uploaded files live — kept in sync so a backup archives the exact
  * directory the app actually serves uploads from. */
-function resolveUploadsDir(): string {
-  return ENV.persistentDataDir ? path.join(ENV.persistentDataDir, "uploads") : path.resolve(__dirname, "../../uploads");
-}
 
 /**
  * Creates a one-off, consistent snapshot of the live database for the
@@ -54,7 +52,6 @@ export async function createFullBackupArchive(): Promise<string> {
   try {
     const zip = new AdmZip();
     zip.addLocalFile(snapshotPath, "", "boatology.db");
-    const uploadsDir = resolveUploadsDir();
     if (fs.existsSync(uploadsDir)) {
       zip.addLocalFolder(uploadsDir, "uploads");
     }

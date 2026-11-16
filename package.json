@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,client -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:preview": "node scripts/dev-preview.mjs",
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "vite",
     "build": "vite build",
@@ -14,8 +15,13 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "tsx server/migrate.ts",
     "db:seed": "tsx server/seed.ts",
-    "test": "tsx --test tests/core-workflow.test.ts",
-    "test:core": "tsx --test tests/core-workflow.test.ts",
+    "test": "tsx --test tests/core-workflow.test.ts tests/security-regression.test.ts tests/permission-matrix.test.ts",
+    "test:core": "tsx --test tests/core-workflow.test.ts tests/security-regression.test.ts tests/permission-matrix.test.ts",
+    "test:permissions": "tsx --test tests/permission-matrix.test.ts",
+    "test:permissions:update": "node scripts/update-permission-snapshot.mjs",
+    "docs:permissions": "node scripts/permission-matrix-doc.mjs",
+    "perf:benchmark": "tsx scripts/perf-benchmark.ts",
+    "db:integrity": "node scripts/db-integrity-report.mjs",
     "test:e2e": "node scripts/run-e2e.mjs",
     "backup:restore": "node scripts/restore-backup.mjs",
     "test:e2e:install": "playwright install chromium"

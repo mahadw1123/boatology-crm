@@ -96,7 +96,7 @@ export function EmployeeFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-900">Name *</label>
-            <Input
+            <Input aria-label="Name"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -105,7 +105,7 @@ export function EmployeeFormDialog({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Email</label>
-            <Input
+            <Input aria-label="Email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -114,7 +114,7 @@ export function EmployeeFormDialog({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Phone</label>
-            <Input
+            <Input aria-label="Phone"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               className="mt-1 border-slate-200"
@@ -123,7 +123,7 @@ export function EmployeeFormDialog({
           <div>
             <label className="block text-sm font-medium text-slate-900">Role</label>
             <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v as any })}>
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="Role" className="mt-1 border-slate-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -136,7 +136,7 @@ export function EmployeeFormDialog({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Notes</label>
-            <Textarea
+            <Textarea aria-label="Notes"
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
@@ -148,7 +148,7 @@ export function EmployeeFormDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" disabled={isPending}>
+            <Button type="submit" className="bg-navy hover:bg-navy-700" disabled={isPending}>
               {isPending ? "Saving..." : employee ? "Save Changes" : "Add Employee"}
             </Button>
           </DialogFooter>

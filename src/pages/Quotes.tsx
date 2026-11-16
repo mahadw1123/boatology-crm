@@ -74,18 +74,18 @@ export default function Quotes() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Quotes</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Quotes</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <DownloadButton data={quotes} filename="boatology-quotes" />
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => setCreateDialogOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -116,11 +116,11 @@ export default function Quotes() {
         {quotesQuery.isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <Card key={i} className="h-16 animate-pulse border-slate-200 bg-slate-100" />
+              <Card key={i} className="h-16 skeleton border-transparent" />
             ))}
           </div>
         ) : filteredQuotes.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 py-12 text-center">
+          <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 px-6 py-12 text-center">
             <FileText className="mx-auto h-12 w-12 text-slate-400" />
             <h3 className="mt-4 text-lg font-medium text-slate-900">No quotes yet</h3>
             <p className="mt-1 text-sm text-slate-600">
@@ -132,23 +132,23 @@ export default function Quotes() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
+                  <tr className="border-b border-border bg-surface-muted/60">
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">
                       Quote #
                     </th>
-                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">
                       Customer
                     </th>
-                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">
                       Amount
                     </th>
-                    <th className="hidden lg:table-cell px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
+                    <th className="hidden lg:table-cell px-3 py-2.5 text-left text-xs font-medium text-slate-500">
                       Assigned To
                     </th>
-                    <th className="px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
+                    <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">
                       Status
                     </th>
-                    <th className="hidden lg:table-cell px-3 py-2.5 text-left text-sm font-semibold text-slate-900">
+                    <th className="hidden lg:table-cell px-3 py-2.5 text-left text-xs font-medium text-slate-500">
                       Expires
                     </th>
                     <th className="px-3 py-2.5 text-right text-sm font-semibold text-slate-900">
@@ -215,7 +215,7 @@ export default function Quotes() {
                         >
                           View
                         </Button>
-                        <Button
+                        <Button aria-label="Delete"
                           variant="ghost"
                           size="sm"
                           className="text-red-600 hover:bg-red-50"

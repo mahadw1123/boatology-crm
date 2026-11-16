@@ -1,0 +1,4448 @@
+{
+ "administration.accessRules": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.auditLog": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.companyName": {
+  "type": "query",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "administration.createService": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.deactivateUser": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.deleteService": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.gstRate": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "administration.inviteStaff": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.logExport": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "administration.pendingInvites": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.quoteExpiryDays": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "administration.reactivateUser": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.relinkCustomer": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.relinkTechnician": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.resolveSystemError": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.saveAccessRules": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.sendTestEmail": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.services": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "administration.settings": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.staffUsers": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "administration.systemErrors": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.systemHealth": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.updateService": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.updateSetting": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.updateUserRole": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.users": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.xeroDisconnect": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "administration.xeroStatus": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "agenda.muteCategory": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "agenda.mutedCategories": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "agenda.today": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "agenda.unmuteCategory": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.businessHealth": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.customerPaymentStatus": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.jobCompletion": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.jobStats": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.labourStats": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.myWeeklyStats": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.quoteStats": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.revenueStats": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.weatherForecast": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.weeklyOperationsSummary": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.weeklyProductivity": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "analytics.xeroRevenue": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "antifouling.getForJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "antifouling.save": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "assistant.ask": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "assistant.status": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "auth.acceptInvite": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "auth.bootstrapAdmin": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  }
+ },
+ "auth.inviteInfo": {
+  "type": "query",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "auth.login": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  }
+ },
+ "auth.logout": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "auth.me": {
+  "type": "query",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "auth.needsBootstrap": {
+  "type": "query",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "auth.register": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "auth.requestPasswordReset": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "auth.resetPassword": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "allow",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "businessExpenses.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "businessExpenses.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "businessExpenses.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "businessExpenses.summary": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "calendarNotes.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "calendarNotes.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "calendarNotes.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customerMessages.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  }
+ },
+ "customerMessages.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customerMessages.listForCustomer": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customerMessages.reply": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customerMessages.resolve": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.addCommunicationEntry": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.bulkImport": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.cancelPortalInvite": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.getById": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.portalAccess": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.sendPortalInvite": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "customers.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.addComment": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.commentsFor": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.listAllForStaff": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.listByJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.listByQuote": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.listByVessel": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "documents.updateCaption": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "employees.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "employees.deactivate": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "employees.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "employees.getById": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "employees.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "employees.listWithJobCounts": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "employees.reactivate": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "employees.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "imports.bulkImport": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "inventory.adjustStock": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "inventory.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "inventory.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "inventory.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "inventory.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.approve": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  }
+ },
+ "invoices.assign": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.checkStripeStatus": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.claimReviewDiscount": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  }
+ },
+ "invoices.createForJob": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.createPaymentIntent": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  }
+ },
+ "invoices.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.getById": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.getByJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.listAll": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.listByCustomer": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.listMine": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.markPaidManually": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.markRefundedManually": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.paymentConfig": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.reconcilePayment": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.send": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.syncToXero": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.void": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.xeroPayLink": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  }
+ },
+ "jobCosts.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobCosts.createBill": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobCosts.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobCosts.extractFromDocument": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobCosts.itemCodes": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobCosts.listForJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobCosts.ocrStatus": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobCosts.summaryForJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobCosts.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobMap.activeJobs": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobPlan.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobPlan.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobPlan.listForJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobPlan.listForJobs": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobSignatures.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobSignatures.listForJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.assignTechnician": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.cancel": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.deletePreview": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.getAssignments": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.getById": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.getEligibility": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.myJobs": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.notifyDelay": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.reassignTechnician": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.requestAdditionalWork": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.respondToAdditionalWork": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "deny",
+   "admin": "deny"
+  }
+ },
+ "jobs.technicianNames": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.unassignTechnician": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "jobs.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "materialRequests.approve": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "materialRequests.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "materialRequests.listAll": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "materialRequests.listForJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "materialRequests.listMine": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "materialRequests.markOrdered": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "materialRequests.reject": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "notifications.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "notifications.markAllRead": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "notifications.markRead": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "predictions.jobDurationEstimate": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "predictions.quoteAcceptanceLikelihood": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "predictions.suggestForText": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "quotes.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "quotes.createRevision": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "quotes.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "quotes.dismissRevisionFollowUp": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "quotes.getById": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "quotes.getRevisions": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "quotes.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "quotes.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.emailMorningBriefing": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.endOfDaySummary": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.inventoryStatus": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.materialRequirements": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.morningBriefing": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.outstandingPayments": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.outstandingQuotes": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.technicianPerformance": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.upcomingServices": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.weeklyOperationsReport": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "reports.workshopCapacity": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "schedules.checkConflict": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "schedules.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "schedules.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "schedules.getByDate": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "schedules.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "schedules.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "staffTasks.assignableUsers": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "staffTasks.claim": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "staffTasks.complete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "staffTasks.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "staffTasks.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "staffTasks.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "staffTasks.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "suppliers.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "suppliers.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "suppliers.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "suppliers.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.addNote": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.complete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.listForJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.listForJobs": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.myTasks": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.pause": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.progressForJobs": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.reopen": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.start": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "tasks.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.activeEntry": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.clockIn": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.clockOut": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.internalCostList": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.internalCostSummary": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "deny",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.listByEmployee": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.listByJob": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.switchJob": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "deny",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "deny",
+   "admin": "allow"
+  }
+ },
+ "timeEntries.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "timeline.overview": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "vessels.create": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "vessels.delete": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "vessels.getById": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "vessels.list": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "vessels.listByCustomer": {
+  "type": "query",
+  "own": {
+   "anonymous": "deny",
+   "customer": "allow",
+   "technician": "allow",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "vessels.update": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ }
+}

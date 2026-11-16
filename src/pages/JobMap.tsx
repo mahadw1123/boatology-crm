@@ -83,7 +83,7 @@ export default function JobMap() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-50">
-      <div className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
+      <div className="border-b border-border bg-white px-4 py-3 sm:px-6 sm:py-4">
         <h1 className="text-xl font-semibold text-slate-900">Job Map</h1>
         <p className="text-xs text-slate-500">
           Active jobs by marina location — a vessel needs its latitude/longitude set on the Vessel page to get a pin
@@ -107,7 +107,7 @@ export default function JobMap() {
 
           <div className="flex-1 overflow-y-auto p-2">
             {mapQuery.isLoading ? (
-              <div className="h-24 animate-pulse rounded bg-slate-100" />
+              <div className="h-24 skeleton" />
             ) : filteredJobs.length === 0 ? (
               <p className="p-3 text-center text-xs text-slate-400">No active jobs found.</p>
             ) : (
@@ -116,11 +116,11 @@ export default function JobMap() {
                   <button
                     key={j.jobId}
                     onClick={() => navigate(`/jobs/${j.jobId}`)}
-                    className="w-full rounded-lg border border-slate-200 p-2.5 text-left transition-colors hover:border-[#2d4160] hover:bg-blue-50"
+                    className="w-full rounded-lg border border-slate-200 p-2.5 text-left transition-colors hover:border-navy-400 hover:bg-blue-50"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-[#2d4160]">{j.jobNumber}</p>
+                        <p className="truncate text-sm font-semibold text-ink-light">{j.jobNumber}</p>
                         <p className="truncate text-xs text-slate-600">{j.customerName}</p>
                       </div>
                       {!j.hasCoordinates && (
@@ -150,7 +150,7 @@ export default function JobMap() {
         </div>
 
         {/* Map */}
-        <div className="relative flex-1">
+        <div className="relative min-w-[14rem] flex-1">
           <MapContainer center={center} zoom={11} style={{ height: "100%", width: "100%" }}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -197,12 +197,12 @@ export default function JobMap() {
                       {m.customerPhone && (
                         <>
                           <a href={`tel:${m.customerPhone}`}>
-                            <Button size="sm" variant="outline" className="h-7 w-7 p-0">
+                            <Button aria-label="Call" size="sm" variant="outline" className="h-7 w-7 p-0">
                               <Phone className="h-3 w-3" />
                             </Button>
                           </a>
                           <a href={`sms:${m.customerPhone}`}>
-                            <Button size="sm" variant="outline" className="h-7 w-7 p-0">
+                            <Button aria-label="Send a message" size="sm" variant="outline" className="h-7 w-7 p-0">
                               <MessageSquare className="h-3 w-3" />
                             </Button>
                           </a>

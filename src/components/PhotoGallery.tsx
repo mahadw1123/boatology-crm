@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Upload, FileText, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 import { showErrorToast, throwApiError } from "@/lib/errors";
@@ -43,7 +44,7 @@ function PhotoComments({ doc, comments }: { doc: any; comments: any[] }) {
             if (e.key === "Enter") submit();
           }}
         />
-        <Button type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={submit} disabled={addMutation.isPending || !text.trim()}>
+        <Button aria-label="Save" type="button" size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={submit} disabled={addMutation.isPending || !text.trim()}>
           <Check className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -63,18 +64,27 @@ function PhotoDeleteButton({ doc }: { doc: any }) {
     onError: (err) => showErrorToast(err),
   });
   const { user } = useAuth();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   if (user?.role === "technician" || user?.role === "customer") return null;
   return (
-    <button
-      type="button"
-      className="mt-1 text-xs text-slate-400 hover:text-red-600"
-      disabled={deleteMutation.isPending}
-      onClick={() => {
-        if (window.confirm(`Delete "${doc.fileName}"? This can't be undone.`)) deleteMutation.mutate({ id: doc.id });
-      }}
-    >
-      Delete
-    </button>
+    <>
+      <button
+        type="button"
+        className="mt-1 text-xs text-slate-400 hover:text-red-600"
+        disabled={deleteMutation.isPending}
+        onClick={() => setConfirmOpen(true)}
+      >
+        Delete
+      </button>
+      <DeleteConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Delete "${doc.fileName}"?`}
+        description="The file is removed for everyone, including the customer. This can't be undone."
+        isPending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate({ id: doc.id }, { onSettled: () => setConfirmOpen(false) })}
+      />
+    </>
   );
 }
 
@@ -112,7 +122,7 @@ function PhotoCaption({ doc, readOnly }: { doc: any; readOnly: boolean }) {
             if (e.key === "Enter") updateMutation.mutate({ id: doc.id, caption: value });
           }}
         />
-        <Button
+        <Button aria-label="Save"
           type="button"
           size="icon"
           variant="ghost"
@@ -198,15 +208,16 @@ export function PhotoGallery({ entity, readOnly = false }: { entity: EntityRef; 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h3 className="font-medium text-slate-900">{entity.type === "job" && entity.taskId ? "Task photos" : "Photos & Documents"}</h3>
         {!readOnly && (
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
             <Input
               value={pendingCaption}
               onChange={(e) => setPendingCaption(e.target.value)}
               placeholder="Comment for next upload (optional)"
-              className="h-8 w-56 border-slate-200 text-xs"
+              aria-label="Comment for next upload (optional)"
+              className="h-8 min-w-0 flex-1 border-slate-200 text-xs sm:w-56 sm:flex-none"
             />
             <input
               ref={fileInputRef}

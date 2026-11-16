@@ -148,12 +148,12 @@ export default function QRJobView() {
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
       {/* Header */}
-      <div className="bg-[#0c1e38] px-4 pb-6 pt-6 text-white">
+      <div className="bg-navy px-4 pb-6 pt-6 text-white">
         <button onClick={() => navigate("/")} className="mb-3 flex items-center gap-1 text-sm text-white/70">
           <ArrowLeft className="h-4 w-4" />
           Back to app
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
             <BoatologyLogo variant="emblem" light className="h-5 w-5" />
           </div>
@@ -176,7 +176,7 @@ export default function QRJobView() {
 
       {/* Boat info */}
       <div className="px-4 pt-4">
-        <Card className="border-slate-200 bg-white p-4">
+        <Card className="p-4">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Boat Information</h2>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
@@ -200,7 +200,7 @@ export default function QRJobView() {
 
       {/* Extra work approval */}
       <div className="px-4 pt-4">
-        <Card className="border-slate-200 bg-white p-4">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Extra Work</h2>
             {!job.additionalWorkRequested && (
@@ -253,7 +253,7 @@ export default function QRJobView() {
               Cancel
             </Button>
             <Button
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={requestExtraWorkMutation.isPending || !extraWorkNotes.trim()}
               onClick={() => requestExtraWorkMutation.mutate({ jobId: jobId!, notes: extraWorkNotes.trim() })}
             >
@@ -265,7 +265,7 @@ export default function QRJobView() {
 
       {/* Contacts */}
       <div className="px-4 pt-4">
-        <Card className="border-slate-200 bg-white p-4">
+        <Card className="p-4">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Contacts</h2>
           <div className="space-y-2">
             {customer && (
@@ -336,7 +336,7 @@ export default function QRJobView() {
 
       {/* Tasks */}
       <div className="px-4 pt-4">
-        <Card className="border-slate-200 bg-white p-4">
+        <Card className="p-4">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Tasks</h2>
           {tasks.length === 0 ? (
             <p className="text-sm text-slate-500">No tasks added for this job yet.</p>
@@ -389,7 +389,7 @@ export default function QRJobView() {
                       {task.notes && (
                         <button
                           onClick={() => setExpandedNotesId(expandedNotesId === task.id ? null : task.id)}
-                          className="mt-2 flex items-center gap-1 text-xs text-[#2d4160]"
+                          className="mt-2 flex items-center gap-1 text-xs text-ink-light"
                         >
                           <StickyNote className="h-3 w-3" />
                           {expandedNotesId === task.id ? "Hide notes" : "View notes"}
@@ -467,7 +467,7 @@ export default function QRJobView() {
 
       {/* Parts to Order */}
       <div className="px-4 pt-4">
-        <Card className="border-slate-200 bg-white p-4">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Parts to Order</h2>
             <Button size="sm" variant="outline" onClick={() => setMaterialRequestTaskId(-1)}>
@@ -530,7 +530,7 @@ export default function QRJobView() {
 
       {/* Signatures */}
       <div className="px-4 pt-4">
-        <Card className="border-slate-200 bg-white p-4">
+        <Card className="p-4">
           <SignatureCapture jobId={jobId} purpose="Job sign-off" />
         </Card>
       </div>
@@ -538,7 +538,7 @@ export default function QRJobView() {
       {/* Boat service history — financial records stay restricted to office/management roles. */}
       {vessel?.serviceHistory?.length > 0 && (
         <div className="px-4 pt-4">
-          <Card className="border-slate-200 bg-white p-4">
+          <Card className="p-4">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Service History</h2>
             <div className="space-y-1">
               {vessel.serviceHistory.map((entry: any, i: number) => (
@@ -554,7 +554,7 @@ export default function QRJobView() {
 
       {/* Photos & Documents */}
       <div className="px-4 pt-4">
-        <Card className="border-slate-200 bg-white p-4">
+        <Card className="p-4">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Photos & Documents</h2>
           <PhotoGallery entity={{ type: "job", id: jobId }} />
         </Card>

@@ -51,7 +51,7 @@ function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <PaymentElement />
-      <Button type="submit" className="w-full bg-[#0c1e38] hover:bg-[#0c1e38]/90" disabled={!stripe || isSubmitting}>
+      <Button type="submit" className="w-full bg-navy hover:bg-navy-700" disabled={!stripe || isSubmitting}>
         {isSubmitting ? "Processing..." : "Pay now"}
       </Button>
     </form>

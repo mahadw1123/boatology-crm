@@ -186,7 +186,7 @@ export function CreateQuoteDialog({
                   setFormData({ ...formData, customerId: value, vesselId: "" })
                 }
               >
-                <SelectTrigger className="border-slate-200">
+                <SelectTrigger aria-label="Customer" className="border-slate-200">
                   <SelectValue placeholder="Select a customer" />
                 </SelectTrigger>
                 <SelectContent>
@@ -197,7 +197,7 @@ export function CreateQuoteDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <Button type="button" variant="outline" size="icon" onClick={() => setQuickCreateCustomerOpen(true)} title="Add a new customer">
+              <Button aria-label="Add a new customer" type="button" variant="outline" size="icon" onClick={() => setQuickCreateCustomerOpen(true)} title="Add a new customer">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -211,7 +211,7 @@ export function CreateQuoteDialog({
                 onValueChange={(value) => setFormData({ ...formData, vesselId: value })}
                 disabled={!formData.customerId}
               >
-                <SelectTrigger className="border-slate-200">
+                <SelectTrigger aria-label="Vessel" className="border-slate-200">
                   <SelectValue placeholder={formData.customerId ? "Select a vessel (optional)" : "Pick a customer first"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -222,7 +222,7 @@ export function CreateQuoteDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <Button
+              <Button aria-label={formData.customerId ? "Add a new vessel for this customer" : "Pick a customer first"}
                 type="button"
                 variant="outline"
                 size="icon"
@@ -242,7 +242,7 @@ export function CreateQuoteDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Labour Cost
               </label>
-              <Input
+              <Input aria-label="Labour Cost"
                 type="number"
                 step="0.01"
                 value={formData.laborCost}
@@ -257,7 +257,7 @@ export function CreateQuoteDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Parts Cost
               </label>
-              <Input
+              <Input aria-label="Parts Cost"
                 type="number"
                 step="0.01"
                 value={formData.partsCost}
@@ -297,7 +297,7 @@ export function CreateQuoteDialog({
             <label className="block text-sm font-medium text-slate-900">
               Notes
             </label>
-            <Textarea
+            <Textarea aria-label="Notes"
               value={formData.notes}
               onChange={(e) =>
                 setFormData({ ...formData, notes: e.target.value })
@@ -318,7 +318,7 @@ export function CreateQuoteDialog({
             </Button>
             <Button
               type="submit"
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? "Creating..." : "Create Quote"}

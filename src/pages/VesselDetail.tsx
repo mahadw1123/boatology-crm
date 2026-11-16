@@ -67,7 +67,7 @@ export default function VesselDetail() {
 
   if (!vesselId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
+      <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6">
         <div className="text-center">
           <p className="text-slate-600">Vessel not found</p>
         </div>
@@ -77,7 +77,7 @@ export default function VesselDetail() {
 
   if (vesselQuery.isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
+      <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6">
         <div className="mx-auto max-w-2xl">
           <div className="animate-pulse space-y-4">
             <div className="h-10 w-32 rounded bg-slate-200"></div>
@@ -91,13 +91,13 @@ export default function VesselDetail() {
   const vessel = vesselQuery.data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-2xl px-6 py-6">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-2xl px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-4">
-              <Button
+              <Button aria-label="Back"
                 variant="ghost"
                 size="sm"
                 onClick={() => setLocation("/vessels")}
@@ -105,7 +105,7 @@ export default function VesselDetail() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-2xl font-semibold text-slate-900">
+                <h1 className="text-2xl font-semibold tracking-tight text-navy">
                   {(vessel as any)?.name || `Vessel #${(vessel as any)?.id}`}
                 </h1>
                 {ownerName && <p className="mt-0.5 text-sm text-slate-600">Owner: {ownerName}</p>}
@@ -113,13 +113,13 @@ export default function VesselDetail() {
             </div>
             {!isEditing ? (
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => setIsEditing(true)}
               >
                 Edit
               </Button>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setIsEditing(false)}
@@ -127,7 +127,7 @@ export default function VesselDetail() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="bg-navy hover:bg-navy-700"
                   onClick={handleSave}
                   disabled={updateMutation.isPending}
                 >
@@ -141,8 +141,8 @@ export default function VesselDetail() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-2xl px-6 py-8">
-        <Card className="border-slate-200 bg-white shadow-sm">
+      <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-6">
+        <Card>
           <div className="p-6">
             {isEditing ? (
               <div className="space-y-6">
@@ -150,7 +150,7 @@ export default function VesselDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Boat Name
                   </label>
-                  <Input
+                  <Input aria-label="Boat Name"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
@@ -164,7 +164,7 @@ export default function VesselDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Make
                     </label>
-                    <Input
+                    <Input aria-label="Make"
                       value={formData.make}
                       onChange={(e) =>
                         setFormData({ ...formData, make: e.target.value })
@@ -176,7 +176,7 @@ export default function VesselDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Model
                     </label>
-                    <Input
+                    <Input aria-label="Model"
                       value={formData.model}
                       onChange={(e) =>
                         setFormData({ ...formData, model: e.target.value })
@@ -191,7 +191,7 @@ export default function VesselDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Registration
                     </label>
-                    <Input
+                    <Input aria-label="Registration"
                       value={formData.registration}
                       onChange={(e) =>
                         setFormData({
@@ -206,7 +206,7 @@ export default function VesselDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Location
                     </label>
-                    <Input
+                    <Input aria-label="Location"
                       value={formData.location}
                       onChange={(e) =>
                         setFormData({ ...formData, location: e.target.value })
@@ -218,7 +218,7 @@ export default function VesselDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Latitude (for the Job Map)
                     </label>
-                    <Input
+                    <Input aria-label="Latitude (for the Job Map)"
                       type="number"
                       step="0.000001"
                       value={formData.latitude}
@@ -231,7 +231,7 @@ export default function VesselDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Longitude (for the Job Map)
                     </label>
-                    <Input
+                    <Input aria-label="Longitude (for the Job Map)"
                       type="number"
                       step="0.000001"
                       value={formData.longitude}
@@ -246,7 +246,7 @@ export default function VesselDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Insurance Details
                   </label>
-                  <Textarea
+                  <Textarea aria-label="Insurance Details"
                     value={formData.insuranceDetails}
                     onChange={(e) =>
                       setFormData({
@@ -263,7 +263,7 @@ export default function VesselDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Insurance Expiry Date
                   </label>
-                  <Input
+                  <Input aria-label="Insurance Expiry Date"
                     type="date"
                     value={formData.insuranceExpiryDate}
                     onChange={(e) => setFormData({ ...formData, insuranceExpiryDate: e.target.value })}

@@ -55,7 +55,7 @@ export default function ForgotPassword() {
             >
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-light">Email</label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+                <Input aria-label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
               </div>
               <Button type="submit" className="bg-navy hover:bg-navy-700" disabled={requestMutation.isPending}>
                 {requestMutation.isPending ? "Sending..." : "Send Reset Link"}

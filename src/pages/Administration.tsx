@@ -33,14 +33,14 @@ export default function Administration() {
   // Check if user is admin
   if (currentUser && (currentUser as any)?.role !== "admin") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-        <div className="border-b border-slate-200 bg-white shadow-sm">
-          <div className="mx-auto max-w-7xl px-6 py-8">
-            <h1 className="text-3xl font-semibold text-slate-900">Administration</h1>
+      <div className="min-h-[calc(100vh-4rem)]">
+        <div className="border-b border-border bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+            <h1 className="text-2xl font-semibold tracking-tight text-navy">Administration</h1>
           </div>
         </div>
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <Card className="border-slate-200 bg-white shadow-sm">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <Card>
             <div className="p-8 text-center">
               <Settings className="mx-auto h-12 w-12 text-slate-400" />
               <p className="mt-4 text-slate-600">
@@ -54,23 +54,23 @@ export default function Administration() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">
                 Administration
               </h1>
             </div>
-            <Settings className="h-8 w-8 text-[#2d4160]" />
+            <Settings className="h-8 w-8 text-ink-light" />
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid h-auto w-full grid-cols-2 md:h-10 md:grid-cols-7">
             <TabsTrigger value="users">Users</TabsTrigger>
@@ -87,7 +87,7 @@ export default function Administration() {
           <TabsContent value="users" className="mt-6 space-y-6">
             <StaffInviteSection />
 
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-6">
                 <h2 className="text-lg font-semibold text-slate-900 mb-4">Existing Users</h2>
                 <ExistingUsersList />
@@ -102,7 +102,7 @@ export default function Administration() {
 
           {/* Integrations Tab */}
           <TabsContent value="integrations" className="mt-6">
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-6">
                 <h2 className="mb-4 text-lg font-semibold text-slate-900">Xero</h2>
                 <XeroIntegrationCard />
@@ -112,7 +112,7 @@ export default function Administration() {
 
           {/* Settings Tab */}
           <TabsContent value="settings" className="mt-6">
-            <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+            <Card className="mb-6">
               <div className="p-6">
                 <h2 className="mb-1 text-lg font-semibold text-slate-900">Database Backup</h2>
                 <p className="mb-4 text-sm text-slate-600">
@@ -208,7 +208,7 @@ function XeroIntegrationCard() {
         <span className="text-sm">Not connected</span>
       </div>
       <a href="/api/xero/connect">
-        <Button size="sm" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90">
+        <Button size="sm" className="bg-navy hover:bg-navy-700">
           Connect to Xero
         </Button>
       </a>
@@ -244,7 +244,7 @@ function StaffInviteSection() {
   });
 
   return (
-    <Card className="border-slate-200 bg-white shadow-sm">
+    <Card>
       <div className="p-6">
         <h2 className="mb-1 text-lg font-semibold text-slate-900">Invite Staff</h2>
         <p className="mb-4 text-sm text-slate-600">
@@ -271,7 +271,7 @@ function StaffInviteSection() {
             </SelectContent>
           </Select>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90 sm:w-40"
+            className="bg-navy hover:bg-navy-700 sm:w-40"
             disabled={!email || inviteMutation.isPending}
             onClick={() => inviteMutation.mutate({ email, role })}
           >
@@ -332,7 +332,7 @@ function ExistingUsersList() {
     onError: (err) => showErrorToast(err),
   });
 
-  if (usersQuery.isLoading) return <div className="h-16 animate-pulse rounded bg-slate-100" />;
+  if (usersQuery.isLoading) return <div className="h-16 skeleton" />;
   if (users.length === 0) return <p className="text-sm text-slate-500">No users yet.</p>;
 
   const customersById = new Map((customersQuery.data || []).map((c: any) => [c.id, c]));
@@ -449,7 +449,7 @@ function EmailSettingsCard() {
   });
 
   return (
-    <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+    <Card className="mb-6">
       <div className="p-6">
         <h2 className="mb-1 text-lg font-semibold text-slate-900">Email Settings</h2>
         <p className="mb-4 text-sm text-slate-600">
@@ -540,7 +540,7 @@ function MorningBriefingRecipientsCard() {
   };
 
   return (
-    <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+    <Card className="mb-6">
       <div className="p-6">
         <h2 className="mb-1 text-lg font-semibold text-slate-900">Morning Briefing Recipients</h2>
         <p className="mb-4 text-sm text-slate-600">
@@ -549,7 +549,7 @@ function MorningBriefingRecipientsCard() {
           management account — uncheck anyone below who shouldn't receive it.
         </p>
         {usersQuery.isLoading ? (
-          <div className="h-16 animate-pulse rounded bg-slate-100" />
+          <div className="h-16 skeleton" />
         ) : staffUsers.length === 0 ? (
           <p className="text-sm text-slate-500">No staff users yet.</p>
         ) : (
@@ -568,7 +568,7 @@ function MorningBriefingRecipientsCard() {
           </div>
         )}
         <Button
-          className="mt-4 bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+          className="mt-4 bg-navy hover:bg-navy-700"
           onClick={handleSave}
           disabled={updateMutation.isPending || usersQuery.isLoading}
         >
@@ -583,8 +583,8 @@ function MorningBriefingRecipientsCard() {
             Comma-separated email addresses — an owner checking in remotely, an accountant, anyone
             who should get the briefing without a staff account.
           </p>
-          <div className="flex gap-2">
-            <Input
+          <div className="flex flex-wrap gap-2">
+            <Input aria-label="Also send to (no CRM login needed)"
               value={extraEmails}
               onChange={(e) => setExtraEmails(e.target.value)}
               placeholder="owner@example.com, accountant@example.com"
@@ -682,13 +682,13 @@ function SystemSettingsCard() {
   };
 
   return (
-    <Card className="border-slate-200 bg-white shadow-sm">
+    <Card>
       <div className="p-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">System Settings</h2>
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-900">Quote Expiry (Days)</label>
-            <Input
+            <Input aria-label="Quote Expiry (Days)"
               type="number"
               value={quoteExpiryDays}
               onChange={(e) => setQuoteExpiryDays(e.target.value)}
@@ -702,7 +702,7 @@ function SystemSettingsCard() {
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Deposit Percentage</label>
-            <Input
+            <Input aria-label="Deposit Percentage"
               type="number"
               value={depositPercentage}
               onChange={(e) => setDepositPercentage(e.target.value)}
@@ -716,7 +716,7 @@ function SystemSettingsCard() {
 
           <div>
             <label className="block text-sm font-medium text-slate-900">GST Rate (%)</label>
-            <Input
+            <Input aria-label="GST Rate (%)"
               type="number"
               step="0.1"
               min="0"
@@ -734,7 +734,7 @@ function SystemSettingsCard() {
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Waiting on Parts Alert (Days)</label>
-            <Input
+            <Input aria-label="Waiting on Parts Alert (Days)"
               type="number"
               value={waitingPartsAlertDays}
               onChange={(e) => setWaitingPartsAlertDays(e.target.value)}
@@ -749,7 +749,7 @@ function SystemSettingsCard() {
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Database Backup Email</label>
-            <Input
+            <Input aria-label="Database Backup Email"
               type="email"
               value={backupRecipientEmail}
               onChange={(e) => setBackupRecipientEmail(e.target.value)}
@@ -765,12 +765,12 @@ function SystemSettingsCard() {
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Company Name</label>
-            <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="Company Name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="mt-1 border-slate-200" />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Company Email</label>
-            <Input
+            <Input aria-label="Company Email"
               type="email"
               value={companyEmail}
               onChange={(e) => setCompanyEmail(e.target.value)}
@@ -780,20 +780,20 @@ function SystemSettingsCard() {
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Registered Business Name</label>
-            <Input value={companyLegalName} onChange={(e) => setCompanyLegalName(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="Registered Business Name" value={companyLegalName} onChange={(e) => setCompanyLegalName(e.target.value)} className="mt-1 border-slate-200" />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-900">ABN / ACN</label>
-            <Input value={companyAbn} onChange={(e) => setCompanyAbn(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="ABN / ACN" value={companyAbn} onChange={(e) => setCompanyAbn(e.target.value)} className="mt-1 border-slate-200" />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Business Address</label>
-            <Input value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="Business Address" value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} className="mt-1 border-slate-200" />
           </div>
 
-          <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSave} disabled={updateMutation.isPending}>
+          <Button className="bg-navy hover:bg-navy-700" onClick={handleSave} disabled={updateMutation.isPending}>
             {updateMutation.isPending ? "Saving..." : "Save Settings"}
           </Button>
         </div>
@@ -858,13 +858,13 @@ function ServicesTabContent({
 
   return (
     <>
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Add Service</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-900">Service Name</label>
-              <Input
+              <Input aria-label="Service Name"
                 value={newService.name}
                 onChange={(e) => setNewService({ ...newService, name: e.target.value })}
                 placeholder="e.g., Engine Repair"
@@ -873,7 +873,7 @@ function ServicesTabContent({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Default Price</label>
-              <Input
+              <Input aria-label="Default Price"
                 type="number"
                 step="0.01"
                 value={newService.defaultPrice}
@@ -884,7 +884,7 @@ function ServicesTabContent({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Description</label>
-              <Textarea
+              <Textarea aria-label="Description"
                 value={newService.description}
                 onChange={(e) => setNewService({ ...newService, description: e.target.value })}
                 placeholder="Service description..."
@@ -893,7 +893,7 @@ function ServicesTabContent({
               />
             </div>
             <Button
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={!newService.name.trim() || createMutation.isPending}
               onClick={() =>
                 createMutation.mutate({
@@ -909,11 +909,11 @@ function ServicesTabContent({
         </div>
       </Card>
 
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Service Catalog</h2>
           {servicesQuery.isLoading ? (
-            <div className="h-16 animate-pulse rounded bg-slate-100" />
+            <div className="h-16 skeleton" />
           ) : services.length === 0 ? (
             <p className="text-sm text-slate-500">No services added yet.</p>
           ) : (
@@ -942,10 +942,10 @@ function ServicesTabContent({
                       className="border-slate-200"
                       placeholder="Description"
                     />
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
-                        className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                        className="bg-navy hover:bg-navy-700"
                         disabled={updateMutation.isPending}
                         onClick={() =>
                           updateMutation.mutate({
@@ -972,7 +972,7 @@ function ServicesTabContent({
                         <Badge className="mt-1 bg-slate-100 text-slate-700 border-0">${service.defaultPrice.toFixed(2)}</Badge>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => startEdit(service)}>
                         Edit
                       </Button>
@@ -1042,7 +1042,7 @@ function AuditLogTabContent() {
   const hasFilters = !!(search.trim() || userId || entityType.trim());
 
   return (
-    <Card className="border-slate-200 bg-white shadow-sm">
+    <Card>
       <div className="border-b border-slate-200 p-6">
         <h2 className="text-lg font-semibold text-slate-900">Audit Log</h2>
         <p className="mt-1 text-sm text-slate-600">
@@ -1052,7 +1052,7 @@ function AuditLogTabContent() {
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-600">Search action</label>
-            <Input
+            <Input aria-label="Search action"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="e.g. delete, login"
@@ -1061,7 +1061,7 @@ function AuditLogTabContent() {
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600">Entity type</label>
-            <Input
+            <Input aria-label="Entity type"
               value={entityType}
               onChange={(e) => setEntityType(e.target.value)}
               placeholder="e.g. job, quote"
@@ -1070,7 +1070,7 @@ function AuditLogTabContent() {
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600">User</label>
-            <select
+            <select aria-label="User"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               className="mt-1 h-9 w-48 rounded-md border border-slate-200 bg-white px-3 text-sm"
@@ -1101,7 +1101,7 @@ function AuditLogTabContent() {
 
       {auditQuery.isLoading ? (
         <div className="p-6">
-          <div className="h-32 animate-pulse rounded bg-slate-100" />
+          <div className="h-32 skeleton" />
         </div>
       ) : entries.length === 0 ? (
         <p className="p-6 text-center text-sm text-slate-500">
@@ -1125,7 +1125,7 @@ function AuditLogTabContent() {
             return (
               <div key={entry.id} className="flex items-start justify-between gap-4 px-6 py-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge className={`${auditActionColors[entry.action]?.bg || "bg-slate-100"} ${auditActionColors[entry.action]?.text || "text-slate-600"} border-0 text-xs`}>
                       {auditActionLabels[entry.action] || humanizeAction(entry.action)}
                     </Badge>
@@ -1174,14 +1174,14 @@ function SystemHealthTabContent() {
 
   if (healthQuery.isLoading) {
     return (
-      <Card className="border-slate-200 bg-white p-6 shadow-sm">
-        <div className="h-32 animate-pulse rounded bg-slate-100" />
+      <Card className="p-6 shadow-sm">
+        <div className="h-32 skeleton" />
       </Card>
     );
   }
   if (!health) {
     return (
-      <Card className="border-slate-200 bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
+      <Card className="p-6 text-center text-sm text-slate-500 shadow-sm">
         Could not load system health.
       </Card>
     );
@@ -1189,7 +1189,7 @@ function SystemHealthTabContent() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="p-6">
           <h2 className="mb-4 text-lg font-semibold text-slate-900">Integrations</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1234,7 +1234,7 @@ function SystemHealthTabContent() {
         </div>
       </Card>
 
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="p-6">
           <h2 className="mb-1 text-lg font-semibold text-slate-900">Background Jobs</h2>
           <p className="mb-4 text-sm text-slate-600">Each scheduled job reports its own last run here — a real signal, not just "the server is up."</p>
@@ -1262,7 +1262,7 @@ function SystemHealthTabContent() {
         </div>
       </Card>
 
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Recent Errors</h2>
@@ -1307,10 +1307,10 @@ function SystemErrorsTabContent() {
   const entries = errorsQuery.data || [];
 
   return (
-    <Card className="border-slate-200 bg-white shadow-sm">
+    <Card>
       <div className="flex flex-col gap-3 border-b border-slate-200 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-600" />
             <h2 className="text-lg font-semibold text-slate-900">System Errors</h2>
           </div>
@@ -1330,7 +1330,7 @@ function SystemErrorsTabContent() {
       </div>
 
       {errorsQuery.isLoading ? (
-        <div className="p-6"><div className="h-32 animate-pulse rounded bg-slate-100" /></div>
+        <div className="p-6"><div className="h-32 skeleton" /></div>
       ) : errorsQuery.isError ? (
         <div className="p-6 text-sm text-red-700">
           Error reports could not be loaded. Refresh Administration and try again.

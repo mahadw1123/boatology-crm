@@ -60,7 +60,7 @@ export function QuotePricingFields({
         <div>
           <label className="block text-xs font-medium text-slate-900">Tax</label>
           <Select value={value.taxMode} onValueChange={(v) => onChange({ ...value, taxMode: v as QuoteTaxMode })}>
-            <SelectTrigger className="mt-1 h-9 border-slate-200">
+            <SelectTrigger aria-label="Tax" className="mt-1 h-9 border-slate-200">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -74,7 +74,7 @@ export function QuotePricingFields({
           <label className="block text-xs font-medium text-slate-900">Discount</label>
           <div className="mt-1 flex gap-2">
             <Select value={value.discountType} onValueChange={(v) => onChange({ ...value, discountType: v as QuoteDiscountType })}>
-              <SelectTrigger className="h-9 w-28 border-slate-200">
+              <SelectTrigger aria-label="Discount" className="h-9 w-28 border-slate-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -97,7 +97,7 @@ export function QuotePricingFields({
         <div>
           <label className="block text-xs font-medium text-slate-900">Payment terms</label>
           <Select value={value.paymentTermsDays} onValueChange={(v) => onChange({ ...value, paymentTermsDays: v })}>
-            <SelectTrigger className="mt-1 h-9 border-slate-200">
+            <SelectTrigger aria-label="Payment terms" className="mt-1 h-9 border-slate-200">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

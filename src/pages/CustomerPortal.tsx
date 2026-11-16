@@ -162,17 +162,17 @@ export default function CustomerPortal() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Brand bar */}
-      <div className="bg-[#0c1e38]">
+      <div className="bg-navy">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
               <BoatologyLogo variant="emblem" light className="h-4 w-4" />
             </div>
             <span className="text-sm font-semibold tracking-wide text-white">{companyNameQuery.data?.name || "Boatology"}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setContactOpen(true)}
               className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-white/80 hover:bg-white/10 hover:text-white"
@@ -202,7 +202,7 @@ export default function CustomerPortal() {
           muted
           playsInline
         />
-        <div className="absolute inset-0 bg-[#0c1e38]/70" />
+        <div className="absolute inset-0 bg-navy/70" />
         <div className="relative mx-auto max-w-7xl px-6 py-14">
           <div>
             <h1 className="text-3xl font-semibold text-white">
@@ -213,7 +213,7 @@ export default function CustomerPortal() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {!user?.customerId && (
           <Card className="mb-6 border-amber-300 bg-amber-50 p-5">
             <h2 className="font-semibold text-amber-950">Your account still needs to be linked</h2>
@@ -224,7 +224,7 @@ export default function CustomerPortal() {
           </Card>
         )}
         {agendaQuery.data && agendaQuery.data.length > 0 && (
-          <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+          <Card className="mb-6">
             <div className="p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Notifications</h2>
               <div className="mt-3 space-y-1.5">
@@ -261,7 +261,7 @@ export default function CustomerPortal() {
           {/* Quotes Tab */}
           <TabsContent value="quotes" className="mt-6 space-y-4">
             {quotes.length === 0 ? (
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="p-8 text-center">
                   <FileText className="mx-auto h-12 w-12 text-slate-400" />
                   <p className="mt-4 text-slate-600">No quotes available</p>
@@ -272,7 +272,7 @@ export default function CustomerPortal() {
                 <Card
                   id={`quote-${quote.id}`}
                   key={quote.id}
-                  className="border-slate-200 bg-white shadow-sm"
+                 
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
@@ -349,7 +349,7 @@ export default function CustomerPortal() {
                               <label className="block text-sm font-medium text-slate-900 mb-2">
                                 Reason for Rejection (if applicable)
                               </label>
-                              <Textarea
+                              <Textarea aria-label="Reason for Rejection (if applicable)"
                                 value={rejectionReason}
                                 onChange={(e) =>
                                   setRejectionReason(e.target.value)
@@ -359,7 +359,7 @@ export default function CustomerPortal() {
                                 rows={3}
                               />
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <Button
                                 className="flex-1 bg-green-600 hover:bg-green-700"
                                 onClick={() => handleApproveQuote(quote.id)}
@@ -387,7 +387,7 @@ export default function CustomerPortal() {
                           </div>
                         ) : (
                           <Button
-                            className="w-full bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                            className="w-full bg-navy hover:bg-navy-700"
                             onClick={() => setSelectedQuote(quote.id)}
                           >
                             Review & Respond
@@ -420,7 +420,7 @@ export default function CustomerPortal() {
           {/* Jobs Tab */}
           <TabsContent value="jobs" className="mt-6 space-y-4">
             {jobs.length === 0 ? (
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="p-8 text-center">
                   <Clock className="mx-auto h-12 w-12 text-slate-400" />
                   <p className="mt-4 text-slate-600">No active jobs</p>
@@ -430,7 +430,7 @@ export default function CustomerPortal() {
               jobs.map((job: any) => (
                 <Card
                   key={job.id}
-                  className="border-slate-200 bg-white shadow-sm"
+                 
                 >
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
@@ -465,7 +465,7 @@ export default function CustomerPortal() {
                               <p className="text-lg font-semibold text-slate-900">{progress.percent}%</p>
                               <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100">
                                 <div
-                                  className="h-1.5 rounded-full bg-[#2d4160]"
+                                  className="h-1.5 rounded-full bg-navy-400"
                                   style={{ width: `${progress.percent}%` }}
                                 />
                               </div>
@@ -496,7 +496,7 @@ export default function CustomerPortal() {
                         <div className="mt-3 flex gap-2">
                           <Button
                             size="sm"
-                            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                            className="bg-navy hover:bg-navy-700"
                             disabled={respondToExtraWorkMutation.isPending}
                             onClick={() => respondToExtraWorkMutation.mutate({ jobId: job.id, approved: true })}
                           >
@@ -616,21 +616,21 @@ function ContactUsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
             <label className="block text-sm font-medium text-slate-900">
               Name <span className="text-red-500">(Required)</span>
             </label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="Name (Required)" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 border-slate-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Phone Number</label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1 border-slate-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Email</label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 border-slate-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">
               How can we help? <span className="text-red-500">(Required)</span>
             </label>
-            <Textarea
+            <Textarea aria-label="How can we help? (Required)"
               value={message}
               onChange={(e) => setMessage(e.target.value.slice(0, 600))}
               rows={4}
@@ -645,7 +645,7 @@ function ContactUsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
             Cancel
           </Button>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             onClick={handleSubmit}
             disabled={!name.trim() || !message.trim() || sendMutation.isPending}
           >
@@ -706,12 +706,12 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
   }, [initialInvoiceId, invoices]);
 
   if (invoicesQuery.isLoading) {
-    return <div className="h-32 animate-pulse rounded-lg bg-slate-100" />;
+    return <div className="h-32 skeleton rounded-lg" />;
   }
 
   if (invoices.length === 0) {
     return (
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="p-8 text-center">
           <FileText className="mx-auto h-12 w-12 text-slate-300" />
           <p className="mt-4 text-slate-600">No invoices yet.</p>
@@ -727,7 +727,7 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
           <div className="p-6">
             <div className="flex items-start justify-between">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-medium text-slate-900">{inv.invoiceNumber}</h3>
                   {inv.invoiceType === "deposit" && (
                     <Badge className="border-0 bg-blue-100 text-blue-700">Deposit</Badge>
@@ -814,7 +814,7 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
                 </p>
                 <Button
                   size="sm"
-                  className="mt-3 bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="mt-3 bg-navy hover:bg-navy-700"
                   onClick={() => approveMutation.mutate({ invoiceId: inv.id })}
                   disabled={approveMutation.isPending}
                 >
@@ -825,7 +825,7 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
 
             {inv.status !== "paid" && (!inv.requiresApproval || inv.approvedAt) && inv.reviewDiscountOffered && !inv.reviewDiscountClaimed && (
               <div className="mt-4 rounded-lg border border-seafoam/40 bg-[#EAFAFA] p-3">
-                <p className="flex items-center gap-1.5 text-sm font-medium text-[#0c1e38]">
+                <p className="flex items-center gap-1.5 text-sm font-medium text-navy">
                   <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                   Leave a review, save ${Math.min(inv.subtotal, paymentConfigQuery.data?.reviewDiscountAmount ?? 50).toFixed(0)}
                 </p>
@@ -847,7 +847,7 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
                   </a>
                   <Button
                     size="sm"
-                    className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                    className="bg-navy hover:bg-navy-700"
                     onClick={() => claimDiscountMutation.mutate({ invoiceId: inv.id })}
                     disabled={claimDiscountMutation.isPending}
                   >
@@ -860,7 +860,7 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
             {inv.status === "sent" && (!inv.requiresApproval || inv.approvedAt) && (
               <>
                 <Button
-                  className="mt-4 w-full bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="mt-4 w-full bg-navy hover:bg-navy-700"
                   onClick={() => setPayDialogInvoiceId(inv.id)}
                   disabled={!paymentConfigQuery.data?.configured}
                 >

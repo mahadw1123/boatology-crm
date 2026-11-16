@@ -243,7 +243,7 @@ export function CreateJobDialog({
                   setFormData({ ...formData, customerId: value, vesselId: "" })
                 }
               >
-                <SelectTrigger className="border-slate-200">
+                <SelectTrigger aria-label="Customer" className="border-slate-200">
                   <SelectValue placeholder="Select a customer" />
                 </SelectTrigger>
                 <SelectContent>
@@ -254,7 +254,7 @@ export function CreateJobDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <Button type="button" variant="outline" size="icon" onClick={() => setQuickCreateCustomerOpen(true)} title="Add a new customer">
+              <Button aria-label="Add a new customer" type="button" variant="outline" size="icon" onClick={() => setQuickCreateCustomerOpen(true)} title="Add a new customer">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -268,7 +268,7 @@ export function CreateJobDialog({
                   value={formData.vesselId || ""}
                   onValueChange={(value) => setFormData({ ...formData, vesselId: value })}
                 >
-                  <SelectTrigger className="border-slate-200">
+                  <SelectTrigger aria-label="Vessel" className="border-slate-200">
                     <SelectValue placeholder="Select a vessel (optional)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -279,7 +279,7 @@ export function CreateJobDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="outline" size="icon" onClick={() => setQuickCreateVesselOpen(true)} title="Add a new vessel for this customer">
+                <Button aria-label="Add a new vessel for this customer" type="button" variant="outline" size="icon" onClick={() => setQuickCreateVesselOpen(true)} title="Add a new vessel for this customer">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -302,7 +302,7 @@ export function CreateJobDialog({
                   });
                 }}
               >
-                <SelectTrigger className="mt-1 border-slate-200">
+                <SelectTrigger aria-label="Link to Quote (optional)" className="mt-1 border-slate-200">
                   <SelectValue placeholder="No quote — invoice amount added later" />
                 </SelectTrigger>
                 <SelectContent>
@@ -330,7 +330,7 @@ export function CreateJobDialog({
             <label className="block text-sm font-medium text-slate-900">
               Description
             </label>
-            <Textarea
+            <Textarea aria-label="Description"
               value={formData.description}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
@@ -352,7 +352,7 @@ export function CreateJobDialog({
                   setFormData({ ...formData, priority: value })
                 }
               >
-                <SelectTrigger className="mt-1 border-slate-200">
+                <SelectTrigger aria-label="Priority" className="mt-1 border-slate-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -367,7 +367,7 @@ export function CreateJobDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Est. Labor Hours
               </label>
-              <Input
+              <Input aria-label="Est. Labor Hours"
                 type="number"
                 step="0.5"
                 value={formData.estimatedLaborHours}
@@ -392,7 +392,7 @@ export function CreateJobDialog({
             <label className="block text-sm font-medium text-slate-900">
               Due Date
             </label>
-            <Input
+            <Input aria-label="Due Date"
               type="date"
               value={formData.dueDate}
               onChange={(e) =>
@@ -410,7 +410,7 @@ export function CreateJobDialog({
               value={formData.employeeId}
               onValueChange={(value) => setFormData({ ...formData, employeeId: value })}
             >
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="Assign Technician (optional)" className="mt-1 border-slate-200">
                 <SelectValue placeholder="Assign later from the job page" />
               </SelectTrigger>
               <SelectContent>
@@ -437,7 +437,7 @@ export function CreateJobDialog({
             </Button>
             <Button
               type="submit"
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? "Creating..." : "Create Job"}

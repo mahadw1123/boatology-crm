@@ -101,7 +101,7 @@ export function CreateCustomerDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Email
               </label>
-              <Input
+              <Input aria-label="Email"
                 type="email"
                 value={formData.email}
                 onChange={(e) =>
@@ -126,7 +126,7 @@ export function CreateCustomerDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Phone
               </label>
-              <Input
+              <Input aria-label="Phone"
                 value={formData.phone}
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
@@ -141,7 +141,7 @@ export function CreateCustomerDialog({
             <label className="block text-sm font-medium text-slate-900">
               Address
             </label>
-            <Input
+            <Input aria-label="Address"
               value={formData.address}
               onChange={(e) =>
                 setFormData({ ...formData, address: e.target.value })
@@ -155,7 +155,7 @@ export function CreateCustomerDialog({
             <label className="block text-sm font-medium text-slate-900">
               Insurance Claim Number
             </label>
-            <Input
+            <Input aria-label="Insurance Claim Number"
               value={formData.insuranceClaimNumber}
               onChange={(e) =>
                 setFormData({
@@ -172,7 +172,7 @@ export function CreateCustomerDialog({
             <label className="block text-sm font-medium text-slate-900">
               Notes
             </label>
-            <Textarea
+            <Textarea aria-label="Notes"
               value={formData.notes}
               onChange={(e) =>
                 setFormData({ ...formData, notes: e.target.value })
@@ -193,7 +193,7 @@ export function CreateCustomerDialog({
             </Button>
             <Button
               type="submit"
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? "Creating..." : "Create Customer"}

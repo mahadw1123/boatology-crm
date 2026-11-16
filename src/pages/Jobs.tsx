@@ -102,18 +102,18 @@ export default function Jobs() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Jobs</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Jobs</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <DownloadButton data={jobs} filename="boatology-jobs" />
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => setCreateDialogOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -125,7 +125,7 @@ export default function Jobs() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {/* Search Bar */}
         <div className="mb-6">
           <div className="relative">
@@ -142,9 +142,9 @@ export default function Jobs() {
 
         {/* Jobs List */}
         {jobsQuery.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-32 skeleton rounded-lg" />
         ) : filteredJobs.length === 0 ? (
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-12 text-center">
               <Briefcase className="mx-auto h-12 w-12 text-slate-300" />
               <h3 className="mt-4 text-lg font-medium text-slate-900">
@@ -156,11 +156,11 @@ export default function Jobs() {
             </div>
           </Card>
         ) : (
-          <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+          <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
+                  <tr className="border-b border-border bg-surface-muted/60">
                     <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Job #</th>
                     <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Status</th>
                     <th className="px-3 py-2.5 hidden lg:table-cell text-left text-xs font-medium text-slate-500">Priority</th>
@@ -173,7 +173,7 @@ export default function Jobs() {
                 </thead>
                 <tbody>
                   {filteredJobs.map((job: any) => (
-                    <tr key={job.id} className="border-b border-slate-100">
+                    <tr key={job.id} className="border-b border-border/70">
                       <td className="max-w-[16rem] px-3 py-3 text-sm font-medium text-slate-900">
                         <div className="flex items-center gap-1.5">
                           {getDisplayName(job)}
@@ -224,7 +224,7 @@ export default function Jobs() {
                           <Button variant="ghost" size="sm" onClick={() => setLocation(`/jobs/${job.id}`)}>
                             View
                           </Button>
-                          <Button
+                          <Button aria-label="Delete"
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:bg-red-50"
@@ -258,7 +258,7 @@ export default function Jobs() {
             }
           }}
           title={`Delete ${deleteTarget ? getDisplayName(deleteTarget) : "this job"}?`}
-          description="This can't be undone. If an invoice, cost entry, material request or photo is linked to this job, deletion will be blocked until those are removed first."
+          description="This can't be undone. If an invoice, cost entry, logged time, material request, photo or sign-off is linked to this job, deletion will be blocked. Cancel the job instead to keep its history."
           onConfirm={() => deleteTarget && deleteMutation.mutate({ id: deleteTarget.id, deleteTasks })}
           isPending={deleteMutation.isPending}
         >

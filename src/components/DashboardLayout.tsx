@@ -1,6 +1,8 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
+  Menu,
+  X as CloseIcon,
   LayoutDashboard,
   Users,
   Anchor,
@@ -86,6 +88,33 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     enabled: !isAuthenticated,
   });
   const [menuOpen, setMenuOpen] = useState(false);
+  // On phones and small tablets the sidebar is a drawer opened from the top bar.
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  useEffect(() => {
+    setMobileNavOpen(false);
+    setMenuOpen(false);
+  }, [location]);
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
+  // Role redirects happen after render, never during it (navigating while
+  // rendering makes React warn and can drop the update).
+  const redirectTo =
+    !isAuthenticated || isLoading || ["/accept-invite", "/forgot-password", "/reset-password"].some((path) => location.startsWith(path))
+      ? null
+      : user?.role === "customer" && !location.startsWith("/customer-portal")
+        ? "/customer-portal"
+        : user?.role === "technician" && location === "/"
+          ? "/technician-home"
+          : null;
+  useEffect(() => {
+    if (redirectTo) navigate(redirectTo);
+  }, [redirectTo, navigate]);
   // Sidebar collapse is a per-device preference, remembered in the browser.
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -138,10 +167,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   // Customer accounts never see the staff shell — send them to their portal.
   if (user?.role === "customer") {
-    if (location !== "/customer-portal") {
-      navigate("/customer-portal");
-      return null;
-    }
+    if (redirectTo) return null;
     return <>{children}</>;
   }
 
@@ -175,10 +201,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   // Technicians land on their simplified mobile view instead of the full
   // desktop dashboard/sidebar — they only need Today's Jobs, Clock In/Out,
   // photo upload, and Calendar, and mostly use this on their phone.
-  if (user?.role === "technician" && location === "/") {
-    navigate("/technician-home");
-    return null;
-  }
+  if (redirectTo) return null;
 
   const role = (user?.role || "technician") as Role;
   const visibleNavItems = NAV_ITEMS.filter((item) => item.roles.includes(role) && !item.hidden);
@@ -186,25 +209,48 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-surface-muted">
+      {/* Backdrop behind the drawer on small screens */}
+      {mobileNavOpen && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-30 bg-navy-950/40 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-20 flex flex-col bg-navy text-white transition-[width] duration-200 ${collapsed ? "w-16" : "w-60"}`}>
+      <aside
+        aria-label="Main navigation"
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-navy text-white transition-[width,transform] duration-200 ease-out md:z-20 md:translate-x-0 ${
+          collapsed ? "md:w-16" : "md:w-60"
+        } ${mobileNavOpen ? "translate-x-0 shadow-sheet" : "-translate-x-full"}`}
+      >
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen(false)}
+          aria-label="Close menu"
+          className="absolute right-3 top-4 flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white md:hidden"
+        >
+          <CloseIcon className="h-4 w-4" />
+        </button>
         <button
           type="button"
           onClick={toggleSidebar}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-3 top-5 z-30 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-navy shadow-md hover:bg-slate-50"
+          className="absolute -right-3 top-5 z-30 hidden h-6 w-6 items-center justify-center rounded-full border border-border bg-white text-navy shadow-card hover:bg-surface-muted md:flex"
         >
           {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
         </button>
-        <Link href="/" title={collapsed ? companyNameQuery.data?.name || "Boatology" : undefined} className={`flex h-16 items-center gap-2 hover:bg-white/5 ${collapsed ? "justify-center px-0" : "px-5"}`}>
+        <Link href="/" title={collapsed ? companyNameQuery.data?.name || "Boatology" : undefined} className={`flex h-16 items-center gap-2 px-5 hover:bg-white/5 ${collapsed ? "md:justify-center md:px-0" : ""}`}>
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
             <BoatologyLogo variant="emblem" light className="h-5 w-5" />
           </div>
-          {!collapsed && <span className="truncate text-sm font-semibold tracking-wide">{companyNameQuery.data?.name || "Boatology"}</span>}
+          <span className={`truncate text-sm font-semibold tracking-wide ${collapsed ? "md:hidden" : ""}`}>{companyNameQuery.data?.name || "Boatology"}</span>
         </Link>
         {/* Items share the available height (capped at h-9), so the whole menu fits without scrolling. */}
-        <nav className={`flex min-h-0 flex-1 flex-col gap-px py-2 ${collapsed ? "px-2" : "px-3"}`}>
+        <nav className={`flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-3 py-2 md:overflow-visible ${collapsed ? "md:px-2" : ""}`}>
           {visibleNavItems.map((item) => {
             // /customers/:id is a Customer Detail page reached from Contacts,
             // not its own nav item (customers/* is hidden — see NAV_ITEMS
@@ -221,16 +267,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 href={item.href}
                 title={collapsed ? item.label : undefined}
                 aria-label={item.label}
-                className={`flex min-h-0 max-h-9 flex-1 items-center rounded-lg text-[13px] transition-colors ${
-                  collapsed ? "justify-center px-0" : "gap-3 px-3"
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-9 shrink-0 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors md:min-h-0 md:max-h-9 md:flex-1 md:shrink ${
+                  collapsed ? "md:justify-center md:gap-0 md:px-0" : ""
                 } ${
                   active
-                    ? "bg-white/10 font-medium text-white"
+                    ? "bg-white/[0.12] font-medium text-white"
                     : "text-white/70 hover:bg-white/5 hover:text-white"
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
+                <span className={`truncate ${collapsed ? "md:hidden" : ""}`}>{item.label}</span>
               </Link>
             );
           })}
@@ -238,11 +285,22 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main column */}
-      <div className={`flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ${collapsed ? "pl-16" : "pl-60"}`}>
+      <div className={`flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ${collapsed ? "md:pl-16" : "md:pl-60"}`}>
         {/* Top bar */}
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-white px-6">
-          <GlobalSearch canSearchInvoices={role !== "technician"} />
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-3 border-b border-border bg-white/85 px-3 backdrop-blur-md sm:px-6 md:h-16">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <button
+              type="button"
+              aria-label="Open menu"
+              aria-expanded={mobileNavOpen}
+              onClick={() => setMobileNavOpen(true)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-navy hover:bg-surface-muted md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <GlobalSearch canSearchInvoices={role !== "technician"} />
+          </div>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
             <NotificationsBell
               onOpen={(n) => {
                 if (!n.relatedEntityId) return;
@@ -267,24 +325,32 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
-                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-muted"
+                aria-label="Account menu"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-surface-muted sm:px-2"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
                   {(user?.name || "U").slice(0, 1).toUpperCase()}
                 </div>
-                <div className="text-left leading-tight">
+                <div className="hidden text-left leading-tight sm:block">
                   <div className="text-sm font-medium text-navy">{user?.name || "User"}</div>
                   <div className="text-xs text-ink-light">
                     {user?.role ? ROLE_LABELS[user.role] : ""}
                   </div>
                 </div>
-                <ChevronDown className="h-4 w-4 text-ink-light" />
+                <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-44 rounded-lg border border-border bg-white py-1 shadow-cardHover">
+                <div role="menu" className="enter absolute right-0 top-full mt-2 w-52 rounded-xl border border-border bg-white p-1 shadow-sheet">
+                  <div className="border-b border-border px-3 py-2 sm:hidden">
+                    <div className="truncate text-sm font-medium text-navy">{user?.name || "User"}</div>
+                    <div className="text-xs text-slate-500">{user?.role ? ROLE_LABELS[user.role] : ""}</div>
+                  </div>
                   <button
                     onClick={logout}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink hover:bg-surface-muted"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink hover:bg-surface-muted"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign out
@@ -357,8 +423,8 @@ function GlobalSearch({ canSearchInvoices }: { canSearchInvoices: boolean }) {
 
   return (
     <div className="relative w-full max-w-md">
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-2">
-        <Search className="h-4 w-4 shrink-0 text-ink-light" />
+      <div className="flex h-9 items-center gap-2 rounded-lg border border-transparent bg-surface-muted px-3 transition-[border-color,box-shadow,background-color] duration-150 focus-within:border-ocean-600 focus-within:bg-white focus-within:ring-4 focus-within:ring-ocean/25">
+        <Search className="h-4 w-4 shrink-0 text-slate-400" />
         <input
           value={query}
           onChange={(e) => {
@@ -367,8 +433,10 @@ function GlobalSearch({ canSearchInvoices }: { canSearchInvoices: boolean }) {
           }}
           onFocus={() => setIsOpen(true)}
           onBlur={() => setTimeout(() => setIsOpen(false), 150)}
-          placeholder="Search customers, vessels, jobs, quotes, invoices..."
-          className="w-full bg-transparent text-sm outline-none placeholder:text-ink-light"
+          type="search"
+          aria-label="Search customers, vessels, jobs, quotes and invoices"
+          placeholder="Search customers, vessels, jobs, quotes, invoices…"
+          className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-slate-400 [&::-webkit-search-cancel-button]:hidden"
         />
       </div>
 

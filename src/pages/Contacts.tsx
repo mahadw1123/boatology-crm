@@ -23,14 +23,14 @@ import { showErrorToast } from "@/lib/errors";
 
 export default function Contacts() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <h1 className="text-3xl font-semibold text-slate-900">Contacts</h1>
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <h1 className="text-2xl font-semibold tracking-tight text-navy">Contacts</h1>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         <Tabs defaultValue="customers">
           <TabsList>
             <TabsTrigger value="customers">Customers</TabsTrigger>
@@ -74,8 +74,8 @@ function CustomersTab() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[14rem] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Search customers by name, email, or phone..."
@@ -89,7 +89,7 @@ function CustomersTab() {
           <Upload className="mr-2 h-4 w-4" />
           Import CSV
         </Button>
-        <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={() => setCreateDialogOpen(true)}>
+        <Button className="bg-navy hover:bg-navy-700" onClick={() => setCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           New Customer
         </Button>
@@ -98,18 +98,18 @@ function CustomersTab() {
       {customersQuery.isLoading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="h-48 animate-pulse border-slate-200 bg-slate-100" />
+            <Card key={i} className="h-48 skeleton border-transparent" />
           ))}
         </div>
       ) : customers.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 py-12 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 px-6 py-12 text-center">
           <User className="mx-auto h-12 w-12 text-slate-400" />
           <h3 className="mt-4 text-lg font-medium text-slate-900">No customers found</h3>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {customers.map((customer: any) => (
-            <Card key={customer.id} className="border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
+            <Card key={customer.id} className="transition-shadow hover:shadow-cardHover">
               <div className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -117,7 +117,7 @@ function CustomersTab() {
                     {customer.email && (
                       <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
                         <Mail className="h-4 w-4 text-slate-400" />
-                        <a href={`mailto:${customer.email}`} className="hover:text-[#2d4160]">
+                        <a href={`mailto:${customer.email}`} className="hover:text-ink-light">
                           {customer.email}
                         </a>
                       </div>
@@ -125,21 +125,21 @@ function CustomersTab() {
                     {customer.phone && (
                       <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
                         <Phone className="h-4 w-4 text-slate-400" />
-                        <a href={`tel:${customer.phone}`} className="hover:text-[#2d4160]">
+                        <a href={`tel:${customer.phone}`} className="hover:text-ink-light">
                           {customer.phone}
                         </a>
                       </div>
                     )}
                   </div>
                   <div className="rounded-lg bg-blue-50 p-2">
-                    <User className="h-5 w-5 text-[#2d4160]" />
+                    <User className="h-5 w-5 text-ink-light" />
                   </div>
                 </div>
                 <div className="mt-4 flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 border-slate-200" onClick={() => setLocation(`/customers/${customer.id}`)}>
                     View
                   </Button>
-                  <Button variant="outline" size="sm" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => setDeleteTarget(customer)}>
+                  <Button aria-label="Delete" variant="outline" size="sm" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => setDeleteTarget(customer)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -213,29 +213,29 @@ function SupplierFormDialog({ open, onOpenChange, supplier }: { open: boolean; o
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-900">Supplier Name *</label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 border-slate-200" />
+            <Input aria-label="Supplier Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 border-slate-200" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-900">Contact Name</label>
-              <Input value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Contact Name" value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Phone</label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Email</label>
-              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Address</label>
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1 border-slate-200" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Notes</label>
-            <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="mt-1 border-slate-200" />
+            <Textarea aria-label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="mt-1 border-slate-200" />
           </div>
         </div>
         <DialogFooter>
@@ -243,7 +243,7 @@ function SupplierFormDialog({ open, onOpenChange, supplier }: { open: boolean; o
             Cancel
           </Button>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             onClick={handleSubmit}
             disabled={createMutation.isPending || updateMutation.isPending}
           >
@@ -281,8 +281,8 @@ function SuppliersTab() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div className="relative flex-1">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[14rem] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Search suppliers..."
@@ -292,7 +292,7 @@ function SuppliersTab() {
           />
         </div>
         <Button
-          className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+          className="bg-navy hover:bg-navy-700"
           onClick={() => {
             setEditingSupplier(null);
             setFormOpen(true);
@@ -306,18 +306,18 @@ function SuppliersTab() {
       {suppliersQuery.isLoading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="h-40 animate-pulse border-slate-200 bg-slate-100" />
+            <Card key={i} className="h-40 skeleton border-transparent" />
           ))}
         </div>
       ) : suppliers.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 py-12 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 px-6 py-12 text-center">
           <Truck className="mx-auto h-12 w-12 text-slate-400" />
           <h3 className="mt-4 text-lg font-medium text-slate-900">No suppliers yet</h3>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {suppliers.map((supplier: any) => (
-            <Card key={supplier.id} className="border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
+            <Card key={supplier.id} className="transition-shadow hover:shadow-cardHover">
               <div className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -326,7 +326,7 @@ function SuppliersTab() {
                     {supplier.email && (
                       <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
                         <Mail className="h-4 w-4 text-slate-400" />
-                        <a href={`mailto:${supplier.email}`} className="hover:text-[#2d4160]">
+                        <a href={`mailto:${supplier.email}`} className="hover:text-ink-light">
                           {supplier.email}
                         </a>
                       </div>
@@ -334,7 +334,7 @@ function SuppliersTab() {
                     {supplier.phone && (
                       <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
                         <Phone className="h-4 w-4 text-slate-400" />
-                        <a href={`tel:${supplier.phone}`} className="hover:text-[#2d4160]">
+                        <a href={`tel:${supplier.phone}`} className="hover:text-ink-light">
                           {supplier.phone}
                         </a>
                       </div>
@@ -357,7 +357,7 @@ function SuppliersTab() {
                     <Pencil className="mr-1.5 h-3.5 w-3.5" />
                     Edit
                   </Button>
-                  <Button variant="outline" size="sm" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => setDeleteTarget(supplier)}>
+                  <Button aria-label="Delete" variant="outline" size="sm" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => setDeleteTarget(supplier)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -550,11 +550,11 @@ function ImportCsvDialog({
             </div>
             <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-slate-50">
+                <thead className="sticky top-0 bg-surface-muted">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium text-slate-600">Name</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-600">Email</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-600">Status</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Name</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Email</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -587,10 +587,10 @@ function ImportCsvDialog({
             {failedCount > 0 && (
               <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200">
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-slate-50">
+                  <thead className="sticky top-0 bg-surface-muted">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium text-slate-600">Row</th>
-                      <th className="px-3 py-2 text-left font-medium text-slate-600">Reason</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Row</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Reason</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -621,7 +621,7 @@ function ImportCsvDialog({
                 Choose Different File
               </Button>
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={handleConfirmImport}
                 disabled={importMutation.isPending || parsedRows.length === 0}
               >
@@ -630,7 +630,7 @@ function ImportCsvDialog({
             </>
           )}
           {step === "results" && (
-            <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={() => onOpenChange(false)}>
+            <Button className="bg-navy hover:bg-navy-700" onClick={() => onOpenChange(false)}>
               Done
             </Button>
           )}
