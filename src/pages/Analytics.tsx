@@ -54,23 +54,23 @@ export default function Analytics() {
   const COLORS = ["#0c1e38", "#2d4160", "#82bbdb", "#F59E0B"];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Analytics</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Analytics</h1>
             </div>
             <div className="rounded-lg bg-blue-50 p-3">
-              <BarChart3 className="h-6 w-6 text-[#2d4160]" />
+              <BarChart3 className="h-6 w-6 text-ink-light" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid h-auto w-full grid-cols-2 md:h-10 md:grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -82,7 +82,7 @@ export default function Analytics() {
           <TabsContent value="overview" className="mt-6">
             {/* Key Metrics */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="p-6">
                   <p className="text-sm font-medium text-slate-600">Total Quotes</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">
@@ -91,7 +91,7 @@ export default function Analytics() {
                 </div>
               </Card>
 
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="p-6">
                   <p className="text-sm font-medium text-slate-600">Acceptance Rate</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">
@@ -100,7 +100,7 @@ export default function Analytics() {
                 </div>
               </Card>
 
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="p-6">
                   <p className="text-sm font-medium text-slate-600">Active Jobs</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">
@@ -109,7 +109,7 @@ export default function Analytics() {
                 </div>
               </Card>
 
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="p-6">
                   <p className="text-sm font-medium text-slate-600">Completed Jobs</p>
                   <p className="mt-2 text-3xl font-bold text-slate-900">
@@ -122,10 +122,10 @@ export default function Analytics() {
             {/* Charts */}
             <div className="mt-6 grid gap-6 lg:grid-cols-2">
               {/* Quote Distribution */}
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="border-b border-slate-200 px-6 py-4">
                   <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                    <TrendingUp className="h-5 w-5 text-[#2d4160]" />
+                    <TrendingUp className="h-5 w-5 text-ink-light" />
                     Quote Performance
                   </h2>
                 </div>
@@ -157,10 +157,10 @@ export default function Analytics() {
               </Card>
 
               {/* Job Status */}
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="border-b border-slate-200 px-6 py-4">
                   <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                    <TrendingUp className="h-5 w-5 text-[#2d4160]" />
+                    <TrendingUp className="h-5 w-5 text-ink-light" />
                     Job Status
                   </h2>
                 </div>
@@ -208,16 +208,16 @@ function XeroRevenueSection() {
 
   return (
     <div className="mt-8">
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-            <DollarSign className="h-5 w-5 text-[#2d4160]" />
+            <DollarSign className="h-5 w-5 text-ink-light" />
             Xero Revenue
           </h2>
         </div>
         <div className="p-6">
           {revenueQuery.isLoading ? (
-            <div className="h-16 animate-pulse rounded bg-slate-100" />
+            <div className="h-16 skeleton" />
           ) : revenueQuery.error ? (
             <p className="text-sm text-red-600">
               Couldn't load Xero data: {revenueQuery.error.message}
@@ -225,7 +225,7 @@ function XeroRevenueSection() {
           ) : !revenueQuery.data?.connected ? (
             <p className="text-sm text-slate-600">
               Not connected to Xero yet. Connect it from{" "}
-              <a href="/administration" className="text-[#2d4160] underline">
+              <a href="/administration" className="text-ink-light underline">
                 Administration → Integrations
               </a>{" "}
               to see real revenue figures here.
@@ -269,14 +269,14 @@ function WeeklyProductivitySection() {
 
   return (
     <div className="mt-8">
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="font-semibold text-slate-900">Weekly Productivity (last 7 days)</h2>
           <DownloadButton data={data as any} filename="boatology-weekly-productivity" />
         </div>
         <div className="p-6">
           {productivityQuery.isLoading ? (
-            <div className="h-16 animate-pulse rounded bg-slate-100" />
+            <div className="h-16 skeleton" />
           ) : data.length === 0 ? (
             <p className="text-sm text-slate-500">No employees to show yet.</p>
           ) : (
@@ -284,15 +284,15 @@ function WeeklyProductivitySection() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200">
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Employee</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Role</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Hours worked</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Jobs completed</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Employee</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Role</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Hours worked</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Jobs completed</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.map((row) => (
-                    <tr key={row.employeeId} className="border-b border-slate-100">
+                    <tr key={row.employeeId} className="border-b border-border/70">
                       <td className="px-3 py-3 text-sm font-medium text-slate-900">{row.name}</td>
                       <td className="px-3 py-3 text-sm capitalize text-slate-600">
                         {row.role?.replace(/_/g, " ")}
@@ -338,7 +338,7 @@ function JobCompletionSection() {
 
   return (
     <div className="mt-8">
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-900">Job Completion (Hours Done vs. Total)</h2>
@@ -350,7 +350,7 @@ function JobCompletionSection() {
         </div>
         <div className="p-6">
           {completionQuery.isLoading ? (
-            <div className="h-32 animate-pulse rounded bg-slate-100" />
+            <div className="h-32 skeleton" />
           ) : jobs.length === 0 ? (
             <p className="text-sm text-slate-500">No active jobs to show yet.</p>
           ) : (
@@ -391,7 +391,7 @@ function PaymentStatusSection() {
 
   return (
     <div className="mt-8">
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-900">Customer Payment Status</h2>
@@ -403,7 +403,7 @@ function PaymentStatusSection() {
         </div>
         <div className="p-6">
           {statusQuery.isLoading ? (
-            <div className="h-24 animate-pulse rounded bg-slate-100" />
+            <div className="h-24 skeleton" />
           ) : rows.length === 0 ? (
             <p className="text-sm text-slate-500">No invoices sent yet.</p>
           ) : (
@@ -411,18 +411,18 @@ function PaymentStatusSection() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200">
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Customer</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Latest invoice</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Amount due</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Days since sent</th>
-                    <th className="px-3 py-2 text-left text-sm font-medium text-slate-600">Status</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Customer</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Latest invoice</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Amount due</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Days since sent</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => {
                     const style = paymentStatusStyles[row.status];
                     return (
-                      <tr key={row.customerId} className="border-b border-slate-100">
+                      <tr key={row.customerId} className="border-b border-border/70">
                         <td className="px-3 py-3 text-sm font-medium text-slate-900">{row.customerName}</td>
                         <td className="px-3 py-3 text-sm text-slate-600">{row.invoiceNumber || "—"}</td>
                         <td className="px-3 py-3 text-sm text-slate-900">${row.totalDue.toFixed(2)}</td>
@@ -450,7 +450,7 @@ function WeeklyOperationsSummarySection() {
   const s = summaryQuery.data;
 
   if (summaryQuery.isLoading || !s) {
-    return <div className="mt-8 h-32 animate-pulse rounded-xl bg-slate-100" />;
+    return <div className="mt-8 h-32 skeleton rounded-xl" />;
   }
 
   const stats = [
@@ -476,7 +476,7 @@ function WeeklyOperationsSummarySection() {
 
   return (
     <div className="mt-8">
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="font-semibold text-slate-900">Weekly Operations Summary</h2>
           <p className="mt-1 text-xs text-slate-500">
@@ -518,7 +518,7 @@ function BusinessHealthSection() {
   const h = healthQuery.data;
 
   if (healthQuery.isLoading) {
-    return <div className="mt-8 h-32 animate-pulse rounded-xl bg-slate-100" />;
+    return <div className="mt-8 h-32 skeleton rounded-xl" />;
   }
 
   // Admin/Management only — a null result here just means the endpoint
@@ -548,7 +548,7 @@ function BusinessHealthSection() {
 
   return (
     <div className="mt-8">
-      <Card className="border-slate-200 bg-white shadow-sm">
+      <Card>
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="font-semibold text-slate-900">Business Health</h2>
           <p className="mt-1 text-xs text-slate-500">Live operational status — bottlenecks surfaced automatically below</p>

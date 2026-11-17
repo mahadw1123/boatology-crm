@@ -41,13 +41,13 @@ export default {
         },
         surface: {
           DEFAULT: "#FFFFFF",
-          muted: "#F5F7FA",
+          muted: "#F5F6F8",
         },
         ink: {
           DEFAULT: "#0c1e38",
           light: "#2d4160",
         },
-        border: "#D9E1E8",
+        border: "#E2E6EB",
         success: "#1F9D55",
         danger: "#D64545",
       },
@@ -59,16 +59,25 @@ export default {
         // added. Arial/Helvetica are the guide's own specified fallback for
         // when Proxima Nova is unavailable, exactly matching that fallback
         // chain here rather than defaulting to something unrelated.
-        sans: ["Proxima Nova", "Arial", "Helvetica", "ui-sans-serif", "system-ui", "sans-serif"],
+        // Proxima Nova stays first, so it takes over the moment a licensed kit
+        // is added. Until then the device's own interface font is used (San
+        // Francisco on Apple devices, Segoe UI on Windows, Roboto on Android),
+        // which reads far better on screen than the previous Arial fallback.
+        sans: ["Proxima Nova", "-apple-system", "BlinkMacSystemFont", "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
       },
       borderRadius: {
         DEFAULT: "8px",
         lg: "10px",
         xl: "14px",
+        "2xl": "18px",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(11, 35, 65, 0.04), 0 4px 12px rgba(11, 35, 65, 0.06)",
-        cardHover: "0 2px 4px rgba(11, 35, 65, 0.06), 0 8px 20px rgba(11, 35, 65, 0.09)",
+        // Quiet by default: a hairline border does most of the work, the
+        // shadow only lifts the surface slightly off the page.
+        card: "0 1px 2px rgba(12, 30, 56, 0.04)",
+        cardHover: "0 1px 2px rgba(12, 30, 56, 0.05), 0 6px 16px rgba(12, 30, 56, 0.08)",
+        // Floating layers: dialogs, menus, popovers.
+        sheet: "0 2px 6px rgba(12, 30, 56, 0.06), 0 24px 48px -12px rgba(12, 30, 56, 0.22)",
       },
     },
   },

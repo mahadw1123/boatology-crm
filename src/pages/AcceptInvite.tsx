@@ -24,7 +24,7 @@ export default function AcceptInvite() {
     onSuccess: (user) => {
       utils.auth.me.setData(undefined, user);
       toast.success("Account activated");
-      navigate("/");
+      navigate(user.role === "customer" ? "/customer-portal" : "/");
     },
     onError: (err) => showErrorToast(err),
   });
@@ -53,8 +53,8 @@ export default function AcceptInvite() {
         <div className="w-full max-w-sm rounded-xl bg-white p-8 text-center shadow-cardHover">
           <h1 className="mb-2 text-lg font-semibold text-navy">Invite not valid</h1>
           <p className="text-sm text-ink-light">
-            This invite link has expired, already been used, or doesn't exist. Ask an admin to send
-            you a new one.
+            This invite link has expired, already been used, or doesn't exist. If a newer invite was
+            emailed to you, use that one; otherwise ask us to send a new one.
           </p>
         </div>
       </div>
@@ -76,10 +76,16 @@ export default function AcceptInvite() {
             <BoatologyLogo variant="emblem" light className="h-7 w-7" />
           </div>
           <h1 className="text-xl font-semibold text-navy">Welcome to {companyNameQuery.data?.name || "Boatology"}</h1>
-          <p className="text-center text-sm text-ink-light">
-            You've been invited as <strong>{roleLabels[inviteInfoQuery.data.role] || inviteInfoQuery.data.role}</strong> —
-            set your name and password to activate your account.
-          </p>
+          {inviteInfoQuery.data.role === "customer" ? (
+            <p className="text-center text-sm text-ink-light">
+              Set your name and a password to open your customer portal, where you can view quotes, follow your job and pay invoices.
+            </p>
+          ) : (
+            <p className="text-center text-sm text-ink-light">
+              You've been invited as <strong>{roleLabels[inviteInfoQuery.data.role] || inviteInfoQuery.data.role}</strong> —
+              set your name and password to activate your account.
+            </p>
+          )}
         </div>
 
         <form
@@ -95,15 +101,15 @@ export default function AcceptInvite() {
         >
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-light">Email</label>
-            <Input value={inviteInfoQuery.data.email} disabled className="bg-slate-50" />
+            <Input aria-label="Email" value={inviteInfoQuery.data.email} disabled className="bg-slate-50" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-light">Full name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} required />
+            <Input aria-label="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-light">Password</label>
-            <Input
+            <Input aria-label="Password"
               type="password"
               maxLength={72}
               value={password}
@@ -111,10 +117,11 @@ export default function AcceptInvite() {
               minLength={12}
               required
             />
+            <p className="mt-1 text-xs text-ink-light">At least 12 characters.</p>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-ink-light">Confirm password</label>
-            <Input
+            <Input aria-label="Confirm password"
               type="password"
               maxLength={72}
               value={confirmPassword}

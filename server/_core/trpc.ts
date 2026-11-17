@@ -82,6 +82,23 @@ const enforceAccessRules = middleware(async ({ ctx, path, type, next }) => {
 
 export const protectedProcedure = t.procedure.use(isAuthed).use(enforceAccessRules);
 
+// Role-gated procedure builders. The role check runs as middleware, before
+// the input is even parsed, so a caller without the role learns nothing about
+// what a valid request looks like and no handler can forget the check.
+const OFFICE_ROLES: User["role"][] = ["admin", "office_staff", "management"];
+function onlyRoles(roles: User["role"][]) {
+  return middleware(({ ctx, next }) => {
+    if (!ctx.user || !roles.includes(ctx.user.role)) throw new TRPCError({ code: "FORBIDDEN" });
+    return next();
+  });
+}
+/** Office roles: admin, office staff, management. */
+export const staffProcedure = protectedProcedure.use(onlyRoles(OFFICE_ROLES));
+/** Admin and management only. */
+export const adminOrManagementProcedure = protectedProcedure.use(onlyRoles(["admin", "management"]));
+/** Admin only. */
+export const adminProcedure = protectedProcedure.use(onlyRoles(["admin"]));
+
 export function requireRole(...roles: User["role"][]) {
   return middleware(({ ctx, next }) => {
     if (!ctx.user || !roles.includes(ctx.user.role)) {

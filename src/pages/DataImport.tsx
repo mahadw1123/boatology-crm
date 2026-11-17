@@ -161,26 +161,26 @@ export default function DataImport() {
   const config = ENTITY_CONFIG[entity];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center gap-3">
-            <Database className="h-8 w-8 text-[#2d4160]" />
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <Database className="h-8 w-8 text-ink-light" />
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Data Import</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Data Import</h1>
               <p className="mt-1 text-sm text-slate-600">Move historical records into Boatology without sending emails or creating payments.</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
-        <Card className="border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mx-auto max-w-5xl space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+        <Card className="p-6 shadow-sm">
           <div className="grid gap-4 md:grid-cols-[240px_1fr]">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-900">Section to import</label>
               <Select value={entity} onValueChange={(value) => { setEntity(value as ImportEntity); resetFile(); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Section to import"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(ENTITY_CONFIG) as ImportEntity[]).map((key) => (
                     <SelectItem key={key} value={key}>{ENTITY_CONFIG[key].label}</SelectItem>
@@ -199,7 +199,7 @@ export default function DataImport() {
             <Button variant="outline" onClick={downloadTemplate}>
               <Download className="mr-2 h-4 w-4" /> Download CSV template
             </Button>
-            <label className="inline-flex cursor-pointer items-center rounded-md bg-[#0c1e38] px-4 py-2 text-sm font-medium text-white hover:bg-[#0c1e38]/90">
+            <label className="inline-flex cursor-pointer items-center rounded-md bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy-700">
               <Upload className="mr-2 h-4 w-4" /> Choose CSV file
               <input type="file" accept=".csv,text/csv" className="hidden" onChange={(event) => event.target.files?.[0] && handleFile(event.target.files[0])} />
             </label>
@@ -207,14 +207,14 @@ export default function DataImport() {
         </Card>
 
         {rows.length > 0 && (
-          <Card className="border-slate-200 bg-white p-6 shadow-sm">
+          <Card className="p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Preview</h2>
                 <p className="text-sm text-slate-600">{fileName} — {rows.length} data rows</p>
               </div>
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 disabled={importMutation.isPending}
                 onClick={() => importMutation.mutate({ entity, rows })}
               >
@@ -223,8 +223,8 @@ export default function DataImport() {
             </div>
             <div className="mt-4 max-h-72 overflow-auto rounded-lg border border-slate-200">
               <table className="min-w-full text-xs">
-                <thead className="sticky top-0 bg-slate-50">
-                  <tr>{Object.keys(rows[0]).map((header) => <th key={header} className="whitespace-nowrap px-3 py-2 text-left font-medium text-slate-600">{header}</th>)}</tr>
+                <thead className="sticky top-0 bg-surface-muted">
+                  <tr>{Object.keys(rows[0]).map((header) => <th key={header} className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium text-slate-500">{header}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {rows.slice(0, 10).map((row, index) => (
@@ -238,7 +238,7 @@ export default function DataImport() {
         )}
 
         {results.length > 0 && (
-          <Card className="border-slate-200 bg-white p-6 shadow-sm">
+          <Card className="p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">Import results</h2>
             <div className="mt-3 flex flex-wrap gap-4 text-sm">
               <span className="flex items-center gap-1 text-emerald-700"><CheckCircle2 className="h-4 w-4" /> {summary.created} created</span>
@@ -247,7 +247,7 @@ export default function DataImport() {
             </div>
             <div className="mt-4 max-h-80 overflow-auto rounded-lg border border-slate-200">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-slate-50"><tr><th className="px-3 py-2 text-left">CSV row</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">Record/reason</th></tr></thead>
+                <thead className="sticky top-0 bg-surface-muted"><tr><th className="px-3 py-2 text-left">CSV row</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-left">Record/reason</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
                   {results.map((item) => (
                     <tr key={`${item.row}-${item.status}`}>

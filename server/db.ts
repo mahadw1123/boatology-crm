@@ -1,4 +1,5 @@
-import { eq, and, desc, asc, like, isNull, isNotNull, gte, lt } from "drizzle-orm";
+import { eq, and, or, ne, desc, asc, like, isNull, isNotNull, gte, lt, inArray, sql } from "drizzle-orm";
+import { AsyncLocalStorage } from "async_hooks";
 import crypto from "crypto";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -27,6 +28,7 @@ import {
   auditLog,
   calendarNotes,
   staffInvites,
+  customerInvites,
   invoices,
   jobPlanEntries,
   jobCosts,
@@ -56,6 +58,55 @@ sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite);
+
+// ---------------------------------------------------------------------------
+// Request-scoped read cache
+//
+// One screen asks many questions at once (the Dashboard sends about a dozen
+// queries in a single batched request) and most of them start by reading the
+// same whole tables. Inside `withReadCache`, each of those table reads runs
+// once and is shared by every handler in that request.
+//
+// It is only switched on for read-only (GET) API requests, lasts for that one
+// request, and hands each caller its own array, so one handler sorting or
+// filtering its list cannot affect another's. The row objects themselves are
+// shared: handlers must treat rows read from the database as read-only and
+// build new objects (`{ ...row, extra }`) when they need to add to one. Outside
+// `withReadCache` (mutations, background jobs, tests) every read goes to the
+// database exactly as before.
+// ---------------------------------------------------------------------------
+const readCache = new AsyncLocalStorage<Map<string, Promise<unknown[]>>>();
+
+export function withReadCache<T>(run: () => T): T {
+  return readCache.run(new Map(), run);
+}
+
+async function cachedRead<T extends object>(key: string, load: () => Promise<T[]>): Promise<T[]> {
+  const store = readCache.getStore();
+  if (!store) return load();
+  let pending = store.get(key) as Promise<T[]> | undefined;
+  if (!pending) {
+    // A Drizzle query is re-run every time it is awaited, so turn it into a
+    // real promise first: that is what makes the read happen once.
+    pending = Promise.resolve(load());
+    store.set(key, pending);
+  }
+  return (await pending).slice();
+}
+
+// An update that changes no columns is a valid no-op, not an error — Drizzle
+// throws "No values to set" for an empty patch, which used to surface as a
+// 500 when a form was saved without changes.
+function hasValues(data: object) {
+  return Object.values(data).some((value) => value !== undefined);
+}
+
+/** Adds the row's modification time to a patch. Tables with an updatedAt
+ * column were only ever stamped at insert, so the column never reflected
+ * later edits. */
+function touched<T extends object>(data: T): T & { updatedAt: string } {
+  return { ...data, updatedAt: new Date().toISOString() };
+}
 
 /** Used by automated tests and controlled shutdowns so SQLite releases file handles cleanly. */
 export function closeDatabase() {
@@ -97,7 +148,7 @@ export async function createInitialAdmin(data: InsertUser) {
 }
 
 export async function updateUser(id: number, data: Partial<InsertUser>) {
-  await db.update(users).set(data).where(eq(users.id, id));
+  await db.update(users).set(touched(data)).where(eq(users.id, id));
 }
 
 export async function incrementUserSessionVersion(id: number) {
@@ -137,7 +188,7 @@ export async function getCustomers(search?: string) {
       .where(like(customers.name, `%${search}%`))
       .orderBy(desc(customers.createdAt));
   }
-  return await db.select().from(customers).orderBy(desc(customers.createdAt));
+  return await cachedRead("customers", () => db.select().from(customers).orderBy(desc(customers.createdAt)));
 }
 
 export async function getCustomerById(id: number) {
@@ -146,7 +197,7 @@ export async function getCustomerById(id: number) {
 }
 
 export async function updateCustomer(id: number, data: Partial<typeof customers.$inferInsert>) {
-  await db.update(customers).set(data).where(eq(customers.id, id));
+  await db.update(customers).set(touched(data)).where(eq(customers.id, id));
 }
 
 /** Appends a real entry to the customer's communication log — a field that
@@ -220,7 +271,7 @@ export async function createVessel(data: {
 }
 
 export async function getVessels() {
-  return await db.select().from(vessels).orderBy(desc(vessels.createdAt));
+  return await cachedRead("vessels", () => db.select().from(vessels).orderBy(desc(vessels.createdAt)));
 }
 
 export async function getVesselsByCustomer(customerId: number) {
@@ -237,7 +288,7 @@ export async function getVesselById(id: number) {
 }
 
 export async function updateVessel(id: number, data: Partial<typeof vessels.$inferInsert>) {
-  await db.update(vessels).set(data).where(eq(vessels.id, id));
+  await db.update(vessels).set(touched(data)).where(eq(vessels.id, id));
 }
 
 export async function deleteVessel(id: number) {
@@ -271,7 +322,7 @@ export async function getQuotes(customerId?: number, status?: (typeof quotes.$in
   if (conditions.length > 0) {
     return await db.select().from(quotes).where(and(...conditions)).orderBy(desc(quotes.createdAt));
   }
-  return await db.select().from(quotes).orderBy(desc(quotes.createdAt));
+  return await cachedRead("quotes", () => db.select().from(quotes).orderBy(desc(quotes.createdAt)));
 }
 
 export async function getQuoteById(id: number) {
@@ -280,7 +331,7 @@ export async function getQuoteById(id: number) {
 }
 
 export async function updateQuote(id: number, data: Partial<typeof quotes.$inferInsert>) {
-  await db.update(quotes).set(data).where(eq(quotes.id, id));
+  await db.update(quotes).set(touched(data)).where(eq(quotes.id, id));
 }
 
 /** Atomically rejects a quote only while it still belongs to this customer and
@@ -376,7 +427,7 @@ export async function getJobs(customerId?: number, status?: (typeof jobs.$inferS
   if (conditions.length > 0) {
     return await db.select().from(jobs).where(and(...conditions)).orderBy(desc(jobs.createdAt));
   }
-  return await db.select().from(jobs).orderBy(desc(jobs.createdAt));
+  return await cachedRead("jobs", () => db.select().from(jobs).orderBy(desc(jobs.createdAt)));
 }
 
 export async function getJobById(id: number) {
@@ -385,59 +436,76 @@ export async function getJobById(id: number) {
 }
 
 export async function updateJob(id: number, data: Partial<typeof jobs.$inferInsert>) {
-  await db.update(jobs).set(data).where(eq(jobs.id, id));
+  await db.update(jobs).set(touched(data)).where(eq(jobs.id, id));
 }
 
+/**
+ * Deletes a job only when nothing of independent value hangs off it.
+ *
+ * Every check runs before anything is removed, and the whole operation is one
+ * transaction, so a refused delete leaves the job exactly as it was. Records
+ * that are real history block the delete: invoices, cost entries, logged time
+ * (payroll and job-costing evidence), material requests, antifouling details,
+ * documents/photos and customer sign-off signatures. Tasks block it too
+ * unless the caller explicitly asked for them to go with the job.
+ *
+ * Pure scheduling data (technician assignments, plan entries, schedule rows)
+ * is removed with the job; calendar notes and Task Centre items that merely
+ * pointed at the job are kept and unlinked.
+ */
 export async function deleteJob(id: number, opts: { deleteTasks?: boolean } = {}) {
-  const linkedInvoice = await db.select().from(invoices).where(eq(invoices.jobId, id));
-  if (linkedInvoice.length > 0) {
-    throw new Error(`Can't delete this job — invoice ${linkedInvoice[0].invoiceNumber} is linked to it.`);
-  }
+  const count = (table: string) =>
+    (sqlite.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE jobId = ?`).get(id) as { n: number }).n;
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-  // These modules were added after this function was first written and were
-  // never wired in — deleting a job with any of this data attached used to
-  // silently orphan it. Each represents a real record (cost entries, actual
-  // technician work, an approval audit trail, technical detail) that
-  // shouldn't just vanish, so they block deletion the same way invoices do.
-  const [linkedCosts, linkedTasks, linkedMaterialRequests, linkedAntifouling, linkedDocuments] = await Promise.all([
-    db.select().from(jobCosts).where(eq(jobCosts.jobId, id)),
-    db.select().from(tasks).where(eq(tasks.jobId, id)),
-    db.select().from(materialRequests).where(eq(materialRequests.jobId, id)),
-    db.select().from(antifoulingDetails).where(eq(antifoulingDetails.jobId, id)),
-    db.select().from(documents).where(eq(documents.jobId, id)),
-  ]);
-  // Explicitly asked for: the job's own tasks (and their assignee links) go
-  // with it. Everything else above still blocks.
-  if (opts.deleteTasks) {
-    for (const task of linkedTasks) await deleteTask(task.id);
-    linkedTasks.length = 0;
-  }
-  if (linkedCosts.length > 0) {
-    throw new Error(`Can't delete this job — it has ${linkedCosts.length} cost entr${linkedCosts.length === 1 ? "y" : "ies"} recorded against it. Remove those first.`);
-  }
-  if (linkedTasks.length > 0) {
-    throw new Error(`Can't delete this job — it has ${linkedTasks.length} task(s) recorded against it. Tick "also delete its tasks", or remove them first.`);
-  }
-  if (linkedMaterialRequests.length > 0) {
-    throw new Error(`Can't delete this job — it has ${linkedMaterialRequests.length} material request(s) on record. Remove those first.`);
-  }
-  if (linkedAntifouling.length > 0) {
-    throw new Error(`Can't delete this job — it has antifouling details recorded against it. Remove those first.`);
-  }
-  if (linkedDocuments.length > 0) {
-    throw new Error(`Can't delete this job — it has ${linkedDocuments.length} document(s)/photo(s) recorded against it. Remove those first.`);
-  }
+  const run = sqlite.transaction(() => {
+    const invoice = sqlite.prepare("SELECT invoiceNumber FROM invoices WHERE jobId = ? LIMIT 1").get(id) as
+      | { invoiceNumber: string | null }
+      | undefined;
+    if (invoice) throw new Error(`Can't delete this job — invoice ${invoice.invoiceNumber} is linked to it.`);
 
-  await Promise.all([
-    db.delete(jobAssignments).where(eq(jobAssignments.jobId, id)),
-    db.delete(timeEntries).where(eq(timeEntries.jobId, id)),
-    // Calendar plan entries and schedule rows hold no independent value once
-    // the job is gone, unlike the records above — safe to cascade rather
-    // than block.
-    db.delete(jobPlanEntries).where(eq(jobPlanEntries.jobId, id)),
-    db.delete(schedules).where(eq(schedules.jobId, id)),
-  ]);
-  await db.delete(jobs).where(eq(jobs.id, id));
+    const costs = count("jobCosts");
+    if (costs > 0) {
+      throw new Error(`Can't delete this job — it has ${plural(costs, "cost entry", "cost entries")} recorded against it. Remove those first.`);
+    }
+    const time = sqlite.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(hoursWorked), 0) AS hours FROM timeEntries WHERE jobId = ?").get(id) as {
+      n: number;
+      hours: number;
+    };
+    if (time.n > 0) {
+      const hours = Math.round(time.hours * 100) / 100;
+      throw new Error(
+        `Can't delete this job — it has ${plural(time.n, "time entry", "time entries")} (${hours} hours) logged against it. Cancel the job instead so the hours are kept.`
+      );
+    }
+    const taskCount = count("tasks");
+    if (taskCount > 0 && !opts.deleteTasks) {
+      throw new Error(`Can't delete this job — it has ${taskCount} task(s) recorded against it. Tick "also delete its tasks", or remove them first.`);
+    }
+    const requests = count("materialRequests");
+    if (requests > 0) throw new Error(`Can't delete this job — it has ${requests} material request(s) on record. Remove those first.`);
+    if (count("antifoulingDetails") > 0) {
+      throw new Error("Can't delete this job — it has antifouling details recorded against it. Remove those first.");
+    }
+    const docs = count("documents");
+    if (docs > 0) throw new Error(`Can't delete this job — it has ${docs} document(s)/photo(s) recorded against it. Remove those first.`);
+    const signatures = count("jobSignatures");
+    if (signatures > 0) {
+      throw new Error(`Can't delete this job — it has ${plural(signatures, "sign-off signature", "sign-off signatures")} on record. Cancel the job instead.`);
+    }
+
+    if (taskCount > 0) {
+      sqlite.prepare("DELETE FROM taskAssignments WHERE taskId IN (SELECT id FROM tasks WHERE jobId = ?)").run(id);
+      sqlite.prepare("DELETE FROM tasks WHERE jobId = ?").run(id);
+    }
+    sqlite.prepare("DELETE FROM jobAssignments WHERE jobId = ?").run(id);
+    sqlite.prepare("DELETE FROM jobPlanEntries WHERE jobId = ?").run(id);
+    sqlite.prepare("DELETE FROM schedules WHERE jobId = ?").run(id);
+    sqlite.prepare("UPDATE calendarNotes SET jobId = NULL WHERE jobId = ?").run(id);
+    sqlite.prepare("UPDATE staffTasks SET linkedJobId = NULL WHERE linkedJobId = ?").run(id);
+    sqlite.prepare("DELETE FROM jobs WHERE id = ?").run(id);
+  });
+  run();
 }
 
 // ============================================================================
@@ -477,7 +545,7 @@ export async function getUsersByEmployeeId(employeeId: number) {
 }
 
 export async function updateEmployee(id: number, data: Partial<typeof employees.$inferInsert>) {
-  await db.update(employees).set(data).where(eq(employees.id, id));
+  await db.update(employees).set(touched(data)).where(eq(employees.id, id));
 }
 
 export async function deleteEmployee(id: number) {
@@ -575,7 +643,7 @@ export async function unassignJobFromEmployee(assignmentId: number) {
 }
 
 export async function getAllJobAssignments() {
-  return await db.select().from(jobAssignments);
+  return await cachedRead("jobAssignments", () => db.select().from(jobAssignments));
 }
 
 export async function getJobAssignmentsForEmployee(employeeId: number) {
@@ -648,18 +716,16 @@ export async function getJobDurationStats(description: string) {
 }
 
 export async function getEmployeeJobCounts() {
-  const allAssignments = await db.select().from(jobAssignments);
-  const allJobs = await db.select().from(jobs);
-  const jobById = new Map(allJobs.map((j) => [j.id, j]));
-
-  const counts = new Map<number, number>();
-  for (const a of allAssignments) {
-    const job = jobById.get(a.jobId);
-    if (!job) continue;
-    if (job.status === "closed" || job.status === "completed" || job.status === "cancelled") continue;
-    counts.set(a.employeeId, (counts.get(a.employeeId) || 0) + 1);
-  }
-  return counts;
+  // Open jobs per employee, counted in the database.
+  const rows = sqlite
+    .prepare(
+      `SELECT a.employeeId AS employeeId, COUNT(*) AS n
+       FROM jobAssignments a JOIN jobs j ON j.id = a.jobId
+       WHERE j.status NOT IN ('closed', 'completed', 'cancelled')
+       GROUP BY a.employeeId`
+    )
+    .all() as Array<{ employeeId: number; n: number }>;
+  return new Map(rows.map((row) => [row.employeeId, row.n]));
 }
 
 export async function getEmployeeAssignments(employeeId: number) {
@@ -667,13 +733,15 @@ export async function getEmployeeAssignments(employeeId: number) {
 }
 
 export async function getJobsForEmployee(employeeId: number) {
-  const assignments = await db.select().from(jobAssignments).where(eq(jobAssignments.employeeId, employeeId));
-  const jobIds = new Set(assignments.map((a) => a.jobId));
-  if (jobIds.size === 0) return [];
-  const allJobs = await db.select().from(jobs);
-  return allJobs
-    .filter((j) => jobIds.has(j.id) && j.status !== "closed")
-    .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
+  // One indexed join instead of reading every job and filtering in memory —
+  // this runs on almost every technician request.
+  const rows = await db
+    .select({ job: jobs })
+    .from(jobAssignments)
+    .innerJoin(jobs, eq(jobs.id, jobAssignments.jobId))
+    .where(and(eq(jobAssignments.employeeId, employeeId), ne(jobs.status, "closed")))
+    .orderBy(sql`coalesce(${jobs.dueDate}, '')`, asc(jobs.id));
+  return rows.map((row) => row.job);
 }
 
 // ============================================================================
@@ -697,8 +765,16 @@ export async function getTimeEntriesByJob(jobId: number) {
   return await db.select().from(timeEntries).where(eq(timeEntries.jobId, jobId)).orderBy(desc(timeEntries.date));
 }
 
+/** Employees who are clocked in right now (a started entry with no end). */
+export function getClockedInEmployeeIds(): number[] {
+  const rows = sqlite
+    .prepare("SELECT DISTINCT employeeId FROM timeEntries WHERE clockInTime IS NOT NULL AND clockOutTime IS NULL")
+    .all() as Array<{ employeeId: number }>;
+  return rows.map((row) => row.employeeId);
+}
+
 export async function getAllTimeEntries() {
-  return await db.select().from(timeEntries).orderBy(desc(timeEntries.date));
+  return await cachedRead("timeEntries", () => db.select().from(timeEntries).orderBy(desc(timeEntries.date)));
 }
 
 export async function getTimeEntryById(id: number) {
@@ -707,7 +783,7 @@ export async function getTimeEntryById(id: number) {
 }
 
 export async function updateTimeEntry(id: number, data: Partial<typeof timeEntries.$inferInsert>) {
-  const result = await db.update(timeEntries).set(data).where(eq(timeEntries.id, id)).returning();
+  const result = await db.update(timeEntries).set(touched(data)).where(eq(timeEntries.id, id)).returning();
   return result[0];
 }
 
@@ -848,7 +924,7 @@ export async function getSchedulesByJob(jobId: number) {
 }
 
 export async function updateSchedule(id: number, data: Partial<typeof schedules.$inferInsert>) {
-  await db.update(schedules).set(data).where(eq(schedules.id, id));
+  await db.update(schedules).set(touched(data)).where(eq(schedules.id, id));
 }
 
 export async function deleteSchedule(id: number) {
@@ -886,7 +962,7 @@ export async function deleteDocumentRow(id: number) {
 }
 
 export async function getDocuments() {
-  return await db.select().from(documents).orderBy(desc(documents.createdAt));
+  return await cachedRead("documents", () => db.select().from(documents).orderBy(desc(documents.createdAt)));
 }
 
 export async function getDocumentById(id: number) {
@@ -928,8 +1004,16 @@ export async function createNotification(data: typeof notifications.$inferInsert
   return result[0];
 }
 
+export const NOTIFICATION_LIST_LIMIT = 200;
+
 export async function getNotificationsByUser(userId: number) {
-  return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
+  // The bell polls this every 30 seconds; it only ever shows recent items.
+  return await db
+    .select()
+    .from(notifications)
+    .where(eq(notifications.userId, userId))
+    .orderBy(desc(notifications.createdAt), desc(notifications.id))
+    .limit(NOTIFICATION_LIST_LIMIT);
 }
 
 export async function markNotificationRead(id: number, userId: number) {
@@ -957,7 +1041,7 @@ export async function createService(data: typeof services.$inferInsert) {
 }
 
 export async function updateService(id: number, data: Partial<typeof services.$inferInsert>) {
-  await db.update(services).set(data).where(eq(services.id, id));
+  await db.update(services).set(touched(data)).where(eq(services.id, id));
 }
 
 export async function deleteService(id: number) {
@@ -1036,19 +1120,22 @@ export async function upsertSetting(key: string, value: string, description?: st
 // ============================================================================
 
 export async function getQuoteStats() {
-  const result = await db.select().from(quotes);
-  const total = result.length;
-  const accepted = result.filter((q) => q.status === "accepted").length;
-  const acceptanceRate = total > 0 ? (accepted / total) * 100 : 0;
-  return { total, accepted, acceptanceRate: Math.round(acceptanceRate) };
+  const row = sqlite.prepare("SELECT COUNT(*) AS total, COALESCE(SUM(status = 'accepted'), 0) AS accepted FROM quotes").get() as { total: number; accepted: number };
+  const acceptanceRate = row.total > 0 ? (row.accepted / row.total) * 100 : 0;
+  return { total: row.total, accepted: row.accepted, acceptanceRate: Math.round(acceptanceRate) };
 }
 
 export async function getJobStats() {
-  const result = await db.select().from(jobs);
-  const inProgress = result.filter((j) => j.status === "in_progress").length;
-  const completed = result.filter((j) => j.status === "closed").length;
-  const dueToday = result.filter((j) => j.dueDate === new Date().toISOString().slice(0, 10)).length;
-  return { total: result.length, inProgress, completed, dueToday };
+  const row = sqlite
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(status = 'in_progress'), 0) AS inProgress,
+              COALESCE(SUM(status = 'closed'), 0) AS completed,
+              COALESCE(SUM(dueDate = ?), 0) AS dueToday
+       FROM jobs`
+    )
+    .get(new Date().toISOString().slice(0, 10)) as { total: number; inProgress: number; completed: number; dueToday: number };
+  return { total: row.total, inProgress: row.inProgress, completed: row.completed, dueToday: row.dueToday };
 }
 
 export async function getLabourStats() {
@@ -1206,6 +1293,90 @@ export async function markStaffInviteUsed(id: number) {
   await db.update(staffInvites).set({ usedAt: new Date().toISOString() }).where(eq(staffInvites.id, id));
 }
 
+// ---- Customer portal invites ----------------------------------------------
+
+/** Creates a new invite for a customer and withdraws any earlier unused one,
+ * in one transaction, so only the newest link ever works. */
+export function createCustomerInvite(data: { customerId: number; email: string; token: string; invitedBy: number | null; expiresAt: string }) {
+  const create = sqlite.transaction(() => {
+    const nowIso = new Date().toISOString();
+    sqlite
+      .prepare("UPDATE customerInvites SET revokedAt = ? WHERE customerId = ? AND usedAt IS NULL AND revokedAt IS NULL")
+      .run(nowIso, data.customerId);
+    const result = sqlite
+      .prepare("INSERT INTO customerInvites (customerId, email, token, invitedBy, expiresAt) VALUES (?, ?, ?, ?, ?)")
+      .run(data.customerId, data.email, data.token, data.invitedBy, data.expiresAt);
+    return Number(result.lastInsertRowid);
+  });
+  return create();
+}
+
+export async function getCustomerInviteByToken(token: string) {
+  const result = await db.select().from(customerInvites).where(eq(customerInvites.token, token)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+/** The invite that is still usable for this customer, if any. */
+export async function getOpenCustomerInvite(customerId: number) {
+  const rows = await db
+    .select()
+    .from(customerInvites)
+    .where(and(eq(customerInvites.customerId, customerId), isNull(customerInvites.usedAt), isNull(customerInvites.revokedAt)))
+    .orderBy(desc(customerInvites.id))
+    .limit(1);
+  const invite = rows[0];
+  if (!invite || new Date(invite.expiresAt).getTime() < Date.now()) return null;
+  return invite;
+}
+
+export function revokeCustomerInvites(customerId: number) {
+  return sqlite
+    .prepare("UPDATE customerInvites SET revokedAt = ? WHERE customerId = ? AND usedAt IS NULL AND revokedAt IS NULL")
+    .run(new Date().toISOString(), customerId).changes;
+}
+
+export async function getUsersByCustomer(customerId: number) {
+  return await db.select().from(users).where(eq(users.customerId, customerId));
+}
+
+export type AcceptCustomerInviteResult =
+  | { ok: true; userId: number }
+  | { ok: false; reason: "invalid" | "used" | "revoked" | "expired" | "customer_missing" | "email_taken" };
+
+/** Consumes a customer invite and creates the portal login in one
+ * transaction: two people opening the same link at once cannot both get an
+ * account, and a failure part-way leaves the invite unused. */
+export function acceptCustomerInvite(tokenHash: string, account: { name: string; passwordHash: string }): AcceptCustomerInviteResult {
+  const accept = sqlite.transaction((): AcceptCustomerInviteResult => {
+    const invite = sqlite.prepare("SELECT id, customerId, email, expiresAt, usedAt, revokedAt FROM customerInvites WHERE token = ? LIMIT 1").get(tokenHash) as
+      | { id: number; customerId: number; email: string; expiresAt: string; usedAt: string | null; revokedAt: string | null }
+      | undefined;
+    if (!invite) return { ok: false, reason: "invalid" };
+    if (invite.usedAt) return { ok: false, reason: "used" };
+    if (invite.revokedAt) return { ok: false, reason: "revoked" };
+    if (new Date(invite.expiresAt).getTime() < Date.now()) return { ok: false, reason: "expired" };
+    if (!sqlite.prepare("SELECT id FROM customers WHERE id = ?").get(invite.customerId)) return { ok: false, reason: "customer_missing" };
+    if (sqlite.prepare("SELECT id FROM users WHERE lower(email) = lower(?)").get(invite.email)) return { ok: false, reason: "email_taken" };
+
+    const created = sqlite
+      .prepare("INSERT INTO users (openId, name, email, passwordHash, loginMethod, role, customerId) VALUES (?, ?, ?, ?, 'password', 'customer', ?)")
+      .run(`local:${invite.email}`, account.name, invite.email, account.passwordHash, invite.customerId);
+    sqlite.prepare("UPDATE customerInvites SET usedAt = ? WHERE id = ?").run(new Date().toISOString(), invite.id);
+    return { ok: true, userId: Number(created.lastInsertRowid) };
+  });
+  return accept();
+}
+
+/** Existing document numbers that start with a prefix (for example every
+ * job number of the current year), without loading the whole table. */
+export function getNumbersWithPrefix(kind: "job" | "quote" | "invoice", prefix: string): string[] {
+  const source = { job: ["jobs", "jobNumber"], quote: ["quotes", "quoteNumber"], invoice: ["invoices", "invoiceNumber"] }[kind];
+  const rows = sqlite.prepare(`SELECT ${source[1]} AS value FROM ${source[0]} WHERE ${source[1]} LIKE ? ESCAPE '\\'`).all(
+    prefix.replace(/[\\%_]/g, (ch) => "\\" + ch) + "%"
+  ) as Array<{ value: string }>;
+  return rows.map((row) => row.value);
+}
+
 export async function getPendingStaffInvites() {
   const rows = await db.select().from(staffInvites).where(isNull(staffInvites.usedAt)).orderBy(desc(staffInvites.createdAt));
   return rows;
@@ -1249,7 +1420,7 @@ export async function getInvoicesByCustomer(customerId: number) {
 }
 
 export async function getAllInvoices() {
-  return await db.select().from(invoices).orderBy(desc(invoices.createdAt));
+  return await cachedRead("invoices", () => db.select().from(invoices).orderBy(desc(invoices.createdAt)));
 }
 
 export async function updateInvoice(id: number, data: Partial<typeof invoices.$inferInsert>) {
@@ -1426,6 +1597,7 @@ export async function getJobCostById(id: number) {
 }
 
 export async function updateJobCost(id: number, data: Record<string, unknown>) {
+  if (!hasValues(data)) return (await getJobCostById(id)) ?? undefined;
   const result = await db.update(jobCosts).set(data).where(eq(jobCosts.id, id)).returning();
   return result[0];
 }
@@ -1537,19 +1709,21 @@ export async function getTaskById(id: number) {
 
 export async function getTasksForJobs(jobIds: number[]) {
   if (jobIds.length === 0) return [];
-  const all = await db.select().from(tasks);
+  // A handful of jobs: ask for exactly those. Many jobs (the agenda asks for
+  // all of them): one table read, shared within the request.
+  if (jobIds.length <= 200) return await db.select().from(tasks).where(inArray(tasks.jobId, jobIds)).orderBy(asc(tasks.id));
+  const all = await cachedRead("tasks", () => db.select().from(tasks));
   const idSet = new Set(jobIds);
   return all.filter((t) => idSet.has(t.jobId));
 }
 
 export async function getTasksForEmployee(employeeId: number) {
-  const links = await db.select().from(taskAssignments).where(eq(taskAssignments.employeeId, employeeId));
-  const ids = new Set(links.map((l) => l.taskId));
-  const legacy = await db.select().from(tasks).where(eq(tasks.assignedEmployeeId, employeeId));
-  for (const t of legacy) ids.add(t.id);
-  if (ids.size === 0) return [];
-  const all = await db.select().from(tasks);
-  return all.filter((t) => ids.has(t.id));
+  const assigned = db.select({ taskId: taskAssignments.taskId }).from(taskAssignments).where(eq(taskAssignments.employeeId, employeeId));
+  return await db
+    .select()
+    .from(tasks)
+    .where(or(eq(tasks.assignedEmployeeId, employeeId), inArray(tasks.id, assigned)))
+    .orderBy(asc(tasks.id));
 }
 
 export async function getAssigneesForTasks(taskIds: number[]) {
@@ -1672,7 +1846,7 @@ export async function getMaterialRequestsForJob(jobId: number) {
 }
 
 export async function updateMaterialRequest(id: number, data: Partial<typeof materialRequests.$inferInsert>) {
-  await db.update(materialRequests).set(data).where(eq(materialRequests.id, id));
+  if (hasValues(data)) await db.update(materialRequests).set(data).where(eq(materialRequests.id, id));
   return await getMaterialRequestById(id);
 }
 
@@ -1786,7 +1960,7 @@ export async function getStaffTaskById(id: number) {
 }
 
 export async function updateStaffTask(id: number, data: Partial<typeof staffTasks.$inferInsert>) {
-  await db.update(staffTasks).set(data).where(eq(staffTasks.id, id));
+  if (hasValues(data)) await db.update(staffTasks).set(data).where(eq(staffTasks.id, id));
   return await getStaffTaskById(id);
 }
 
@@ -1851,7 +2025,9 @@ export async function getEndOfDaySummaryData() {
   const paymentsToday = invoices.filter((i) => i.status === "paid" && i.paidAt && i.paidAt.slice(0, 10) === todayStr);
   const quotesSentToday = quotes.filter((q) => q.sentAt && q.sentAt.slice(0, 10) === todayStr);
   const hoursLoggedToday = allTimeEntries
-    .filter((e) => e.clockInTime && e.clockInTime.slice(0, 10) === todayStr && e.hoursWorked)
+    // By the entry's own date, so hours typed in by hand (which have no
+    // clock-in time) count the same as hours from the timer.
+    .filter((e) => e.date === todayStr && e.hoursWorked)
     .reduce((sum, e) => sum + (e.hoursWorked || 0), 0);
 
   return {
@@ -1978,31 +2154,36 @@ export async function getUpcomingServicesData() {
 
 export async function getTechnicianPerformanceData() {
   const thirtyDaysAgoStr = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-  const [employees, allTasks, allTimeEntries, assignments, jobs] = await Promise.all([
-    getEmployees("technician"), db.select().from(tasks), getAllTimeEntries(), getAllJobAssignments(), getJobs(),
-  ]);
-  const jobsById = new Map(jobs.map((j) => [j.id, j]));
+  const employees = await getEmployees("technician");
+  // Three grouped counts instead of loading every task, time entry and job.
+  const grouped = (query: string) =>
+    new Map((sqlite.prepare(query).all(thirtyDaysAgoStr) as Array<{ employeeId: number; value: number }>).map((row) => [row.employeeId, row.value]));
+  const tasksCompleted = grouped(
+    `SELECT assignedEmployeeId AS employeeId, COUNT(*) AS value FROM tasks
+     WHERE assignedEmployeeId IS NOT NULL AND completedAt IS NOT NULL AND completedAt != '' AND substr(completedAt, 1, 10) >= ?
+     GROUP BY assignedEmployeeId`
+  );
+  const hoursLogged = grouped(
+    // By the entry's own date, so hand-entered hours count as well as timer hours.
+    `SELECT employeeId, COALESCE(SUM(hoursWorked), 0) AS value FROM timeEntries
+     WHERE date >= ?
+     GROUP BY employeeId`
+  );
+  const jobsCompleted = grouped(
+    `SELECT a.employeeId AS employeeId, COUNT(*) AS value FROM jobAssignments a JOIN jobs j ON j.id = a.jobId
+     WHERE j.status IN ('completed', 'closed') AND j.completedAt IS NOT NULL AND j.completedAt != '' AND substr(j.completedAt, 1, 10) >= ?
+     GROUP BY a.employeeId`
+  );
 
   return {
     generatedAt: new Date().toISOString(),
     periodStart: thirtyDaysAgoStr,
-    technicians: employees.map((e) => {
-      const myTasks = allTasks.filter((t) => t.assignedEmployeeId === e.id);
-      const myTasksCompletedRecently = myTasks.filter((t) => t.completedAt && t.completedAt.slice(0, 10) >= thirtyDaysAgoStr);
-      const myTimeEntries = allTimeEntries.filter((te) => te.employeeId === e.id && te.clockInTime && te.clockInTime.slice(0, 10) >= thirtyDaysAgoStr);
-      const hoursLogged = myTimeEntries.reduce((sum, te) => sum + (te.hoursWorked || 0), 0);
-      const myAssignments = assignments.filter((a) => a.employeeId === e.id);
-      const myJobsCompleted = myAssignments.filter((a) => {
-        const j = jobsById.get(a.jobId);
-        return j && (j.status === "completed" || j.status === "closed") && j.completedAt && j.completedAt.slice(0, 10) >= thirtyDaysAgoStr;
-      }).length;
-      return {
-        name: e.name,
-        tasksCompleted: myTasksCompletedRecently.length,
-        hoursLogged: Math.round(hoursLogged * 10) / 10,
-        jobsCompleted: myJobsCompleted,
-      };
-    }),
+    technicians: employees.map((e) => ({
+      name: e.name,
+      tasksCompleted: tasksCompleted.get(e.id) || 0,
+      hoursLogged: Math.round((hoursLogged.get(e.id) || 0) * 10) / 10,
+      jobsCompleted: jobsCompleted.get(e.id) || 0,
+    })),
   };
 }
 

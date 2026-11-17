@@ -272,6 +272,18 @@ export const emailTemplates = {
        </p>
        <p style="margin-top:20px;font-size:12px;color:#5B6B78;">If the button doesn't work, copy this link: ${safeHttpUrl(acceptUrl)}</p>`
     ),
+  customerPortalInvite: (customerName: string, acceptUrl: string) =>
+    wrapLayout(
+      "Your {{COMPANY_NAME}} customer portal",
+      `<p>Hi ${escapeHtml(customerName)},</p>
+       <p>You've been invited to the {{COMPANY_NAME}} customer portal, where you can view and approve quotes, follow the progress of work on your vessel, and view and pay invoices.</p>
+       <p>Click the button below to choose a password and open your portal. This link expires in 7 days and can be used once.</p>
+       <p style="margin-top:20px;">
+         <a href="${safeHttpUrl(acceptUrl)}" style="background:#0c1e38;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Set up portal access</a>
+       </p>
+       <p style="margin-top:20px;font-size:12px;color:#5B6B78;">If you weren't expecting this, you can ignore this email — no account is created unless you use the link.</p>
+       <p style="margin-top:8px;font-size:12px;color:#5B6B78;">If the button doesn't work, copy this link: ${safeHttpUrl(acceptUrl)}</p>`
+    ),
   passwordReset: (name: string, resetUrl: string) =>
     wrapLayout(
       "Reset your password",

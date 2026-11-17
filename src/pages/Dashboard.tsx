@@ -148,13 +148,13 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-            <div className="flex gap-2">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight text-navy">Dashboard</h1>
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" onClick={() => setQuoteDialogOpen(true)}>
                 <FileText className="mr-1.5 h-4 w-4" />
                 New Quote
@@ -173,7 +173,7 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-4">
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-4">
         {/* Today's Agenda + role focus, side by side to save vertical space */}
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-1">
@@ -186,7 +186,7 @@ export default function Dashboard() {
 
         {/* At a glance */}
         <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="flex items-center gap-3 p-4">
               <JobsRing percent={jobWindow.ringPercent} total={jobWindow.upcoming.length} />
               <div>
@@ -199,7 +199,7 @@ export default function Dashboard() {
           </Card>
 
           <Card
-            className="cursor-pointer border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
+            className="cursor-pointer transition-shadow hover:shadow-cardHover"
             onClick={() => navigate("/invoices")}
           >
             <div className="p-4">
@@ -219,7 +219,7 @@ export default function Dashboard() {
           </Card>
 
           <Card
-            className="cursor-pointer border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
+            className="cursor-pointer transition-shadow hover:shadow-cardHover"
             onClick={() => navigate("/invoices")}
           >
             <div className="p-4">
@@ -243,7 +243,7 @@ export default function Dashboard() {
 
         {/* Next job + this period status */}
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          <Card className="border-slate-200 bg-white shadow-sm lg:col-span-1">
+          <Card className="lg:col-span-1">
             <div className="border-b border-slate-200 px-4 py-2.5">
               <h2 className="text-sm font-semibold text-slate-900">Next Job</h2>
             </div>
@@ -279,7 +279,7 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm lg:col-span-2">
+          <Card className="lg:col-span-2">
             <div className="border-b border-slate-200 px-4 py-2.5">
               <h2 className="text-sm font-semibold text-slate-900">This Period</h2>
             </div>
@@ -299,7 +299,7 @@ export default function Dashboard() {
 
         {/* Technician job completion + Task Centre */}
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          <Card className="border-slate-200 bg-white shadow-sm lg:col-span-2">
+          <Card className="lg:col-span-2">
             <div className="border-b border-slate-200 px-4 py-2.5">
               <h2 className="text-sm font-semibold text-slate-900">Technician Job Completion</h2>
             </div>
@@ -328,7 +328,7 @@ export default function Dashboard() {
           </Card>
 
           <Card
-            className="cursor-pointer border-slate-200 bg-white shadow-sm transition-all hover:shadow-md lg:col-span-1"
+            className="cursor-pointer transition-shadow hover:shadow-cardHover lg:col-span-1"
             onClick={() => navigate("/task-centre")}
           >
             <div className="border-b border-slate-200 px-4 py-2.5">
@@ -343,7 +343,7 @@ export default function Dashboard() {
 
         {/* Upcoming jobs + open invoices */}
         <div ref={todaySectionRef} className="mt-4 grid scroll-mt-6 gap-4 lg:grid-cols-2">
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
               <h2 className="text-sm font-semibold text-slate-900">Upcoming Jobs</h2>
               <Button variant="ghost" size="sm" onClick={() => navigate("/jobs")}>
@@ -389,7 +389,7 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
               <h2 className="text-sm font-semibold text-slate-900">Open Invoices</h2>
               <Button variant="ghost" size="sm" onClick={() => navigate("/invoices")}>
@@ -518,7 +518,7 @@ function WeatherCard({ days, isLoading }: { days: { date: string; condition: str
   const tomorrow = days?.[1];
 
   return (
-    <Card className="border-slate-200 bg-white shadow-sm">
+    <Card>
       <div className="p-4">
         <p className="text-sm font-medium text-slate-600">Weather</p>
         {isLoading ? (
@@ -527,7 +527,7 @@ function WeatherCard({ days, isLoading }: { days: { date: string; condition: str
           <p className="mt-2 text-sm text-slate-500">Unavailable right now.</p>
         ) : (
           <div className="mt-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <WeatherIcon rainChancePercent={today.rainChancePercent} />
               <div>
                 <p className="text-sm font-semibold text-slate-900">
@@ -639,12 +639,12 @@ function DailyAgendaPanel() {
   };
 
   if (agendaQuery.isLoading) {
-    return <div className="h-full min-h-[10rem] animate-pulse rounded-xl bg-slate-100" />;
+    return <div className="h-full min-h-[10rem] skeleton rounded-xl" />;
   }
 
   return (
     <>
-      <Card className="h-full border-slate-200 bg-white shadow-sm">
+      <Card className="h-full">
         <button
           className="w-full border-b border-slate-200 px-4 py-2.5 text-left hover:bg-slate-50 disabled:cursor-default disabled:hover:bg-transparent"
           onClick={() => setViewAllOpen(true)}
@@ -653,7 +653,7 @@ function DailyAgendaPanel() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900">Today's Agenda</h2>
             {items.length > 0 && (
-              <span className="text-xs font-medium text-[#2d4160]">
+              <span className="text-xs font-medium text-ink-light">
                 View all by category →
               </span>
             )}
@@ -698,13 +698,13 @@ function DailyAgendaPanel() {
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <button
                 onClick={() => setMineOnly(false)}
-                className={`rounded-full px-3 py-1 text-xs font-medium ${!mineOnly ? "bg-[#0c1e38] text-white" : "bg-slate-100 text-slate-600"}`}
+                className={`rounded-full px-3 py-1 text-xs font-medium ${!mineOnly ? "bg-navy text-white" : "bg-slate-100 text-slate-600"}`}
               >
                 Everything ({items.length})
               </button>
               <button
                 onClick={() => setMineOnly(true)}
-                className={`rounded-full px-3 py-1 text-xs font-medium ${mineOnly ? "bg-[#0c1e38] text-white" : "bg-slate-100 text-slate-600"}`}
+                className={`rounded-full px-3 py-1 text-xs font-medium ${mineOnly ? "bg-navy text-white" : "bg-slate-100 text-slate-600"}`}
               >
                 Assigned to me ({mineCount})
               </button>
@@ -827,7 +827,7 @@ function RevisionCallbackPopup({ items, onNavigate }: { items: any[]; onNavigate
             View Quote
           </Button>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             disabled={dismissMutation.isPending}
             onClick={() => dismissMutation.mutate({ quoteId: popupItem.linkId })}
           >
@@ -860,7 +860,7 @@ function RoleFocusPanel({ role }: { role?: string }) {
   return (
     <div className="grid h-full gap-4 sm:grid-cols-2">
       {showOps && (
-        <Card className="border-slate-200 bg-white shadow-sm">
+        <Card>
           <div className="border-b border-slate-200 px-4 py-2">
             <h2 className="text-sm font-semibold text-slate-900">Operations Snapshot</h2>
           </div>
@@ -877,7 +877,7 @@ function RoleFocusPanel({ role }: { role?: string }) {
               <span className="text-slate-600">Technicians available now</span>
               <span className="font-semibold text-emerald-700">{s.techniciansAvailable}</span>
             </div>
-            <button onClick={() => navigate("/analytics")} className="text-xs text-[#2d4160] hover:underline">
+            <button onClick={() => navigate("/analytics")} className="text-xs text-ink-light hover:underline">
               View full workload breakdown →
             </button>
           </div>
@@ -885,7 +885,7 @@ function RoleFocusPanel({ role }: { role?: string }) {
       )}
 
       {showAccounts && (
-        <Card className="border-slate-200 bg-white shadow-sm">
+        <Card>
           <div className="border-b border-slate-200 px-4 py-2">
             <h2 className="text-sm font-semibold text-slate-900">Quotes & Accounts Snapshot</h2>
           </div>
@@ -912,7 +912,7 @@ function RoleFocusPanel({ role }: { role?: string }) {
                 {s.draftInvoicesCount ?? 0} (${(s.draftInvoicesAmount ?? 0).toFixed(2)})
               </span>
             </div>
-            <button onClick={() => navigate("/invoices")} className="text-xs text-[#2d4160] hover:underline">
+            <button onClick={() => navigate("/invoices")} className="text-xs text-ink-light hover:underline">
               View invoices →
             </button>
           </div>

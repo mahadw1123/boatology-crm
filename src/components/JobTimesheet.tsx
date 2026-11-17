@@ -60,12 +60,12 @@ export function JobTimesheet({ jobId }: { jobId: number }) {
                 {employeesById.get(employeeId) || `Employee #${employeeId}`}: {hrs.toFixed(2)}h
               </span>
             ))}
-            <span className="rounded-full bg-[#0c1e38] px-3 py-1 text-xs text-white">Total: {totalHours.toFixed(2)}h</span>
+            <span className="rounded-full bg-navy px-3 py-1 text-xs text-white">Total: {totalHours.toFixed(2)}h</span>
           </div>
           <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-600">
+                <tr className="border-b border-border bg-surface-muted/60 text-left text-xs text-slate-500">
                   <th className="px-3 py-2">Date</th>
                   <th className="px-3 py-2">Employee</th>
                   <th className="px-3 py-2">Task</th>
@@ -76,7 +76,7 @@ export function JobTimesheet({ jobId }: { jobId: number }) {
               </thead>
               <tbody>
                 {entries.map((e: any) => (
-                  <tr key={e.id} className="border-b border-slate-100 last:border-0">
+                  <tr key={e.id} className="border-b border-border/70 last:border-0">
                     <td className="px-3 py-2 text-slate-600">{new Date(e.clockInTime || e.date).toLocaleDateString("en-AU")}</td>
                     <td className="px-3 py-2 text-slate-800">{employeesById.get(e.employeeId) || `#${e.employeeId}`}</td>
                     <td className="px-3 py-2 text-slate-600">{e.taskId ? tasksById.get(e.taskId) || `Task #${e.taskId}` : "Whole job"}</td>
@@ -86,7 +86,7 @@ export function JobTimesheet({ jobId }: { jobId: number }) {
                     <td className="px-3 py-2 text-right font-medium text-slate-900">{e.hoursWorked != null ? e.hoursWorked.toFixed(2) : "…"}</td>
                     <td className="px-3 py-2">
                       {isStaff && (
-                        <button
+                        <button aria-label="Edit this entry"
                           className="text-slate-300 hover:text-slate-600"
                           title="Edit this entry"
                           onClick={() => {

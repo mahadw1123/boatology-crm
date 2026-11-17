@@ -64,7 +64,7 @@ function CreateTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-900">Title *</label>
-            <Input
+            <Input aria-label="Title"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="e.g. Call customer about delay"
@@ -73,12 +73,12 @@ function CreateTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Description</label>
-            <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="mt-1 border-slate-200" />
+            <Textarea aria-label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="mt-1 border-slate-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Assign To</label>
             <Select value={form.ownerId} onValueChange={(v) => setForm({ ...form, ownerId: v })}>
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="Assign To" className="mt-1 border-slate-200">
                 <SelectValue placeholder="Leave in the shared pool (anyone can claim it)" />
               </SelectTrigger>
               <SelectContent>
@@ -93,12 +93,12 @@ function CreateTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-900">Due Date</label>
-              <Input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Due Date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">Priority</label>
               <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as any })}>
-                <SelectTrigger className="mt-1 border-slate-200">
+                <SelectTrigger aria-label="Priority" className="mt-1 border-slate-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -112,7 +112,7 @@ function CreateTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Estimated Minutes</label>
-            <Input
+            <Input aria-label="Estimated Minutes"
               type="number"
               value={form.estimatedMinutes}
               onChange={(e) => setForm({ ...form, estimatedMinutes: e.target.value })}
@@ -125,7 +125,7 @@ function CreateTaskDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
             Cancel
           </Button>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             disabled={!form.title.trim() || createMutation.isPending}
             onClick={() =>
               createMutation.mutate({
@@ -185,14 +185,14 @@ export default function TaskCentre() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Task Centre</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Task Centre</h1>
             </div>
-            <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={() => setCreateOpen(true)}>
+            <Button className="bg-navy hover:bg-navy-700" onClick={() => setCreateOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New Task
             </Button>
@@ -200,29 +200,29 @@ export default function TaskCentre() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         <div className="mb-6 flex gap-2">
           {(["all", "mine", "unassigned"] as const).map((f) => (
-            <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} className={filter === f ? "bg-[#0c1e38]" : ""} onClick={() => setFilter(f)}>
+            <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} className={filter === f ? "bg-navy" : ""} onClick={() => setFilter(f)}>
               {f === "all" ? "All" : f === "mine" ? "My Tasks" : "Unassigned"}
             </Button>
           ))}
         </div>
 
         {tasksQuery.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-32 skeleton rounded-lg" />
         ) : filtered.length === 0 ? (
-          <Card className="border-slate-200 bg-white p-12 text-center">
+          <Card className="p-12 text-center">
             <CheckSquare className="mx-auto h-12 w-12 text-slate-300" />
             <p className="mt-4 text-slate-600">No tasks to display.</p>
           </Card>
         ) : (
           <div className="space-y-2">
             {filtered.map((task: any) => (
-              <Card key={task.id} className="border-slate-200 bg-white p-4">
+              <Card key={task.id} className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-slate-900">{task.title}</span>
                       <Badge className={`${priorityColors[task.priority]?.bg} ${priorityColors[task.priority]?.text} border-0 text-xs`}>
                         {task.priority}
@@ -238,34 +238,34 @@ export default function TaskCentre() {
                       {task.dueDate && <span>Due {new Date(task.dueDate).toLocaleDateString("en-AU")}</span>}
                       {task.estimatedMinutes && <span>~{task.estimatedMinutes} min</span>}
                       {task.linkedJobId && (
-                        <button className="text-[#2d4160] hover:underline" onClick={() => navigate(`/jobs/${task.linkedJobId}`)}>
+                        <button className="text-ink-light hover:underline" onClick={() => navigate(`/jobs/${task.linkedJobId}`)}>
                           View linked job
                         </button>
                       )}
                       {task.linkedQuoteId && (
-                        <button className="text-[#2d4160] hover:underline" onClick={() => navigate(`/quotes/${task.linkedQuoteId}`)}>
+                        <button className="text-ink-light hover:underline" onClick={() => navigate(`/quotes/${task.linkedQuoteId}`)}>
                           View linked quote
                         </button>
                       )}
                       {task.linkedInvoiceId && (
-                        <button className="text-[#2d4160] hover:underline" onClick={() => navigate(`/invoices`)}>
+                        <button className="text-ink-light hover:underline" onClick={() => navigate(`/invoices`)}>
                           View linked invoice
                         </button>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {!task.ownerId ? (
                       <Button size="sm" variant="outline" onClick={() => claimMutation.mutate({ id: task.id })}>
                         <User className="mr-1.5 h-3.5 w-3.5" />
                         Claim
                       </Button>
                     ) : (
-                      <Button size="sm" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={() => completeMutation.mutate({ id: task.id })}>
+                      <Button size="sm" className="bg-navy hover:bg-navy-700" onClick={() => completeMutation.mutate({ id: task.id })}>
                         Complete
                       </Button>
                     )}
-                    <button onClick={() => setDeleteTarget(task)} className="text-slate-300 hover:text-red-600">
+                    <button aria-label="Delete" onClick={() => setDeleteTarget(task)} className="text-slate-300 hover:text-red-600">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>

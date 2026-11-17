@@ -73,11 +73,11 @@ export default function ResetPassword() {
             <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-light">New Password</label>
-                <Input type="password" maxLength={72} value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus minLength={12} />
+                <Input aria-label="New Password" type="password" maxLength={72} value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus minLength={12} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-light">Confirm Password</label>
-                <Input type="password" maxLength={72} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={12} />
+                <Input aria-label="Confirm Password" type="password" maxLength={72} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={12} />
               </div>
               <Button type="submit" className="bg-navy hover:bg-navy-700" disabled={resetMutation.isPending}>
                 {resetMutation.isPending ? "Saving..." : "Reset Password"}

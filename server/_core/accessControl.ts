@@ -1,4 +1,5 @@
 import * as db from "../db";
+import { captureSystemError } from "./monitoring";
 
 // Admin-editable view/add/edit/delete switches per role and area of the app.
 // These sit ON TOP of the built-in role rules: they can only take access away
@@ -34,23 +35,39 @@ export type AccessRules = Record<string, Record<string, AccessAction[]>>;
 const routerToModule = new Map<string, string>();
 for (const m of ACCESS_MODULES) for (const r of m.routers) routerToModule.set(r, m.key);
 
-let cache: { rules: AccessRules; loadedAt: number } | null = null;
+// `unreadable` means the saved rules exist but could not be read or parsed
+// and no earlier good copy is in memory. Restrictions an admin set must never
+// silently disappear, so configurable roles are then refused the configurable
+// areas until an admin re-saves Administration → Access (admins are exempt).
+let cache: { rules: AccessRules; loadedAt: number; unreadable: boolean } | null = null;
+let lastGoodRules: AccessRules | null = null;
 
 export function clearAccessRulesCache() {
   cache = null;
 }
 
-export async function loadAccessRules(): Promise<AccessRules> {
-  if (cache && Date.now() - cache.loadedAt < 5000) return cache.rules;
-  let rules: AccessRules = {};
+async function readAccessRules(): Promise<{ rules: AccessRules; unreadable: boolean }> {
   try {
     const row = (await db.getSettings()).find((s) => s.key === "access_rules");
-    if (row?.value) rules = JSON.parse(row.value);
+    const rules = row?.value ? sanitizeAccessRules(JSON.parse(row.value)) : {};
+    lastGoodRules = rules;
+    return { rules, unreadable: false };
   } catch (error) {
-    console.error("Failed to read access rules, treating as unrestricted:", error);
+    console.error("Failed to read access rules:", error);
+    captureSystemError(error, { source: "server", severity: "error", route: "accessControl.loadAccessRules" });
+    if (lastGoodRules) return { rules: lastGoodRules, unreadable: false };
+    return { rules: {}, unreadable: true };
   }
-  cache = { rules, loadedAt: Date.now() };
-  return rules;
+}
+
+async function loadAccessState() {
+  if (cache && Date.now() - cache.loadedAt < 5000) return cache;
+  cache = { ...(await readAccessRules()), loadedAt: Date.now() };
+  return cache;
+}
+
+export async function loadAccessRules(): Promise<AccessRules> {
+  return (await loadAccessState()).rules;
 }
 
 export function classifyAction(type: "query" | "mutation" | "subscription", procedure: string): AccessAction {
@@ -65,7 +82,8 @@ export async function isAccessAllowed(role: string, path: string, type: "query" 
   const [routerKey, ...rest] = path.split(".");
   const moduleKey = routerToModule.get(routerKey);
   if (!moduleKey) return true;
-  const rules = await loadAccessRules();
+  const { rules, unreadable } = await loadAccessState();
+  if (unreadable) return false;
   const allowedActions = rules[role]?.[moduleKey];
   if (!allowedActions) return true;
   return allowedActions.includes(classifyAction(type, rest.join(".")));

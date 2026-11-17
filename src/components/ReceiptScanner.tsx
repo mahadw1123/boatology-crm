@@ -141,7 +141,7 @@ export function ReceiptScanner({ jobId }: { jobId: number }) {
 
           {step === "scanning" && (
             <div className="flex flex-col items-center gap-3 py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-[#0c1e38]" />
+              <Loader2 className="h-8 w-8 animate-spin text-navy" />
               <p className="text-sm text-slate-600">Reading the receipt...</p>
             </div>
           )}
@@ -154,19 +154,19 @@ export function ReceiptScanner({ jobId }: { jobId: number }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-900">Supplier</label>
-                  <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} className="mt-1 h-9 border-slate-200" />
+                  <Input aria-label="Supplier" value={supplier} onChange={(e) => setSupplier(e.target.value)} className="mt-1 h-9 border-slate-200" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-900">Invoice Number</label>
-                  <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className="mt-1 h-9 border-slate-200" />
+                  <Input aria-label="Invoice Number" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className="mt-1 h-9 border-slate-200" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-900">Purchase Date</label>
-                  <Input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="mt-1 h-9 border-slate-200" />
+                  <Input aria-label="Purchase Date" type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="mt-1 h-9 border-slate-200" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-900">Total GST</label>
-                  <Input type="number" step="0.01" value={gstAmount} onChange={(e) => setGstAmount(e.target.value)} className="mt-1 h-9 border-slate-200" />
+                  <Input aria-label="Total GST" type="number" step="0.01" value={gstAmount} onChange={(e) => setGstAmount(e.target.value)} className="mt-1 h-9 border-slate-200" />
                 </div>
               </div>
 
@@ -175,7 +175,7 @@ export function ReceiptScanner({ jobId }: { jobId: number }) {
                 <div className="mt-2 space-y-2">
                   {items.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <Input
+                      <Input aria-label="Items"
                         value={item.description}
                         onChange={(e) => {
                           const next = [...items];
@@ -209,7 +209,7 @@ export function ReceiptScanner({ jobId }: { jobId: number }) {
                         placeholder="Unit price"
                         className="h-8 w-24 border-slate-200 text-sm"
                       />
-                      <button onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-600">
+                      <button aria-label="Delete" onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-600">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -232,7 +232,7 @@ export function ReceiptScanner({ jobId }: { jobId: number }) {
               Cancel
             </Button>
             {step === "review" && (
-              <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleConfirm} disabled={createCostMutation.isPending}>
+              <Button className="bg-navy hover:bg-navy-700" onClick={handleConfirm} disabled={createCostMutation.isPending}>
                 {createCostMutation.isPending ? "Saving..." : "Save to Job Costs"}
               </Button>
             )}

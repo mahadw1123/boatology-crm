@@ -20,6 +20,10 @@ import * as db from "./db";
 import { parse as parseCookieHeader } from "cookie";
 import crypto from "crypto";
 import { captureSystemError } from "./_core/monitoring";
+import { canViewDocument } from "./_core/documentAccess";
+import { uploadsDir } from "./_core/paths";
+import { isAccessAllowed } from "./_core/accessControl";
+import { isFinanceStaff } from "./_core/permissions";
 
 runMigrations();
 
@@ -38,7 +42,6 @@ process.on("uncaughtException", (error) => {
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = ENV.persistentDataDir ? path.join(ENV.persistentDataDir, "uploads") : path.resolve(__dirname, "../uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -170,14 +173,18 @@ async function requireUploadAuth(req: express.Request, res: express.Response, ne
   next();
 }
 
-async function technicianCanAccessDocument(employeeId: number | null, document: Awaited<ReturnType<typeof db.getDocumentById>>) {
-  if (!employeeId || !document) return false;
-  const assignedJobs = await db.getJobsForEmployee(employeeId);
-  if (document.jobId != null) return assignedJobs.some((job) => job.id === document.jobId);
-  if (document.quoteId != null) return assignedJobs.some((job) => job.quoteId === document.quoteId);
-  if (document.vesselId != null) return assignedJobs.some((job) => job.vesselId === document.vesselId);
-  if (document.customerId != null) return assignedJobs.some((job) => job.customerId === document.customerId);
-  return false;
+// The admin-configured per-role switches (Administration → Access) are
+// enforced by tRPC middleware; these plain Express routes sit outside it, so
+// each one names the equivalent tRPC-style path and asks the same question.
+async function refuseIfAccessSwitchedOff(
+  user: { role: string },
+  res: express.Response,
+  path: string,
+  type: "query" | "mutation"
+) {
+  if (await isAccessAllowed(user.role, path, type)) return false;
+  apiError(res, 403, "An administrator has turned off this kind of access for your account. Ask them to change it in Administration → Access.", "Dashboard", "/");
+  return true;
 }
 
 function stripeObjectId(value: string | { id: string } | null | undefined): string | null {
@@ -442,35 +449,23 @@ app.get("/uploads/:filename", async (req, res) => {
     return;
   }
 
+  if (await refuseIfAccessSwitchedOff(user, res, "documents.file", "query")) return;
+
   const document = await db.getDocumentByStorageKey(req.params.filename);
   if (!document) {
     apiError(res, 404, "This file no longer exists. Return to the record and refresh its documents.", "Return to record");
     return;
   }
 
-  if (user.role === "technician" && !(await technicianCanAccessDocument(user.employeeId, document))) {
-    apiError(res, 403, "This file is not attached to one of your assigned jobs. Return to Technician Home.", "Technician Home", "/technician-home");
-    return;
-  }
-
-  if (user.role === "customer") {
-    let ownerCustomerId: number | null = document.customerId;
-    if (!ownerCustomerId && document.jobId) {
-      const job = await db.getJobById(document.jobId);
-      ownerCustomerId = job?.customerId ?? null;
-    }
-    if (!ownerCustomerId && document.vesselId) {
-      const vessel = await db.getVesselById(document.vesselId);
-      ownerCustomerId = vessel?.customerId ?? null;
-    }
-    if (!ownerCustomerId && document.quoteId) {
-      const quote = await db.getQuoteById(document.quoteId);
-      ownerCustomerId = quote?.customerId ?? null;
-    }
-    if (ownerCustomerId !== user.customerId) {
+  if (!(await canViewDocument(user, document))) {
+    if (user.role === "technician") {
+      apiError(res, 403, "This file is not attached to one of your assigned jobs. Return to Technician Home.", "Technician Home", "/technician-home");
+    } else if (user.role === "customer") {
       apiError(res, 403, "This file is not linked to your customer account. Return to the Customer Portal.", "Customer Portal", "/customer-portal");
-      return;
+    } else {
+      apiError(res, 403, "You don't have access to this file.", "Dashboard", "/");
     }
+    return;
   }
 
   const resolvedUploadsDir = path.resolve(uploadsDir);
@@ -514,6 +509,11 @@ app.post("/api/uploads", requireUploadAuth, uploadLimiter, handleSingleUpload, a
     return;
   }
 
+  if (await refuseIfAccessSwitchedOff(user, res, "documents.upload", "mutation")) {
+    cleanupFile();
+    return;
+  }
+
   const { jobId, quoteId, vesselId, customerId, documentType, caption, taskId } = req.body as Record<string, string | undefined>;
 
   const parsed = {
@@ -537,6 +537,13 @@ app.post("/api/uploads", requireUploadAuth, uploadLimiter, handleSingleUpload, a
   if (!allowedDocumentTypes.has(normalizedDocumentType)) {
     cleanupFile();
     apiError(res, 400, "That document category is not supported. Reopen the upload panel and choose a valid category.", "Return to upload");
+    return;
+  }
+  // "invoice" documents are supplier receipts with cost information; only
+  // office roles can see them, so only office roles may create them.
+  if (normalizedDocumentType === "invoice" && !isFinanceStaff(user.role)) {
+    cleanupFile();
+    apiError(res, 403, "Only office staff can upload supplier invoices or receipts. Upload this file as a photo or document instead.", "Return to upload");
     return;
   }
   if (caption && caption.length > 1000) {
@@ -676,6 +683,7 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
     apiError(res, 401, "Your session has expired. Sign in again before downloading a quote.", "Sign in", "/");
     return;
   }
+  if (await refuseIfAccessSwitchedOff(user, res, "quotes.pdf", "query")) return;
   const quoteId = Number(req.params.id);
   const quote = Number.isInteger(quoteId) ? await db.getQuoteById(quoteId) : null;
   if (!quote) {
@@ -794,6 +802,7 @@ app.get("/api/reports/morning-briefing.pdf", async (req, res) => {
     apiError(res, 403, "Reports are available to office, management, and administrator accounts. Return to a page available for your account.", "Dashboard", "/");
     return;
   }
+  if (await refuseIfAccessSwitchedOff(user, res, "reports.pdf", "query")) return;
 
   const data = await db.getMorningBriefingData();
   const PDFDocument = (await import("pdfkit")).default;
@@ -966,6 +975,7 @@ app.get("/api/reports/:reportType.pdf", async (req, res) => {
     apiError(res, 403, "Reports are available to office, management, and administrator accounts. Return to a page available for your account.", "Dashboard", "/");
     return;
   }
+  if (await refuseIfAccessSwitchedOff(user, res, "reports.pdf", "query")) return;
   const handler = reportPdfHandlers[req.params.reportType];
   if (!handler) {
     apiError(res, 404, "That report type does not exist. Return to Reports and choose an available report.", "Reports", "/reports");
@@ -1047,9 +1057,14 @@ function trpcRateLimitHandler(message: string, pathName: string) {
 // before this. Scoped narrowly to just these paths so normal, frequent
 // calls elsewhere (like auth.me, checked on every page load) are never
 // throttled.
+// Automated browser tests sign in many times from one address. Outside
+// production only, AUTH_RATE_LIMIT can raise these limits; production always
+// uses the fixed values.
+const authLimit = (productionLimit: number) => (ENV.isProd ? productionLimit : Number(process.env.AUTH_RATE_LIMIT) || productionLimit);
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: authLimit(10),
   standardHeaders: true,
   legacyHeaders: false,
   handler: trpcRateLimitHandler(
@@ -1059,7 +1074,7 @@ const loginLimiter = rateLimit({
 });
 const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 5,
+  limit: authLimit(5),
   standardHeaders: true,
   legacyHeaders: false,
   handler: trpcRateLimitHandler(
@@ -1069,7 +1084,7 @@ const passwordResetLimiter = rateLimit({
 });
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 5,
+  limit: authLimit(5),
   standardHeaders: true,
   legacyHeaders: false,
   handler: trpcRateLimitHandler(
@@ -1098,6 +1113,10 @@ function limitTrpcProcedures(limiter: express.RequestHandler, procedureNames: st
 app.use("/trpc", limitTrpcProcedures(loginLimiter, ["auth.login"]));
 app.use("/trpc", limitTrpcProcedures(passwordResetLimiter, ["auth.requestPasswordReset", "auth.resetPassword"]));
 app.use("/trpc", limitTrpcProcedures(registerLimiter, ["auth.register", "auth.bootstrapAdmin", "auth.acceptInvite"]));
+
+// Read-only requests (tRPC sends queries as GET, mutations as POST) share
+// whole-table reads between the handlers of one batched request.
+app.use("/trpc", (req, _res, next) => (req.method === "GET" ? db.withReadCache(() => next()) : next()));
 
 app.use(
   "/trpc",

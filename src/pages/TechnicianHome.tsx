@@ -69,7 +69,7 @@ export default function TechnicianHome() {
       <div className="flex min-h-screen flex-col bg-slate-50">
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6">
           <h1 className="text-lg font-semibold text-slate-900">Boatology</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="hidden text-right leading-tight sm:block">
               <p className="text-sm font-medium text-slate-900">{user?.name}</p>
               <p className="text-xs text-slate-500">Technician</p>
@@ -98,11 +98,11 @@ export default function TechnicianHome() {
       <TechnicianSidebar active="today" onMaterialsClick={() => setMaterialsOpen(true)} />
 
       {/* Main column */}
-      <div className="flex flex-1 flex-col pb-20 md:pb-0 md:pl-56">
+      <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0 md:pl-56">
         {/* Top bar — notifications, name/role, and sign out all live here, top-right */}
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:px-6">
           <h1 className="text-lg font-semibold text-slate-900">Today</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <NotificationsBell
               onOpen={(n) => {
                 if (n.relatedEntityType === "job" && n.relatedEntityId) goToJob(n.relatedEntityId);
@@ -146,12 +146,12 @@ export default function TechnicianHome() {
         {weeklyStatsQuery.data && (
           <div className="px-4 pt-5">
             <div className="grid grid-cols-2 gap-3">
-              <Card className="border-slate-200 bg-white p-4 text-center">
-                <p className="text-2xl font-bold text-[#0c1e38]">{weeklyStatsQuery.data.hoursThisWeek}</p>
+              <Card className="p-4 text-center">
+                <p className="text-2xl font-bold text-navy">{weeklyStatsQuery.data.hoursThisWeek}</p>
                 <p className="text-xs text-slate-500">Hours this week</p>
               </Card>
-              <Card className="border-slate-200 bg-white p-4 text-center">
-                <p className="text-2xl font-bold text-[#0c1e38]">{weeklyStatsQuery.data.jobsCompletedThisWeek}</p>
+              <Card className="p-4 text-center">
+                <p className="text-2xl font-bold text-navy">{weeklyStatsQuery.data.jobsCompletedThisWeek}</p>
                 <p className="text-xs text-slate-500">Jobs completed</p>
               </Card>
             </div>
@@ -169,7 +169,7 @@ export default function TechnicianHome() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
               Your Jobs
             </h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" className="md:hidden" onClick={() => setMaterialsOpen(true)}>
                 <Package className="mr-1.5 h-3.5 w-3.5" />
                 Materials
@@ -178,9 +178,9 @@ export default function TechnicianHome() {
             </div>
           </div>
           {jobsQuery.isLoading ? (
-            <div className="h-24 animate-pulse rounded-xl bg-slate-100" />
+            <div className="h-24 skeleton rounded-xl" />
           ) : jobs.length === 0 ? (
-            <Card className="border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+            <Card className="p-6 text-center text-sm text-slate-500">
               No jobs assigned to you right now.
             </Card>
           ) : (
@@ -191,7 +191,7 @@ export default function TechnicianHome() {
                     className="flex w-full items-center justify-between p-4 text-left"
                     onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <div className="rounded-lg bg-slate-100 p-2">
                         <Wrench className="h-4 w-4 text-slate-600" />
                       </div>
@@ -200,7 +200,7 @@ export default function TechnicianHome() {
                         <p className="text-xs text-slate-500">{job.description || "No description"}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge className={`${statusColors[job.status]?.bg} ${statusColors[job.status]?.text} border-0`}>
                         {job.status?.replace(/_/g, " ")}
                       </Badge>
@@ -232,7 +232,7 @@ export default function TechnicianHome() {
       {/* Bottom nav — mobile only */}
       <div className="fixed bottom-0 left-0 right-0 z-20 flex border-t border-slate-200 bg-white md:hidden">
         <button
-          className="flex flex-1 flex-col items-center gap-1 py-3 text-[#0c1e38]"
+          className="flex flex-1 flex-col items-center gap-1 py-3 text-navy"
           onClick={() => navigate("/technician-home")}
         >
           <Wrench className="h-5 w-5" />
@@ -342,7 +342,7 @@ function TechnicianTaskList({ jobId, employeeId }: { jobId: number; employeeId?:
         />
         <Button
           size="sm"
-          className="h-8 bg-[#0c1e38] text-xs hover:bg-[#0c1e38]/90"
+          className="h-8 bg-navy text-xs hover:bg-navy-700"
           disabled={!newTaskName.trim() || createMutation.isPending}
           onClick={() =>
             createMutation.mutate({

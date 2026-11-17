@@ -139,7 +139,7 @@ export default function JobDetail() {
 
   if (!jobId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
+      <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6">
         <div className="text-center">
           <p className="text-slate-600">Job not found</p>
         </div>
@@ -149,7 +149,7 @@ export default function JobDetail() {
 
   if (jobQuery.isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
+      <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6">
         <div className="mx-auto max-w-2xl">
           <div className="animate-pulse space-y-4">
             <div className="h-10 w-32 rounded bg-slate-200"></div>
@@ -172,12 +172,12 @@ export default function JobDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-5xl px-6 py-6">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-5">
           <div className="flex items-center gap-4">
-            <Button
+            <Button aria-label="Back"
               variant="ghost"
               size="sm"
               onClick={() => setLocation("/jobs")}
@@ -185,7 +185,7 @@ export default function JobDetail() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-2xl font-semibold text-slate-900">
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-navy">
                 {jobQuery.data ? getDisplayName(jobQuery.data as any) : `Job #${jobId}`}
               </h1>
             </div>
@@ -205,7 +205,7 @@ export default function JobDetail() {
                   </Button>
                 )}
                 <Button
-                  className="ml-auto bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="ml-auto bg-navy hover:bg-navy-700"
                   onClick={() => setIsEditing(true)}
                 >
                   Edit
@@ -230,7 +230,7 @@ export default function JobDetail() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="bg-navy hover:bg-navy-700"
                   onClick={() => handleSave()}
                   disabled={updateMutation.isPending}
                 >
@@ -278,7 +278,7 @@ export default function JobDetail() {
           </p>
           <div>
             <label className="block text-sm font-medium text-slate-900">Reason (optional)</label>
-            <Textarea
+            <Textarea aria-label="Reason (optional)"
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               placeholder="Why is this job being cancelled?"
@@ -302,10 +302,10 @@ export default function JobDetail() {
       </Dialog>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Status */}
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-6">
               <p className="text-sm font-medium text-slate-600">Status</p>
               {isEditing ? (
@@ -342,7 +342,7 @@ export default function JobDetail() {
           </Card>
 
           {/* Priority */}
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-6">
               <p className="text-sm font-medium text-slate-600">Priority</p>
               {isEditing ? (
@@ -367,7 +367,7 @@ export default function JobDetail() {
         </div>
 
         {/* Details */}
-        <Card className="mt-6 border-slate-200 bg-white shadow-sm">
+        <Card className="mt-6">
           <div className="p-6">
             {isEditing ? (
               <div className="space-y-6">
@@ -375,7 +375,7 @@ export default function JobDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Description
                   </label>
-                  <Textarea
+                  <Textarea aria-label="Description"
                     value={formData.description}
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
@@ -389,7 +389,7 @@ export default function JobDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Due Date
                   </label>
-                  <Input
+                  <Input aria-label="Due Date"
                     type="date"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
@@ -407,7 +407,7 @@ export default function JobDetail() {
                       setFormData({ ...formData, assignedUserId: value === "unassigned" ? "" : value })
                     }
                   >
-                    <SelectTrigger className="mt-1 border-slate-200">
+                    <SelectTrigger aria-label="Responsible Staff Member" className="mt-1 border-slate-200">
                       <SelectValue placeholder="Unassigned" />
                     </SelectTrigger>
                     <SelectContent>
@@ -429,7 +429,7 @@ export default function JobDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Estimated Labor Hours
                   </label>
-                  <Input
+                  <Input aria-label="Estimated Labor Hours"
                     type="number"
                     step="0.5"
                     value={formData.estimatedLaborHours}
@@ -446,7 +446,7 @@ export default function JobDetail() {
                     value={formData.quoteId}
                     onValueChange={(value) => setFormData({ ...formData, quoteId: value })}
                   >
-                    <SelectTrigger className="mt-1 border-slate-200">
+                    <SelectTrigger aria-label="Linked Quote" className="mt-1 border-slate-200">
                       <SelectValue placeholder="No quote linked" />
                     </SelectTrigger>
                     <SelectContent>
@@ -533,7 +533,7 @@ export default function JobDetail() {
           </TabsList>
 
           <TabsContent value="technicians">
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-6">
                 <TechnicianAssignment jobId={jobId!} />
               </div>
@@ -541,7 +541,7 @@ export default function JobDetail() {
           </TabsContent>
 
           <TabsContent value="tasks">
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-6">
                 <TasksSection jobId={jobId!} />
               </div>
@@ -549,7 +549,7 @@ export default function JobDetail() {
           </TabsContent>
 
           <TabsContent value="timesheet">
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-6">
                 <JobTimesheet jobId={jobId!} />
               </div>
@@ -557,7 +557,7 @@ export default function JobDetail() {
           </TabsContent>
 
           <TabsContent value="antifouling">
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-6">
                 <AntifoulingSection jobId={jobId!} />
               </div>
@@ -565,7 +565,7 @@ export default function JobDetail() {
           </TabsContent>
 
           <TabsContent value="costs">
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-6">
                 <JobCostsSection jobId={jobId!} />
               </div>
@@ -573,7 +573,7 @@ export default function JobDetail() {
           </TabsContent>
 
           <TabsContent value="photos">
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-6">
                 <PhotoGallery entity={{ type: "job", id: jobId! }} />
               </div>
@@ -648,7 +648,7 @@ function TechnicianAssignment({ jobId }: { jobId: number }) {
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
           <SelectTrigger className="border-slate-200">
             <SelectValue placeholder="Select a technician to assign" />
@@ -666,7 +666,7 @@ function TechnicianAssignment({ jobId }: { jobId: number }) {
           </SelectContent>
         </Select>
         <Button
-          className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+          className="bg-navy hover:bg-navy-700"
           disabled={!selectedEmployee || assignMutation.isPending}
           onClick={() => assignMutation.mutate({ jobId, employeeId: parseInt(selectedEmployee) })}
         >
@@ -742,7 +742,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
             {hasQuote ? `Original quote amount: $${quoteAmount.toFixed(2)}` : "This job has no linked quote — enter the invoice amount directly."}
           </label>
           <label className="mt-1 block text-xs font-medium text-slate-900">Invoice amount</label>
-          <Input
+          <Input aria-label="Invoice amount"
             type="number"
             step="0.01"
             value={editedAmount}
@@ -755,7 +755,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
             <label className="block text-xs font-medium text-slate-900">
               What's changed? (the customer will see this)
             </label>
-            <Textarea
+            <Textarea aria-label="What's changed? (the customer will see this)"
               value={adjustmentReason}
               onChange={(e) => setAdjustmentReason(e.target.value)}
               placeholder="e.g. Found additional corrosion during the hull inspection, required extra parts and labor."
@@ -764,10 +764,10 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
             />
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             disabled={createMutation.isPending || !editedAmount.trim()}
             onClick={handleCreate}
           >
@@ -789,7 +789,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
           <p className="mt-1 text-xs text-amber-800">{job.additionalWorkNotes}</p>
         </div>
       )}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           disabled={createMutation.isPending}
@@ -806,7 +806,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
           {createMutation.isPending ? "Sending..." : quoteAmount ? "Create & Send Invoice" : "Enter Amount & Invoice"}
         </Button>
         {!!quoteAmount && (
-          <Button
+          <Button aria-label="Edit amount before sending"
             variant="ghost"
             size="icon"
             title="Edit amount before sending"
@@ -1026,7 +1026,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
     <div>
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-slate-900">Job Costs</h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ReceiptScanner jobId={jobId} />
           {!isAdding && !isBilling && (
             <>
@@ -1095,7 +1095,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
             <div>
               <label className="block text-xs font-medium text-slate-900">Category</label>
               <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as any })}>
-                <SelectTrigger className="mt-1 h-9 border-slate-200">
+                <SelectTrigger aria-label="Category" className="mt-1 h-9 border-slate-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1109,7 +1109,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Description *</label>
-              <Input
+              <Input aria-label="Description"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="mt-1 h-9 border-slate-200"
@@ -1118,7 +1118,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Quantity</label>
-              <Input
+              <Input aria-label="Quantity"
                 type="number"
                 step="0.01"
                 value={form.quantity}
@@ -1128,7 +1128,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Unit Cost *</label>
-              <Input
+              <Input aria-label="Unit Cost"
                 type="number"
                 step="0.01"
                 value={form.unitCost}
@@ -1138,7 +1138,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Supplier</label>
-              <Input
+              <Input aria-label="Supplier"
                 value={form.supplier}
                 onChange={(e) => setForm({ ...form, supplier: e.target.value })}
                 className="mt-1 h-9 border-slate-200"
@@ -1146,7 +1146,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Invoice Number</label>
-              <Input
+              <Input aria-label="Invoice Number"
                 value={form.invoiceNumber}
                 onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })}
                 className="mt-1 h-9 border-slate-200"
@@ -1154,7 +1154,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Purchase Date</label>
-              <Input
+              <Input aria-label="Purchase Date"
                 type="date"
                 value={form.purchaseDate}
                 onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })}
@@ -1163,7 +1163,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">GST</label>
-              <Input
+              <Input aria-label="GST"
                 type="number"
                 step="0.01"
                 value={form.gstAmount}
@@ -1174,7 +1174,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-900">Notes</label>
-            <Textarea
+            <Textarea aria-label="Notes"
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={2}
@@ -1186,8 +1186,8 @@ function JobCostsSection({ jobId }: { jobId: number }) {
               Total: <span className="font-semibold">${(parseFloat(form.quantity || "0") * parseFloat(form.unitCost || "0") + parseFloat(form.gstAmount || "0")).toFixed(2)}</span>
             </p>
           )}
-          <div className="flex gap-2">
-            <Button size="sm" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" className="bg-navy hover:bg-navy-700" onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
               {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingId ? "Save Changes" : "Save Cost"}
             </Button>
             <Button size="sm" variant="outline" onClick={() => { setIsAdding(false); setEditingId(null); }}>
@@ -1250,7 +1250,7 @@ function JobCostsSection({ jobId }: { jobId: number }) {
                       {rows.map((cost: any) => (
                         <div key={cost.id} className="flex items-center justify-between p-3">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="secondary" className="text-xs">
                                 {costCategoryLabels[cost.category]}
                               </Badge>
@@ -1264,12 +1264,12 @@ function JobCostsSection({ jobId }: { jobId: number }) {
                               {!first.supplier && cost.purchaseDate ? ` — ${new Date(cost.purchaseDate).toLocaleDateString("en-AU")}` : ""}
                             </p>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
                             <span className="text-sm font-semibold text-slate-900">${cost.totalCost.toFixed(2)}</span>
-                            <button onClick={() => startEdit(cost)} className="text-slate-300 hover:text-slate-600" title="Edit this cost entry">
+                            <button aria-label="Edit this cost entry" onClick={() => startEdit(cost)} className="text-slate-300 hover:text-slate-600" title="Edit this cost entry">
                               <Pencil className="h-4 w-4" />
                             </button>
-                            <button onClick={() => setDeleteTarget(cost)} className="text-slate-300 hover:text-red-600">
+                            <button aria-label="Delete" onClick={() => setDeleteTarget(cost)} className="text-slate-300 hover:text-red-600">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -1467,7 +1467,7 @@ function TasksSection({ jobId }: { jobId: number }) {
         <div className="mt-4 space-y-3 rounded-lg border border-slate-200 p-4">
           <div>
             <label className="block text-xs font-medium text-slate-900">Task Name *</label>
-            <Input
+            <Input aria-label="Task Name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="mt-1 h-9 border-slate-200"
@@ -1476,7 +1476,7 @@ function TasksSection({ jobId }: { jobId: number }) {
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-900">Description</label>
-            <Textarea
+            <Textarea aria-label="Description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={2}
@@ -1487,7 +1487,7 @@ function TasksSection({ jobId }: { jobId: number }) {
             <div>
               <label className="block text-xs font-medium text-slate-900">Priority</label>
               <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as any })}>
-                <SelectTrigger className="mt-1 h-9 border-slate-200">
+                <SelectTrigger aria-label="Priority" className="mt-1 h-9 border-slate-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1504,7 +1504,7 @@ function TasksSection({ jobId }: { jobId: number }) {
                 {taskAssignableEmployees.length === 0 && <p className="text-xs text-slate-400">No technicians are assigned to this job yet. Add them on the Technicians tab first.</p>}
                 {taskAssignableEmployees.map((e: any) => (
                   <label key={e.id} className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
+                    <input aria-label="Assign to (pick one or more)"
                       type="checkbox"
                       checked={form.assignedEmployeeIds.includes(e.id)}
                       onChange={(ev) =>
@@ -1523,7 +1523,7 @@ function TasksSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Due Date</label>
-              <Input
+              <Input aria-label="Due Date"
                 type="date"
                 value={form.dueDate}
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
@@ -1532,7 +1532,7 @@ function TasksSection({ jobId }: { jobId: number }) {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-900">Estimated Hours</label>
-              <Input
+              <Input aria-label="Estimated Hours"
                 type="number"
                 step="0.5"
                 value={form.estimatedHours}
@@ -1541,10 +1541,10 @@ function TasksSection({ jobId }: { jobId: number }) {
               />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={!form.name.trim() || createMutation.isPending || updateTaskMutation.isPending}
               onClick={() => {
                 const payload = {
@@ -1569,7 +1569,7 @@ function TasksSection({ jobId }: { jobId: number }) {
       )}
 
       {tasksQuery.isLoading ? (
-        <div className="mt-4 h-16 animate-pulse rounded bg-slate-100" />
+        <div className="mt-4 h-16 skeleton" />
       ) : tasks.length === 0 && !isAdding ? (
         <p className="mt-4 text-sm text-slate-500">No tasks added yet for this job.</p>
       ) : (
@@ -1578,7 +1578,7 @@ function TasksSection({ jobId }: { jobId: number }) {
             <div key={task.id} className="rounded-lg border border-slate-200 p-3">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium text-slate-900">{task.name}</span>
                     <Badge className={`${taskPriorityColors[task.priority]?.bg} ${taskPriorityColors[task.priority]?.text} border-0 text-xs`}>
                       {task.priority}
@@ -1627,10 +1627,10 @@ function TasksSection({ jobId }: { jobId: number }) {
                   <Button size="sm" variant="ghost" onClick={() => setPhotoTaskId(photoTaskId === task.id ? null : task.id)}>
                     Photos
                   </Button>
-                  <button onClick={() => startEditTask(task)} className="text-slate-300 hover:text-slate-600" title="Edit task">
+                  <button aria-label="Edit task" onClick={() => startEditTask(task)} className="text-slate-300 hover:text-slate-600" title="Edit task">
                     <Pencil className="h-4 w-4" />
                   </button>
-                  <button onClick={() => setDeleteTarget(task)} className="text-slate-300 hover:text-red-600">
+                  <button aria-label="Delete" onClick={() => setDeleteTarget(task)} className="text-slate-300 hover:text-red-600">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -1706,7 +1706,7 @@ function QRCodeButton({ jobId }: { jobId: number }) {
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Close
             </Button>
-            <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handlePrint}>
+            <Button className="bg-navy hover:bg-navy-700" onClick={handlePrint}>
               Print
             </Button>
           </DialogFooter>
@@ -1815,19 +1815,19 @@ function AntifoulingSection({ jobId }: { jobId: number }) {
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-slate-900">Paint Brand</label>
-          <Input value={form.paintBrand} onChange={(e) => setForm({ ...form, paintBrand: e.target.value })} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Paint Brand" value={form.paintBrand} onChange={(e) => setForm({ ...form, paintBrand: e.target.value })} className="mt-1 h-9 border-slate-200" />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-900">Paint Type</label>
-          <Input value={form.paintType} onChange={(e) => setForm({ ...form, paintType: e.target.value })} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Paint Type" value={form.paintType} onChange={(e) => setForm({ ...form, paintType: e.target.value })} className="mt-1 h-9 border-slate-200" />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-900">Number of Coats</label>
-          <Input type="number" value={form.numberOfCoats} onChange={(e) => setForm({ ...form, numberOfCoats: e.target.value })} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Number of Coats" type="number" value={form.numberOfCoats} onChange={(e) => setForm({ ...form, numberOfCoats: e.target.value })} className="mt-1 h-9 border-slate-200" />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-900">Colour</label>
-          <Input value={form.colour} onChange={(e) => setForm({ ...form, colour: e.target.value })} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Colour" value={form.colour} onChange={(e) => setForm({ ...form, colour: e.target.value })} className="mt-1 h-9 border-slate-200" />
         </div>
       </div>
 
@@ -1841,7 +1841,7 @@ function AntifoulingSection({ jobId }: { jobId: number }) {
             ["prepEpoxyRepairs", "Epoxy Repairs"],
           ] as const).map(([key, label]) => (
             <label key={key} className="flex items-center gap-1.5 text-sm text-slate-700">
-              <input
+              <input aria-label="Surface Preparation"
                 type="checkbox"
                 checked={(form as any)[key]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
@@ -1876,15 +1876,15 @@ function AntifoulingSection({ jobId }: { jobId: number }) {
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-medium text-slate-900">Haul Out Date</label>
-          <Input type="date" value={form.haulOutDate} onChange={(e) => setForm({ ...form, haulOutDate: e.target.value })} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Haul Out Date" type="date" value={form.haulOutDate} onChange={(e) => setForm({ ...form, haulOutDate: e.target.value })} className="mt-1 h-9 border-slate-200" />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-900">Launch Date</label>
-          <Input type="date" value={form.launchDate} onChange={(e) => setForm({ ...form, launchDate: e.target.value })} className="mt-1 h-9 border-slate-200" />
+          <Input aria-label="Launch Date" type="date" value={form.launchDate} onChange={(e) => setForm({ ...form, launchDate: e.target.value })} className="mt-1 h-9 border-slate-200" />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-900">Estimated Cure Time</label>
-          <Input
+          <Input aria-label="Estimated Cure Time"
             value={form.estimatedCureTime}
             onChange={(e) => setForm({ ...form, estimatedCureTime: e.target.value })}
             placeholder="e.g. 48 hours"
@@ -1893,7 +1893,7 @@ function AntifoulingSection({ jobId }: { jobId: number }) {
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-900">Paint Consumption</label>
-          <Input
+          <Input aria-label="Paint Consumption"
             value={form.paintConsumption}
             onChange={(e) => setForm({ ...form, paintConsumption: e.target.value })}
             placeholder="e.g. 8 litres"
@@ -1904,10 +1904,10 @@ function AntifoulingSection({ jobId }: { jobId: number }) {
 
       <div className="mt-4">
         <label className="block text-xs font-medium text-slate-900">Notes</label>
-        <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="mt-1 border-slate-200" />
+        <Textarea aria-label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="mt-1 border-slate-200" />
       </div>
 
-      <Button size="sm" className="mt-4 bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSave} disabled={saveMutation.isPending}>
+      <Button size="sm" className="mt-4 bg-navy hover:bg-navy-700" onClick={handleSave} disabled={saveMutation.isPending}>
         {saveMutation.isPending ? "Saving..." : "Save Antifouling Details"}
       </Button>
     </div>

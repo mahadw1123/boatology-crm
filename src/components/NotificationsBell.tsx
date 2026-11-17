@@ -133,7 +133,7 @@ export function NotificationsBell({ onOpen }: { onOpen: (n: Notification) => voi
                     setTab(t);
                     setVisible(PAGE_SIZE);
                   }}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${tab === t ? "bg-[#0c1e38] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${tab === t ? "bg-navy text-white" : "text-slate-600 hover:bg-slate-100"}`}
                 >
                   {t === "all" ? "All" : `Unread${unreadCount ? ` (${unreadCount})` : ""}`}
                 </button>

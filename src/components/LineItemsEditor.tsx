@@ -133,7 +133,7 @@ export function LineItemsEditor({
         <div className="flex flex-wrap justify-end gap-2">
           {(servicesQuery.data || []).length > 0 && (
             <Select value={catalogValue} onValueChange={handleAddFromCatalog}>
-              <SelectTrigger className="h-8 w-56 border-slate-200 text-xs">
+              <SelectTrigger aria-label="Line Items" className="h-8 w-56 border-slate-200 text-xs">
                 <div className="flex items-center gap-1.5">
                   <ListPlus className="h-3.5 w-3.5 text-slate-500" />
                   <SelectValue placeholder="Add from catalog..." />
@@ -240,7 +240,7 @@ export function LineItemsEditor({
                     <span className="w-24 text-right text-sm font-medium text-slate-800">
                       {(item.quantity * item.unitPrice).toFixed(2)}
                     </span>
-                    <Button
+                    <Button aria-label="Delete"
                       type="button"
                       variant="ghost"
                       size="icon"

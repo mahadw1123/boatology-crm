@@ -47,7 +47,7 @@ export function MaterialsPanel() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Materials</h1>
         </div>
-        <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={() => setRequestDialogOpen(true)}>
+        <Button className="bg-navy hover:bg-navy-700" onClick={() => setRequestDialogOpen(true)}>
           <Plus className="mr-1.5 h-4 w-4" />
           Request
         </Button>
@@ -55,7 +55,7 @@ export function MaterialsPanel() {
 
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">My Requests</h2>
       {myRequestsQuery.isLoading ? (
-        <div className="mb-8 h-20 animate-pulse rounded-lg bg-slate-100" />
+        <div className="mb-8 h-20 skeleton rounded-lg" />
       ) : myRequests.length === 0 ? (
         <Card className="mb-8 border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
           You haven't requested anything yet.
@@ -97,7 +97,7 @@ export function MaterialsPanel() {
         />
       </div>
       {inventoryQuery.isLoading ? (
-        <div className="h-40 animate-pulse rounded-lg bg-slate-100" />
+        <div className="h-40 skeleton rounded-lg" />
       ) : inventory.length === 0 ? (
         <Card className="border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
           {search ? "No matching items" : "No inventory items yet"}
@@ -108,7 +108,7 @@ export function MaterialsPanel() {
             const isLow = item.currentStock <= (item.minimumStock ?? 0);
             return (
               <Card key={item.id} className="flex items-center justify-between border-slate-200 p-3">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
                     <Package className="h-4 w-4 text-slate-500" />
                   </div>

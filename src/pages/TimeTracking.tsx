@@ -45,24 +45,24 @@ export default function TimeTracking() {
   const taskNames = new Map((taskLookup.data || []).map((t: any) => [t.id, t.name]));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Time Tracking</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Time Tracking</h1>
             </div>
-            <Clock className="h-8 w-8 text-[#2d4160]" />
+            <Clock className="h-8 w-8 text-ink-light" />
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div className="w-72">
             <label className="block text-sm font-medium text-slate-900">Employee</label>
             <Select value={selectedEmployee} onValueChange={setSelectedEmployee} disabled={isTechnician}>
-              <SelectTrigger className="mt-1 border-slate-200 bg-white">
+              <SelectTrigger aria-label="Employee" className="mt-1 border-slate-200 bg-white">
                 <SelectValue placeholder="Select employee to view their time" />
               </SelectTrigger>
               <SelectContent>
@@ -75,7 +75,7 @@ export default function TimeTracking() {
             </Select>
           </div>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             onClick={() => {
               setEditing(null);
               setDialogOpen(true);
@@ -92,14 +92,14 @@ export default function TimeTracking() {
               Total hours: <span className="font-semibold">{totalHours.toFixed(2)}</span>
             </p>
             {timeEntries.length === 0 ? (
-              <Card className="border-slate-200 bg-white shadow-sm">
+              <Card>
                 <div className="p-8 text-center">
                   <Clock className="mx-auto h-12 w-12 text-slate-400" />
                   <p className="mt-4 text-slate-600">No time entries yet</p>
                 </div>
               </Card>
             ) : (
-              <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+              <Card className="overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -134,7 +134,7 @@ export default function TimeTracking() {
                             <td className="px-4 py-3 text-sm text-slate-600">{entry.notes || "—"}</td>
                             {!isTechnician && (
                               <td className="px-4 py-3">
-                                <button
+                                <button aria-label="Edit this entry"
                                   className="text-slate-400 hover:text-slate-700"
                                   title="Edit this entry"
                                   onClick={() => {
@@ -156,7 +156,7 @@ export default function TimeTracking() {
             )}
           </div>
         ) : (
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-8 text-center">
               <Clock className="mx-auto h-12 w-12 text-slate-400" />
               <p className="mt-4 text-slate-600">Select an employee to view time entries</p>

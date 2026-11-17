@@ -30,30 +30,30 @@ export default function Reports() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-4xl px-6 py-8">
-          <h1 className="text-3xl font-semibold text-slate-900">Reports</h1>
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6 sm:py-6">
+          <h1 className="text-2xl font-semibold tracking-tight text-navy">Reports</h1>
         </div>
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 py-8">
-        <Card className="border-slate-200 bg-white shadow-sm">
+      <div className="mx-auto max-w-4xl px-4 py-5 sm:px-6 sm:py-6">
+        <Card>
           <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <FileText className="h-5 w-5 text-slate-400" />
               <div>
                 <h2 className="font-semibold text-slate-900">Morning Briefing</h2>
                 {data && <p className="text-xs text-slate-500">Generated {new Date(data.generatedAt).toLocaleString("en-AU")}</p>}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => emailMutation.mutate()} disabled={emailMutation.isPending}>
                 <Mail className="mr-1.5 h-3.5 w-3.5" />
                 {emailMutation.isPending ? "Sending..." : "Email to Me"}
               </Button>
               <a href="/api/reports/morning-briefing.pdf" target="_blank" rel="noreferrer">
-                <Button size="sm" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90">
+                <Button size="sm" className="bg-navy hover:bg-navy-700">
                   <Download className="mr-1.5 h-3.5 w-3.5" />
                   Download PDF
                 </Button>
@@ -63,7 +63,7 @@ export default function Reports() {
 
           <div className="p-6">
             {briefingQuery.isLoading || !data ? (
-              <div className="h-64 animate-pulse rounded bg-slate-100" />
+              <div className="h-64 skeleton" />
             ) : (
               <>
                 <ReportSection title="Overdue Jobs" count={data.jobsOverdue.length}>
@@ -199,7 +199,7 @@ function OtherReportCard({
   summarize: (data: any) => string;
 }) {
   return (
-    <Card className="border-slate-200 bg-white p-4">
+    <Card className="p-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-slate-900">{title}</h3>
         <a href={`/api/reports/${reportKey}.pdf`} target="_blank" rel="noreferrer">

@@ -10,6 +10,7 @@ process.env.DATABASE_URL = path.join(tempDir, "test.db");
 process.env.JWT_SECRET = "test-secret-that-is-long-enough-for-automated-tests-only";
 process.env.APP_URL = "http://localhost:5173";
 // Keep tests independent of any real keys in .env (dotenv does not override values already set).
+process.env.RESEND_API_KEY = "";
 process.env.STRIPE_SECRET_KEY = "";
 process.env.STRIPE_PUBLISHABLE_KEY = "";
 process.env.STRIPE_WEBHOOK_SECRET = "";

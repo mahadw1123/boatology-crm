@@ -173,7 +173,7 @@ export default function QuoteDetail() {
 
   if (!quoteId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
+      <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6">
         <div className="text-center">
           <p className="text-slate-600">Quote not found</p>
         </div>
@@ -183,7 +183,7 @@ export default function QuoteDetail() {
 
   if (quoteQuery.isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
+      <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6">
         <div className="mx-auto max-w-2xl">
           <div className="animate-pulse space-y-4">
             <div className="h-10 w-32 rounded bg-slate-200"></div>
@@ -212,13 +212,13 @@ export default function QuoteDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-5xl px-6 py-6">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-4">
-              <Button
+              <Button aria-label="Back"
                 variant="ghost"
                 size="sm"
                 onClick={() => setLocation("/quotes")}
@@ -226,7 +226,7 @@ export default function QuoteDetail() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="whitespace-nowrap text-2xl font-semibold text-slate-900">
+                <h1 className="text-2xl font-semibold tracking-tight text-navy sm:whitespace-nowrap">
                   {(quote as any)?.quoteNumber || `Quote #${(quote as any)?.id}`}
                 </h1>
                 {(() => {
@@ -247,7 +247,7 @@ export default function QuoteDetail() {
               </div>
             </div>
             {!isEditing ? (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => window.open(`/api/quotes/${quoteId}/pdf`, "_blank")}>
                   Preview / Download PDF
                 </Button>
@@ -260,14 +260,14 @@ export default function QuoteDetail() {
                 )}
                 <CreateRevisionButton quoteId={quoteId} status={(quote as any)?.status} />
                 <Button
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="bg-navy hover:bg-navy-700"
                   onClick={() => setIsEditing(true)}
                 >
                   Edit
                 </Button>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setIsEditing(false)}
@@ -275,7 +275,7 @@ export default function QuoteDetail() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="bg-navy hover:bg-navy-700"
                   onClick={handleSave}
                   disabled={updateMutation.isPending}
                 >
@@ -289,10 +289,10 @@ export default function QuoteDetail() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Status */}
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-6">
               <p className="text-sm font-medium text-slate-600">Status</p>
               <Badge
@@ -309,7 +309,7 @@ export default function QuoteDetail() {
           </Card>
 
           {/* Expiry Date */}
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-6">
               <p className="text-sm font-medium text-slate-600">Expires</p>
               <p className="mt-2 text-lg font-semibold text-slate-900">
@@ -319,7 +319,7 @@ export default function QuoteDetail() {
           </Card>
 
           {/* Assigned To */}
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-6">
               <p className="text-sm font-medium text-slate-600">Assigned To</p>
               <p className="mt-2 text-lg font-semibold text-slate-900">
@@ -339,7 +339,7 @@ export default function QuoteDetail() {
         )}
 
         {/* Details */}
-        <Card className="mt-6 border-slate-200 bg-white shadow-sm">
+        <Card className="mt-6">
           <div className="p-6">
             {isEditing ? (
               <div className="space-y-6">
@@ -351,7 +351,7 @@ export default function QuoteDetail() {
                         value={formData.customerId}
                         onValueChange={(v) => setFormData({ ...formData, customerId: v, vesselId: "" })}
                       >
-                        <SelectTrigger className="mt-1 border-slate-200">
+                        <SelectTrigger aria-label="Customer" className="mt-1 border-slate-200">
                           <SelectValue placeholder="Select a customer" />
                         </SelectTrigger>
                         <SelectContent>
@@ -369,7 +369,7 @@ export default function QuoteDetail() {
                         value={formData.vesselId || "none"}
                         onValueChange={(v) => setFormData({ ...formData, vesselId: v === "none" ? "" : v })}
                       >
-                        <SelectTrigger className="mt-1 border-slate-200">
+                        <SelectTrigger aria-label="Vessel" className="mt-1 border-slate-200">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -391,7 +391,7 @@ export default function QuoteDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Labour Cost
                     </label>
-                    <Input
+                    <Input aria-label="Labour Cost"
                       type="number"
                       step="0.01"
                       value={formData.laborCost}
@@ -405,7 +405,7 @@ export default function QuoteDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Parts Cost
                     </label>
-                    <Input
+                    <Input aria-label="Parts Cost"
                       type="number"
                       step="0.01"
                       value={formData.partsCost}
@@ -421,7 +421,7 @@ export default function QuoteDetail() {
                 {!hasBreakdown && (
                   <div>
                     <label className="block text-sm font-medium text-slate-900">Total Amount</label>
-                    <Input
+                    <Input aria-label="Total Amount"
                       type="number"
                       step="0.01"
                       value={formData.totalAmount}
@@ -435,7 +435,7 @@ export default function QuoteDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Due Date
                   </label>
-                  <Input
+                  <Input aria-label="Due Date"
                     type="date"
                     value={formData.expiryDate}
                     onChange={(e) =>
@@ -455,7 +455,7 @@ export default function QuoteDetail() {
                       setFormData({ ...formData, assignedUserId: value === "unassigned" ? "" : value })
                     }
                   >
-                    <SelectTrigger className="mt-1 border-slate-200">
+                    <SelectTrigger aria-label="Assigned To" className="mt-1 border-slate-200">
                       <SelectValue placeholder="Unassigned" />
                     </SelectTrigger>
                     <SelectContent>
@@ -476,7 +476,7 @@ export default function QuoteDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Notes
                   </label>
-                  <Textarea
+                  <Textarea aria-label="Notes"
                     value={formData.notes}
                     onChange={(e) =>
                       setFormData({ ...formData, notes: e.target.value })
@@ -528,7 +528,7 @@ export default function QuoteDetail() {
                   )}
                   <div>
                     <p className="text-sm font-medium text-slate-600">Total</p>
-                    <p className="mt-1 text-lg font-semibold text-[#0c1e38]">
+                    <p className="mt-1 text-lg font-semibold text-navy">
                       {formatCurrency(Number((quote as any)?.totalAmount || 0))}
                     </p>
                   </div>
@@ -571,7 +571,7 @@ export default function QuoteDetail() {
           </div>
         </Card>
 
-        <Card className="mt-6 border-slate-200 bg-white shadow-sm">
+        <Card className="mt-6">
           <div className="p-6">
             <PhotoGallery entity={{ type: "quote", id: quoteId! }} />
           </div>
@@ -606,7 +606,7 @@ function SendQuoteButton({ quoteId, status }: { quoteId: number | null; status?:
   if (status && status !== "draft" && status !== "pending_approval") return null;
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Button
         variant="outline"
         className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
@@ -720,7 +720,7 @@ function CreateRevisionButton({ quoteId, status }: { quoteId: number | null; sta
               Cancel
             </Button>
             <Button
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               onClick={() => quoteId && revisionMutation.mutate({ quoteId, reason: reason.trim() })}
               disabled={!quoteId || !reason.trim() || revisionMutation.isPending}
             >
@@ -741,7 +741,7 @@ function RevisionHistory({ quoteId, currentQuoteId }: { quoteId: number | null; 
   if (!revisions || revisions.length < 2) return null;
 
   return (
-    <Card className="mt-6 border-slate-200 bg-white shadow-sm">
+    <Card className="mt-6">
       <div className="p-6">
         <h3 className="font-medium text-slate-900">Revision History</h3>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -751,7 +751,7 @@ function RevisionHistory({ quoteId, currentQuoteId }: { quoteId: number | null; 
               onClick={() => setLocation(`/quotes/${rev.id}`)}
               className={`rounded-full border px-3 py-1 text-sm ${
                 rev.id === currentQuoteId
-                  ? "border-[#0c1e38] bg-[#0c1e38] text-white"
+                  ? "border-navy bg-navy text-white"
                   : "border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >

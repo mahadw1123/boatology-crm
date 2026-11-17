@@ -55,18 +55,18 @@ export default function Employees() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Employees</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Employees</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <DownloadButton data={employees} filename="boatology-employees" />
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => {
                   setEditingEmployee(null);
                   setFormDialogOpen(true);
@@ -81,7 +81,7 @@ export default function Employees() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {/* Search Bar */}
         <div className="mb-8">
           <div className="relative">
@@ -100,11 +100,11 @@ export default function Employees() {
         {employeesQuery.isLoading ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Card key={i} className="h-40 animate-pulse border-slate-200 bg-slate-100" />
+              <Card key={i} className="h-40 skeleton border-transparent" />
             ))}
           </div>
         ) : filteredEmployees.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 py-12 text-center">
+          <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 px-6 py-12 text-center">
             <Users className="mx-auto h-12 w-12 text-slate-400" />
             <h3 className="mt-4 text-lg font-medium text-slate-900">
               {employees.length === 0 ? "No employees yet" : "No employees match your search"}
@@ -120,7 +120,7 @@ export default function Employees() {
             {filteredEmployees.map((employee: any) => (
               <Card
                 key={employee.id}
-                className="border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
+                className="transition-shadow hover:shadow-cardHover"
               >
                 <div className="p-6">
                   <div className="flex items-start justify-between">
@@ -134,7 +134,7 @@ export default function Employees() {
                       {employee.email && (
                         <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
                           <Mail className="h-4 w-4 text-slate-400" />
-                          <a href={`mailto:${employee.email}`} className="hover:text-[#2d4160]">
+                          <a href={`mailto:${employee.email}`} className="hover:text-ink-light">
                             {employee.email}
                           </a>
                         </div>
@@ -167,7 +167,7 @@ export default function Employees() {
                     >
                       View / Edit
                     </Button>
-                    <Button
+                    <Button aria-label="Delete"
                       variant="outline"
                       size="sm"
                       className="border-red-200 text-red-600 hover:bg-red-50"

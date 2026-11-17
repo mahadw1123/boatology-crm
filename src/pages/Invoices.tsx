@@ -102,12 +102,12 @@ export default function Invoices() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex items-center justify-between">
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Invoices</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Invoices</h1>
             </div>
             <DownloadButton data={invoices} filename="boatology-invoices" />
           </div>
@@ -126,9 +126,9 @@ export default function Invoices() {
         </div>
 
         {invoicesQuery.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-32 skeleton rounded-lg" />
         ) : filteredInvoices.length === 0 ? (
-          <Card className="border-slate-200 bg-white shadow-sm">
+          <Card>
             <div className="p-12 text-center">
               <FileText className="mx-auto h-12 w-12 text-slate-300" />
               <p className="mt-4 text-slate-600">
@@ -137,10 +137,10 @@ export default function Invoices() {
             </div>
           </Card>
         ) : (
-          <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+          <Card className="overflow-hidden">
             <table className="w-full table-auto">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
+                <tr className="border-b border-border bg-surface-muted/60">
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Invoice #</th>
                   <th className="px-3 py-2.5 text-left text-xs font-medium text-slate-500">Customer</th>
                   <th className="hidden lg:table-cell px-3 py-2.5 text-left text-xs font-medium text-slate-500">Job</th>
@@ -305,7 +305,7 @@ export default function Invoices() {
                               Mark Refunded
                             </Button>
                           )}
-                          <Button
+                          <Button aria-label={["paid", "refunded", "reversed"].includes(inv.status) ? "Financial records can't be deleted" : "Delete"}
                             variant="ghost"
                             size="sm"
                             className="text-red-600 hover:bg-red-50"
@@ -394,7 +394,7 @@ function StripeStatusDialog({ invoice, onOpenChange }: { invoice: any; onOpenCha
           </Button>
           {check?.canReconcile && (
             <Button
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={reconcileMutation.isPending}
               onClick={() => reconcileMutation.mutate({ invoiceId: invoice.id })}
             >
@@ -449,15 +449,15 @@ function RecordPaymentDialog({ invoice, onOpenChange }: { invoice: any; onOpenCh
           </p>
           <div>
             <label className="block text-sm font-medium text-slate-900">Amount Received</label>
-            <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="Amount Received" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1 border-slate-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Method</label>
             <div className="mt-1 flex gap-2">
-              <Button variant={method === "bank_transfer" ? "default" : "outline"} size="sm" className={method === "bank_transfer" ? "bg-[#0c1e38]" : ""} onClick={() => setMethod("bank_transfer")}>
+              <Button variant={method === "bank_transfer" ? "default" : "outline"} size="sm" className={method === "bank_transfer" ? "bg-navy" : ""} onClick={() => setMethod("bank_transfer")}>
                 Bank Transfer
               </Button>
-              <Button variant={method === "manual" ? "default" : "outline"} size="sm" className={method === "manual" ? "bg-[#0c1e38]" : ""} onClick={() => setMethod("manual")}>
+              <Button variant={method === "manual" ? "default" : "outline"} size="sm" className={method === "manual" ? "bg-navy" : ""} onClick={() => setMethod("manual")}>
                 Cash / Other
               </Button>
             </div>
@@ -473,7 +473,7 @@ function RecordPaymentDialog({ invoice, onOpenChange }: { invoice: any; onOpenCh
             Cancel
           </Button>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             disabled={markPaidMutation.isPending || isNaN(parsedAmount)}
             onClick={() => markPaidMutation.mutate({ invoiceId: invoice.id, method, amountReceived: parsedAmount })}
           >
@@ -517,7 +517,7 @@ function VoidInvoiceDialog({ invoice, onOpenChange }: { invoice: any; onOpenChan
           </p>
           <div>
             <label className="block text-sm font-medium text-slate-900">Why is this being voided?</label>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 border-slate-200" rows={3} />
+            <Textarea aria-label="Why is this being voided?" value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 border-slate-200" rows={3} />
           </div>
         </div>
         <DialogFooter>
@@ -578,11 +578,11 @@ function MarkRefundedDialog({ invoice, onOpenChange }: { invoice: any; onOpenCha
           </p>
           <div>
             <label className="block text-sm font-medium text-slate-900">Amount Refunded</label>
-            <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1 border-slate-200" />
+            <Input aria-label="Amount Refunded" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1 border-slate-200" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Reason</label>
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 border-slate-200" rows={3} placeholder="e.g. Customer cancelled after deposit paid" />
+            <Textarea aria-label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1 border-slate-200" rows={3} placeholder="e.g. Customer cancelled after deposit paid" />
           </div>
         </div>
         <DialogFooter>
@@ -590,7 +590,7 @@ function MarkRefundedDialog({ invoice, onOpenChange }: { invoice: any; onOpenCha
             Cancel
           </Button>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             disabled={refundMutation.isPending || isNaN(parsedAmount) || !reason.trim()}
             onClick={() => refundMutation.mutate({ invoiceId: invoice.id, amount: parsedAmount, reason: reason.trim() })}
           >

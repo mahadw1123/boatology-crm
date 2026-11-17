@@ -199,7 +199,7 @@ export default function Calendar() {
                 </div>
               )}
               {canManageCalendar && (
-                <button
+                <button aria-label="Add a note to this day"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -241,7 +241,7 @@ export default function Calendar() {
                 <StickyNote className="mt-0.5 h-2.5 w-2.5 shrink-0" />
                 <span className="flex-1 truncate">{note.text}</span>
                 {canManageCalendar && (
-                  <button
+                  <button aria-label="Close"
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -321,12 +321,12 @@ export default function Calendar() {
   });
 
   return (
-    <div className={isTechnician ? "flex min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50" : "min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50"}>
+    <div className={isTechnician ? "flex min-h-[calc(100vh-4rem)]" : "min-h-[calc(100vh-4rem)]"}>
       {isTechnician && <TechnicianSidebar active="calendar" onMaterialsClick={() => setMaterialsOpen(true)} />}
       <div className={isTechnician ? "flex-1 pb-16 md:pb-0 md:pl-56" : ""}>
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
           {isTechnician && (
             <button
               onClick={() => navigate("/technician-home")}
@@ -338,15 +338,15 @@ export default function Calendar() {
           )}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-semibold text-slate-900">Calendar</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-navy">Calendar</h1>
             </div>
-            <CalendarIcon className="h-8 w-8 text-[#2d4160]" />
+            <CalendarIcon className="h-8 w-8 text-ink-light" />
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {isTechnician && !user?.employeeId && (
           <Card className="mb-6 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
             <p className="font-medium">Your technician account is not linked to an employee record.</p>
@@ -364,16 +364,16 @@ export default function Calendar() {
         {/* Team workload is an office/management view. Technicians only see
             their own assigned workload and schedule below. */}
         {!isTechnician && (
-          <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+          <Card className="mb-6">
             <div className="border-b border-slate-200 px-6 py-4">
               <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                <Users className="h-4 w-4 text-[#2d4160]" />
+                <Users className="h-4 w-4 text-ink-light" />
                 Technician Workload
               </h2>
             </div>
             <div className="p-6">
               {employeesQuery.isLoading ? (
-                <div className="h-12 animate-pulse rounded bg-slate-100" />
+                <div className="h-12 skeleton" />
               ) : calendarEmployees.length === 0 ? (
                 <p className="text-sm text-slate-500">No technicians added yet.</p>
               ) : (
@@ -384,7 +384,7 @@ export default function Calendar() {
                       className="flex items-center justify-between rounded-lg border border-slate-200 p-3"
                     >
                       <span className="text-sm font-medium text-slate-900">{emp.name}</span>
-                      <Badge className="border-0 bg-[#0c1e38] text-white">{emp.activeJobCount} {emp.activeJobCount === 1 ? "job" : "jobs"}</Badge>
+                      <Badge className="border-0 bg-navy text-white">{emp.activeJobCount} {emp.activeJobCount === 1 ? "job" : "jobs"}</Badge>
                     </div>
                   ))}
                 </div>
@@ -401,13 +401,13 @@ export default function Calendar() {
 
           <TabsContent value="calendar" className="mt-4">
         {/* 7-Day Weather Strip */}
-        <Card className="mb-6 border-slate-200 bg-white shadow-sm">
+        <Card className="mb-6">
           <div className="border-b border-slate-200 px-6 py-4">
             <h2 className="font-semibold text-slate-900">Sydney — 7 Day Forecast</h2>
           </div>
           <div className="p-4">
             {weatherQuery.isLoading ? (
-              <div className="h-16 animate-pulse rounded bg-slate-100" />
+              <div className="h-16 skeleton" />
             ) : weatherQuery.error ? (
               <p className="text-sm text-red-600">Couldn't load weather data right now.</p>
             ) : (
@@ -433,16 +433,16 @@ export default function Calendar() {
 
         {isTechnician && (
           <div className="mb-6 grid gap-4 lg:grid-cols-2">
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="border-b border-slate-200 px-5 py-4">
                 <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                  <Clock className="h-4 w-4 text-[#2d4160]" />
+                  <Clock className="h-4 w-4 text-ink-light" />
                   Today's Schedule
                 </h2>
               </div>
               <div className="p-4">
                 {schedulesQuery.isLoading ? (
-                  <div className="h-16 animate-pulse rounded bg-slate-100" />
+                  <div className="h-16 skeleton" />
                 ) : (schedulesQuery.data || []).filter((entry: any) => entry.scheduledDate === toDateKey(new Date())).length === 0 ? (
                   <p className="text-sm text-slate-500">No appointments are scheduled for you today.</p>
                 ) : (
@@ -475,10 +475,10 @@ export default function Calendar() {
               </div>
             </Card>
 
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                  <Package className="h-4 w-4 text-[#2d4160]" />
+                  <Package className="h-4 w-4 text-ink-light" />
                   My Materials
                 </h2>
                 <Button size="sm" variant="outline" onClick={() => navigate("/materials")}> 
@@ -488,7 +488,7 @@ export default function Calendar() {
               </div>
               <div className="p-4">
                 {materialRequestsQuery.isLoading ? (
-                  <div className="h-16 animate-pulse rounded bg-slate-100" />
+                  <div className="h-16 skeleton" />
                 ) : materialRequestsQuery.error ? (
                   <p className="text-sm text-red-600">Your material requests could not be loaded. Open Materials and try again.</p>
                 ) : (materialRequestsQuery.data || []).length === 0 ? (
@@ -515,10 +515,10 @@ export default function Calendar() {
         )}
 
         {/* Controls */}
-        <Card className="mb-6 border-slate-200 bg-white shadow-sm">
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
+        <Card className="mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <Button aria-label="Previous"
                 variant="outline"
                 size="sm"
                 onClick={() => {
@@ -529,8 +529,8 @@ export default function Calendar() {
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <h2 className="text-lg font-semibold text-slate-900 min-w-48">{monthName}</h2>
-              <Button
+              <h2 className="min-w-36 text-center text-lg font-semibold text-navy sm:min-w-48">{monthName}</h2>
+              <Button aria-label="Next"
                 variant="outline"
                 size="sm"
                 onClick={() => {
@@ -544,7 +544,7 @@ export default function Calendar() {
             </div>
             {canManageCalendar && (
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => {
                   setNewAppointmentDate(toDateKey(new Date()));
                   setNewAppointmentOpen(true);
@@ -558,7 +558,7 @@ export default function Calendar() {
         </Card>
 
         {/* Calendar Grid */}
-        <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
+        <Card className="overflow-hidden">
           <div className="p-4">
             <div className="grid grid-cols-7 gap-0 mb-2">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
@@ -592,7 +592,7 @@ export default function Calendar() {
           </p>
 
           {addJobPickerOpen && (
-            <Card className="mb-4 border-slate-200 bg-white shadow-sm">
+            <Card className="mb-4">
               <div className="flex flex-wrap items-center gap-2 p-3">
                 <select
                   value={pickedJobId}
@@ -616,7 +616,7 @@ export default function Calendar() {
                 </select>
                 <Button
                   size="sm"
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="bg-navy hover:bg-navy-700"
                   disabled={!pickedJobId}
                   onClick={() => {
                     setManualPlanJobIds((ids) => [...ids, parseInt(pickedJobId)]);
@@ -634,7 +634,7 @@ export default function Calendar() {
           )}
 
           {jobsForPlanSection.length === 0 ? (
-            <Card className="border-slate-200 bg-white shadow-sm">
+            <Card>
               <div className="p-8 text-center text-sm text-slate-500">No jobs due in the next 7 days.</div>
             </Card>
           ) : (
@@ -646,7 +646,7 @@ export default function Calendar() {
                 const isAddingHere = planFormJobId === job.id;
 
                 return (
-                  <Card key={job.id} className="border-slate-200 bg-white shadow-sm">
+                  <Card key={job.id}>
                     <div className="border-b border-slate-200 p-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium text-slate-900">
@@ -668,7 +668,7 @@ export default function Calendar() {
                           const weather = weatherByDate.get(entry.date);
                           return (
                             <div key={entry.id} className="group flex items-center justify-between p-3">
-                              <div className="flex items-center gap-3">
+                              <div className="flex flex-wrap items-center gap-3">
                                 <div className="w-28 shrink-0 text-xs font-medium text-slate-500">
                                   {new Date(entry.date).toLocaleDateString("en-AU", {
                                     weekday: "short",
@@ -678,14 +678,14 @@ export default function Calendar() {
                                 </div>
                                 <span className="text-sm text-slate-700">{entry.task}</span>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 {weather && (
                                   <div className="flex items-center gap-1 text-xs text-slate-500">
                                     <WeatherIcon rainChancePercent={weather.rainChancePercent} />
                                     {weather.rainChancePercent}%
                                   </div>
                                 )}
-                                <button
+                                <button aria-label="Close"
                                   onClick={() => setDeletePlanEntryTarget(entry)}
                                   className="text-slate-300 opacity-0 hover:text-red-600 group-hover:opacity-100"
                                 >
@@ -715,7 +715,7 @@ export default function Calendar() {
                           />
                           <Button
                             size="sm"
-                            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                            className="bg-navy hover:bg-navy-700"
                             disabled={!planDate || !planTask.trim() || createPlanEntryMutation.isPending}
                             onClick={() =>
                               createPlanEntryMutation.mutate({ jobId: job.id, date: planDate, task: planTask.trim() })
@@ -758,7 +758,7 @@ export default function Calendar() {
               .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
               .slice(0, 10)
               .map((job: any) => (
-                <Card key={job.id} className="border-slate-200 bg-white shadow-sm p-4 flex items-center justify-between">
+                <Card key={job.id} className="p-4 flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-slate-900">{getDisplayName(job)}</h3>
                     <p className="text-sm text-slate-600">Due: {formatDate(new Date(job.dueDate))}</p>
@@ -791,7 +791,7 @@ export default function Calendar() {
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-900">Note</label>
-              <Textarea
+              <Textarea aria-label="Note"
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
                 placeholder="What needs to happen this day..."
@@ -801,7 +801,7 @@ export default function Calendar() {
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-900">Link to a job (optional)</label>
               <Select value={noteJobId} onValueChange={setNoteJobId}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Link to a job (optional)">
                   <SelectValue placeholder="No specific job" />
                 </SelectTrigger>
                 <SelectContent>
@@ -819,7 +819,7 @@ export default function Calendar() {
               Cancel
             </Button>
             <Button
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={!noteText.trim() || createNoteMutation.isPending}
               onClick={() =>
                 noteDialogDate &&
@@ -971,7 +971,7 @@ function DayViewPopup({
         <div className="max-h-[65vh] overflow-y-auto">
           {canCreateAppointment && (
             <div className="mb-3 flex justify-end">
-              <Button size="sm" className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={onNewAppointment}>
+              <Button size="sm" className="bg-navy hover:bg-navy-700" onClick={onNewAppointment}>
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 New Appointment
               </Button>
@@ -1016,7 +1016,7 @@ function DayViewPopup({
                           <div
                             key={appt.id}
                             onClick={() => job && onSelectJob(job.id)}
-                            className={`rounded-lg border border-[#2d4160]/30 bg-blue-50 px-3 py-2 text-sm ${job ? "cursor-pointer hover:bg-blue-100" : ""}`}
+                            className={`rounded-lg border border-navy-400/30 bg-blue-50 px-3 py-2 text-sm ${job ? "cursor-pointer hover:bg-blue-100" : ""}`}
                           >
                             <div className="flex items-center justify-between">
                               <p className="font-medium text-slate-900">{job ? getDisplayName(job) : `Job #${appt.jobId}`}</p>
@@ -1076,7 +1076,7 @@ function JobQuickViewDialog({
           <DialogTitle>{getDisplayName(job)}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge className={`${statusColors[job.status]?.bg} ${statusColors[job.status]?.text} border-0`}>
               {job.status?.replace(/_/g, " ")}
             </Badge>
@@ -1092,7 +1092,7 @@ function JobQuickViewDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={onViewFullJob}>
+          <Button className="bg-navy hover:bg-navy-700" onClick={onViewFullJob}>
             {isTechnician ? "Open Job" : "View Full Job"}
           </Button>
         </DialogFooter>
@@ -1183,23 +1183,23 @@ function NewAppointmentDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-900">Date *</label>
-              <Input type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Date" type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             <div />
             <div>
               <label className="block text-sm font-medium text-slate-900">Start Time</label>
-              <Input type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="Start Time" type="time" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className="mt-1 border-slate-200" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-900">End Time</label>
-              <Input type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} className="mt-1 border-slate-200" />
+              <Input aria-label="End Time" type="time" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} className="mt-1 border-slate-200" />
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Job *</label>
             <Select value={form.jobId} onValueChange={(v) => setForm({ ...form, jobId: v, taskId: "" })}>
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="Job" className="mt-1 border-slate-200">
                 <SelectValue placeholder="Select a job" />
               </SelectTrigger>
               <SelectContent>
@@ -1216,7 +1216,7 @@ function NewAppointmentDialog({
             <div>
               <label className="block text-sm font-medium text-slate-900">Task</label>
               <Select value={form.taskId || "none"} onValueChange={(v) => setForm({ ...form, taskId: v === "none" ? "" : v })}>
-                <SelectTrigger className="mt-1 border-slate-200">
+                <SelectTrigger aria-label="Task" className="mt-1 border-slate-200">
                   <SelectValue placeholder="Whole job (no specific task)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1234,7 +1234,7 @@ function NewAppointmentDialog({
           <div>
             <label className="block text-sm font-medium text-slate-900">Staff</label>
             <Select value={form.employeeId} onValueChange={(v) => setForm({ ...form, employeeId: v })}>
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="Staff" className="mt-1 border-slate-200">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
@@ -1249,14 +1249,14 @@ function NewAppointmentDialog({
 
           <div>
             <label className="block text-sm font-medium text-slate-900">Notes</label>
-            <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className="mt-1 border-slate-200" />
+            <Textarea aria-label="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} className="mt-1 border-slate-200" />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { onOpenChange(false); setForm(emptyForm()); }}>
             Cancel
           </Button>
-          <Button className="bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSubmit} disabled={createMutation.isPending}>
+          <Button className="bg-navy hover:bg-navy-700" onClick={handleSubmit} disabled={createMutation.isPending}>
             {createMutation.isPending ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>

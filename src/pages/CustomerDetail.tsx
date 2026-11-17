@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Mail, Phone, Save } from "lucide-react";
+import { ArrowLeft, Copy, Mail, Phone, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
@@ -70,7 +70,7 @@ export default function CustomerDetail() {
 
   if (!customerId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
+      <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6">
         <div className="text-center">
           <p className="text-slate-600">Customer not found</p>
         </div>
@@ -80,7 +80,7 @@ export default function CustomerDetail() {
 
   if (customerQuery.isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6">
+      <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6">
         <div className="mx-auto max-w-2xl">
           <div className="animate-pulse space-y-4">
             <div className="h-10 w-32 rounded bg-slate-200"></div>
@@ -94,13 +94,13 @@ export default function CustomerDetail() {
   const customer = customerQuery.data;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto max-w-6xl px-6 py-6">
-          <div className="flex items-center justify-between">
+      <div className="border-b border-border bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-4">
-              <Button
+              <Button aria-label="Back"
                 variant="ghost"
                 size="sm"
                 onClick={() => setLocation("/contacts")}
@@ -108,20 +108,20 @@ export default function CustomerDetail() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-2xl font-semibold text-slate-900">
+                <h1 className="text-2xl font-semibold tracking-tight text-navy">
                   {customer?.name}
                 </h1>
               </div>
             </div>
             {!isEditing ? (
               <Button
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 onClick={() => setIsEditing(true)}
               >
                 Edit
               </Button>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setIsEditing(false)}
@@ -129,7 +129,7 @@ export default function CustomerDetail() {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                  className="bg-navy hover:bg-navy-700"
                   onClick={handleSave}
                   disabled={updateMutation.isPending}
                 >
@@ -143,9 +143,9 @@ export default function CustomerDetail() {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-slate-200 bg-white shadow-sm">
+        <Card>
           <div className="p-6">
             {isEditing ? (
               <div className="space-y-6">
@@ -153,7 +153,7 @@ export default function CustomerDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Name
                   </label>
-                  <Input
+                  <Input aria-label="Name"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
@@ -167,7 +167,7 @@ export default function CustomerDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Email
                     </label>
-                    <Input
+                    <Input aria-label="Email"
                       type="email"
                       value={formData.email}
                       onChange={(e) =>
@@ -180,7 +180,7 @@ export default function CustomerDetail() {
                     <label className="block text-sm font-medium text-slate-900">
                       Phone
                     </label>
-                    <Input
+                    <Input aria-label="Phone"
                       value={formData.phone}
                       onChange={(e) =>
                         setFormData({ ...formData, phone: e.target.value })
@@ -194,7 +194,7 @@ export default function CustomerDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Address
                   </label>
-                  <Input
+                  <Input aria-label="Address"
                     value={formData.address}
                     onChange={(e) =>
                       setFormData({ ...formData, address: e.target.value })
@@ -207,7 +207,7 @@ export default function CustomerDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Insurance Claim Number
                   </label>
-                  <Input
+                  <Input aria-label="Insurance Claim Number"
                     value={formData.insuranceClaimNumber}
                     onChange={(e) =>
                       setFormData({
@@ -223,7 +223,7 @@ export default function CustomerDetail() {
                   <label className="block text-sm font-medium text-slate-900">
                     Notes
                   </label>
-                  <Textarea
+                  <Textarea aria-label="Notes"
                     value={formData.notes}
                     onChange={(e) =>
                       setFormData({ ...formData, notes: e.target.value })
@@ -241,22 +241,22 @@ export default function CustomerDetail() {
                   </h2>
                   <div className="mt-4 space-y-3">
                     {customer?.email && (
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <Mail className="h-5 w-5 text-slate-400" />
                         <a
                           href={`mailto:${customer.email}`}
-                          className="text-slate-600 hover:text-[#2d4160]"
+                          className="text-slate-600 hover:text-ink-light"
                         >
                           {customer.email}
                         </a>
                       </div>
                     )}
                     {customer?.phone && (
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
                         <Phone className="h-5 w-5 text-slate-400" />
                         <a
                           href={`tel:${customer.phone}`}
-                          className="text-slate-600 hover:text-[#2d4160]"
+                          className="text-slate-600 hover:text-ink-light"
                         >
                           {customer.phone}
                         </a>
@@ -305,7 +305,7 @@ export default function CustomerDetail() {
             together without a separate full-width section to scroll to. */}
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Vessels</h2>
-          <Card className="mt-4 max-h-72 overflow-y-auto border-slate-200 bg-white shadow-sm">
+          <Card className="mt-4 max-h-72 overflow-y-auto">
             {vesselsQuery.isLoading ? (
               <div className="p-6 text-center text-slate-500">Loading...</div>
             ) : customerVessels.length === 0 ? (
@@ -337,7 +337,7 @@ export default function CustomerDetail() {
         {/* Related Quotes */}
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Quotes</h2>
-          <Card className="mt-4 max-h-72 overflow-y-auto border-slate-200 bg-white shadow-sm">
+          <Card className="mt-4 max-h-72 overflow-y-auto">
             {quotesQuery.isLoading ? (
               <div className="p-6 text-center text-slate-500">Loading...</div>
             ) : (quotesQuery.data || []).length === 0 ? (
@@ -354,7 +354,7 @@ export default function CustomerDetail() {
                       <p className="font-medium text-slate-900">{quote.quoteNumber}</p>
                       <p className="text-xs text-slate-500">{new Date(quote.createdAt).toLocaleDateString("en-AU")}</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <span className="text-sm font-medium text-slate-900">${(quote.totalAmount || 0).toFixed(2)}</span>
                       <span className={`${quoteStatusColors[quote.status]?.bg} ${quoteStatusColors[quote.status]?.text} rounded-full px-2 py-0.5 text-xs font-medium`}>
                         {quote.status?.replace(/_/g, " ")}
@@ -367,8 +367,145 @@ export default function CustomerDetail() {
           </Card>
         </div>
       </div>
+
+      {customerId && <PortalAccessSection customerId={customerId} />}
       </div>
     </div>
+  );
+}
+
+// Who can sign in to the customer portal as this customer, plus the invite
+// flow: staff send a single-use link to the email on the record, and the
+// customer sets their own password. The login is linked automatically.
+function PortalAccessSection({ customerId }: { customerId: number }) {
+  const utils = trpc.useUtils();
+  const accessQuery = trpc.customers.portalAccess.useQuery({ customerId });
+  const [manualLink, setManualLink] = useState<string | null>(null);
+
+  const refresh = () => {
+    utils.customers.portalAccess.invalidate({ customerId });
+    utils.customers.getById.invalidate(customerId);
+  };
+
+  const sendMutation = trpc.customers.sendPortalInvite.useMutation({
+    onSuccess: (result) => {
+      if (result.emailSent) {
+        setManualLink(null);
+        toast.success("Portal invite sent");
+      } else {
+        setManualLink(result.acceptUrl);
+        toast.warning(result.warning);
+      }
+      refresh();
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const cancelMutation = trpc.customers.cancelPortalInvite.useMutation({
+    onSuccess: () => {
+      setManualLink(null);
+      toast.success("Invite cancelled");
+      refresh();
+    },
+    onError: (err) => showErrorToast(err),
+  });
+
+  const access = accessQuery.data;
+  const logins = access?.logins || [];
+  const invite = access?.pendingInvite || null;
+  const hasEmail = !!access?.customerEmail?.trim();
+  const formatDate = (value: string) => new Date(value).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+
+  return (
+    <section className="mt-6" aria-labelledby="portal-access-heading">
+      <h2 id="portal-access-heading" className="text-lg font-semibold text-slate-900">Portal access</h2>
+      <Card className="mt-4">
+        <div className="p-6">
+          {accessQuery.isLoading ? (
+            <div className="space-y-2" aria-busy="true">
+              <div className="h-4 w-1/3 skeleton" />
+              <div className="h-4 w-1/2 skeleton" />
+            </div>
+          ) : accessQuery.error ? (
+            <p className="text-sm text-slate-600">Portal access couldn't be loaded. Refresh the page to try again.</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {logins.length > 0 ? (
+                <ul className="divide-y divide-slate-100">
+                  {logins.map((login) => (
+                    <li key={login.id} className="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-900">{login.name || login.email}</p>
+                        <p className="truncate text-xs text-slate-500">{login.email}</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>Last signed in {formatDate(login.lastSignedIn)}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 font-medium ${login.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
+                        >
+                          {login.isActive ? "Active" : "Deactivated"}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  This customer doesn't have a portal login yet. Send an invite and they can set their own password to view quotes, job progress and invoices.
+                </p>
+              )}
+
+              {invite && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  Invite sent to <strong>{invite.email}</strong> on {formatDate(invite.createdAt)}. It expires on {formatDate(invite.expiresAt)}.
+                </div>
+              )}
+
+              {manualLink && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-sm text-slate-700">The email wasn't delivered. Copy this link and send it to the customer yourself:</p>
+                  <div className="mt-2 flex gap-2">
+                    <Input readOnly value={manualLink} aria-label="Invitation link" onFocus={(e) => e.currentTarget.select()} className="bg-white text-xs" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(manualLink);
+                          toast.success("Link copied");
+                        } catch {
+                          toast.error("Couldn't copy automatically — select the link and copy it.");
+                        }
+                      }}
+                    >
+                      <Copy className="mr-2 h-4 w-4" /> Copy
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  className="bg-navy hover:bg-navy-700"
+                  disabled={!hasEmail || sendMutation.isPending}
+                  onClick={() => sendMutation.mutate({ customerId })}
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  {sendMutation.isPending ? "Sending…" : invite ? "Send a new invite" : "Send portal invite"}
+                </Button>
+                {invite && (
+                  <Button type="button" variant="outline" disabled={cancelMutation.isPending} onClick={() => cancelMutation.mutate({ customerId })}>
+                    {cancelMutation.isPending ? "Cancelling…" : "Cancel invite"}
+                  </Button>
+                )}
+                {!hasEmail && <p className="text-xs text-slate-500">Add an email address to this customer to send an invite.</p>}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+    </section>
   );
 }
 
@@ -403,9 +540,9 @@ function CustomerMessagesSection({ customerId }: { customerId: number }) {
   const unresolved = messages.filter((m: any) => m.status === "new");
 
   return (
-    <Card className="border-slate-200 bg-white shadow-sm">
+    <Card>
       <div className="p-6">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Messages</h2>
           {unresolved.length > 0 && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
@@ -469,7 +606,7 @@ function CustomerMessagesSection({ customerId }: { customerId: number }) {
                       </Button>
                       <Button
                         size="sm"
-                        className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                        className="bg-navy hover:bg-navy-700"
                         disabled={!replyText.trim() || replyMutation.isPending}
                         onClick={() => replyMutation.mutate({ id: m.id, reply: replyText.trim() })}
                       >
@@ -527,7 +664,7 @@ function CommunicationLog({ customerId }: { customerId: number }) {
   }[];
 
   return (
-    <Card className="mt-4 border-slate-200 bg-white shadow-sm">
+    <Card className="mt-4">
       <div className="p-6">
         <div className="flex items-center justify-between">
           <p className="text-sm text-slate-600">A record of calls, emails, and notes with this customer.</p>
@@ -540,13 +677,13 @@ function CommunicationLog({ customerId }: { customerId: number }) {
 
         {isAdding && (
           <div className="mt-4 space-y-3 rounded-lg border border-slate-200 p-4">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(["call", "email", "meeting", "note"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setType(t)}
                   className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    type === t ? "bg-[#0c1e38] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    type === t ? "bg-navy text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
                   {commTypeLabels[t]}
@@ -560,10 +697,10 @@ function CommunicationLog({ customerId }: { customerId: number }) {
               rows={3}
               className="border-slate-200"
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
-                className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+                className="bg-navy hover:bg-navy-700"
                 disabled={!text.trim() || addMutation.isPending}
                 onClick={() => addMutation.mutate({ customerId, type, text: text.trim() })}
               >
@@ -583,7 +720,7 @@ function CommunicationLog({ customerId }: { customerId: number }) {
             {entries.map((entry, i) => (
               <div key={i} className="flex gap-3 border-l-2 border-slate-100 pl-3">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className={`${commTypeColors[entry.type]?.bg} ${commTypeColors[entry.type]?.text} rounded-full px-2 py-0.5 text-xs font-medium`}>
                       {commTypeLabels[entry.type] || entry.type}
                     </span>

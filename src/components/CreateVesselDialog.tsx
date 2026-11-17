@@ -111,7 +111,7 @@ export function CreateVesselDialog({
                 setFormData({ ...formData, customerId: value })
               }
             >
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="Customer" className="mt-1 border-slate-200">
                 <SelectValue placeholder="Select a customer" />
               </SelectTrigger>
               <SelectContent>
@@ -128,7 +128,7 @@ export function CreateVesselDialog({
             <label className="block text-sm font-medium text-slate-900">
               Boat Name *
             </label>
-            <Input
+            <Input aria-label="Boat Name"
               required
               value={formData.boatName}
               onChange={(e) =>
@@ -144,7 +144,7 @@ export function CreateVesselDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Make
               </label>
-              <Input
+              <Input aria-label="Make"
                 value={formData.make}
                 onChange={(e) =>
                   setFormData({ ...formData, make: e.target.value })
@@ -157,7 +157,7 @@ export function CreateVesselDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Model
               </label>
-              <Input
+              <Input aria-label="Model"
                 value={formData.model}
                 onChange={(e) =>
                   setFormData({ ...formData, model: e.target.value })
@@ -173,7 +173,7 @@ export function CreateVesselDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Registration
               </label>
-              <Input
+              <Input aria-label="Registration"
                 value={formData.registration}
                 onChange={(e) =>
                   setFormData({ ...formData, registration: e.target.value })
@@ -186,7 +186,7 @@ export function CreateVesselDialog({
               <label className="block text-sm font-medium text-slate-900">
                 Location
               </label>
-              <Input
+              <Input aria-label="Location"
                 value={formData.location}
                 onChange={(e) =>
                   setFormData({ ...formData, location: e.target.value })
@@ -201,7 +201,7 @@ export function CreateVesselDialog({
             <label className="block text-sm font-medium text-slate-900">
               Insurance Details
             </label>
-            <Textarea
+            <Textarea aria-label="Insurance Details"
               value={formData.insuranceDetails}
               onChange={(e) =>
                 setFormData({
@@ -225,7 +225,7 @@ export function CreateVesselDialog({
             </Button>
             <Button
               type="submit"
-              className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+              className="bg-navy hover:bg-navy-700"
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? "Creating..." : "Create Vessel"}

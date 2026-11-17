@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
@@ -35,7 +35,10 @@ export const users = sqliteTable("users", {
   // category name strings) — without this, an item nobody acts on just
   // resurfaces every day forever with no way to quiet it.
   mutedAgendaCategories: text("mutedAgendaCategories", { mode: "json" }).default(sql`'[]'`),
-});
+}, (table) => ({
+  customerIdIdx: index("users_customerId_idx").on(table.customerId),
+  employeeIdIdx: index("users_employeeId_idx").on(table.employeeId),
+}));
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
@@ -75,7 +78,9 @@ export const vessels = sqliteTable("vessels", {
   serviceHistory: text("serviceHistory", { mode: "json" }).default(sql`'[]'`),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
-});
+}, (table) => ({
+  customerIdIdx: index("vessels_customerId_idx").on(table.customerId),
+}));
 export type Vessel = typeof vessels.$inferSelect;
 export type InsertVessel = typeof vessels.$inferInsert;
 
@@ -147,7 +152,11 @@ export const quotes = sqliteTable("quotes", {
   lastEmailAttemptAt: text("lastEmailAttemptAt"),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
-});
+}, (table) => ({
+  customerIdIdx: index("quotes_customerId_idx").on(table.customerId),
+  statusIdx: index("quotes_status_idx").on(table.status),
+  parentQuoteIdIdx: index("quotes_parentQuoteId_idx").on(table.parentQuoteId),
+}));
 export type Quote = typeof quotes.$inferSelect;
 export type InsertQuote = typeof quotes.$inferInsert;
 
@@ -229,7 +238,11 @@ export const jobs = sqliteTable("jobs", {
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
   completedAt: text("completedAt"),
-});
+}, (table) => ({
+  customerIdIdx: index("jobs_customerId_idx").on(table.customerId),
+  vesselIdIdx: index("jobs_vesselId_idx").on(table.vesselId),
+  statusIdx: index("jobs_status_idx").on(table.status),
+}));
 export type Job = typeof jobs.$inferSelect;
 export type InsertJob = typeof jobs.$inferInsert;
 
@@ -261,7 +274,9 @@ export const jobAssignments = sqliteTable("jobAssignments", {
   // Agenda reminder. Stamped by jobs.getById, not by the assignment itself,
   // so it genuinely reflects "they looked at it," not just "it exists."
   viewedAt: text("viewedAt"),
-});
+}, (table) => ({
+  employeeIdIdx: index("jobAssignments_employeeId_idx").on(table.employeeId),
+}));
 export type JobAssignment = typeof jobAssignments.$inferSelect;
 export type InsertJobAssignment = typeof jobAssignments.$inferInsert;
 
@@ -283,7 +298,11 @@ export const timeEntries = sqliteTable("timeEntries", {
   notes: text("notes"),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
-});
+}, (table) => ({
+  employeeId_dateIdx: index("timeEntries_employeeId_date_idx").on(table.employeeId, table.date),
+  jobIdIdx: index("timeEntries_jobId_idx").on(table.jobId),
+  taskIdIdx: index("timeEntries_taskId_idx").on(table.taskId),
+}));
 export type TimeEntry = typeof timeEntries.$inferSelect;
 export type InsertTimeEntry = typeof timeEntries.$inferInsert;
 
@@ -302,7 +321,11 @@ export const schedules = sqliteTable("schedules", {
   notes: text("notes"),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
-});
+}, (table) => ({
+  jobIdIdx: index("schedules_jobId_idx").on(table.jobId),
+  employeeIdIdx: index("schedules_employeeId_idx").on(table.employeeId),
+  scheduledDateIdx: index("schedules_scheduledDate_idx").on(table.scheduledDate),
+}));
 export type Schedule = typeof schedules.$inferSelect;
 export type InsertSchedule = typeof schedules.$inferInsert;
 
@@ -327,7 +350,13 @@ export const documents = sqliteTable("documents", {
   caption: text("caption"),
   uploadedBy: integer("uploadedBy"),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  customerIdIdx: index("documents_customerId_idx").on(table.customerId),
+  jobIdIdx: index("documents_jobId_idx").on(table.jobId),
+  quoteIdIdx: index("documents_quoteId_idx").on(table.quoteId),
+  vesselIdIdx: index("documents_vesselId_idx").on(table.vesselId),
+  storageKeyIdx: index("documents_storageKey_idx").on(table.storageKey),
+}));
 export type Document = typeof documents.$inferSelect;
 export type InsertDocument = typeof documents.$inferInsert;
 
@@ -359,7 +388,9 @@ export const notifications = sqliteTable("notifications", {
   isRead: integer("isRead", { mode: "boolean" }).default(false),
   sentAt: text("sentAt").default(now).notNull(),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  userId_isReadIdx: index("notifications_userId_isRead_idx").on(table.userId, table.isRead),
+}));
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
@@ -373,7 +404,10 @@ export const auditLog = sqliteTable("auditLog", {
   changes: text("changes", { mode: "json" }),
   ipAddress: text("ipAddress"),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  userId_action_createdAtIdx: index("auditLog_userId_action_createdAt_idx").on(table.userId, table.action, table.createdAt),
+  createdAtIdx: index("auditLog_createdAt_idx").on(table.createdAt),
+}));
 export type AuditLog = typeof auditLog.$inferSelect;
 export type InsertAuditLog = typeof auditLog.$inferInsert;
 
@@ -438,7 +472,10 @@ export const calendarNotes = sqliteTable("calendarNotes", {
   jobId: integer("jobId"),
   createdBy: integer("createdBy"),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  dateIdx: index("calendarNotes_date_idx").on(table.date),
+  jobIdIdx: index("calendarNotes_jobId_idx").on(table.jobId),
+}));
 export type CalendarNote = typeof calendarNotes.$inferSelect;
 export type InsertCalendarNote = typeof calendarNotes.$inferInsert;
 
@@ -459,6 +496,28 @@ export const staffInvites = sqliteTable("staffInvites", {
 });
 export type StaffInvite = typeof staffInvites.$inferSelect;
 export type InsertStaffInvite = typeof staffInvites.$inferInsert;
+
+/** Customer Invites - a staff-issued, single-use link that lets one customer
+ * create their own portal login, already tied to their customer record. This
+ * is the verified path: the link goes to the email on the customer record, so
+ * (unlike public sign-up) no admin has to link the new login by hand. */
+export const customerInvites = sqliteTable("customerInvites", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  customerId: integer("customerId").notNull(),
+  email: text("email").notNull(),
+  token: text("token").notNull().unique(),
+  invitedBy: integer("invitedBy"),
+  expiresAt: text("expiresAt").notNull(),
+  usedAt: text("usedAt"),
+  // Set when the invite is withdrawn (a newer invite replaced it, or staff
+  // cancelled it) — distinct from usedAt so "accepted" stays meaningful.
+  revokedAt: text("revokedAt"),
+  createdAt: text("createdAt").default(now).notNull(),
+}, (table) => ({
+  customerIdIdx: index("customerInvites_customerId_idx").on(table.customerId),
+}));
+export type CustomerInvite = typeof customerInvites.$inferSelect;
+export type InsertCustomerInvite = typeof customerInvites.$inferInsert;
 
 /** Invoices - generated from a completed job, sent to the customer, payable
  * through the system (Stripe: cards, Apple Pay, PayPal) or manually (bank
@@ -534,6 +593,10 @@ export const invoices = sqliteTable("invoices", {
   // NULL quoteId (standalone invoices) is exempt from SQLite's uniqueness,
   // so this never affects invoices that aren't quote-linked.
   quoteIdInvoiceTypeUnique: uniqueIndex("invoices_quoteId_invoiceType_unique").on(table.quoteId, table.invoiceType),
+  customerIdIdx: index("invoices_customerId_idx").on(table.customerId),
+  jobIdIdx: index("invoices_jobId_idx").on(table.jobId),
+  statusIdx: index("invoices_status_idx").on(table.status),
+  stripePaymentIntentIdIdx: index("invoices_stripePaymentIntentId_idx").on(table.stripePaymentIntentId),
 }));
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
@@ -560,7 +623,9 @@ export const jobPlanEntries = sqliteTable("jobPlanEntries", {
   task: text("task").notNull(),
   createdBy: integer("createdBy"),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  jobIdIdx: index("jobPlanEntries_jobId_idx").on(table.jobId),
+}));
 export type JobPlanEntry = typeof jobPlanEntries.$inferSelect;
 export type InsertJobPlanEntry = typeof jobPlanEntries.$inferInsert;
 
@@ -591,7 +656,9 @@ export const jobCosts = sqliteTable("jobCosts", {
   notes: text("notes"),
   createdBy: integer("createdBy"),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  jobIdIdx: index("jobCosts_jobId_idx").on(table.jobId),
+}));
 export type JobCost = typeof jobCosts.$inferSelect;
 export type InsertJobCost = typeof jobCosts.$inferInsert;
 
@@ -631,7 +698,9 @@ export const customerMessages = sqliteTable("customerMessages", {
   resolvedBy: integer("resolvedBy"),
   resolvedAt: text("resolvedAt"),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  customerId_statusIdx: index("customerMessages_customerId_status_idx").on(table.customerId, table.status),
+}));
 export type CustomerMessage = typeof customerMessages.$inferSelect;
 export type InsertCustomerMessage = typeof customerMessages.$inferInsert;
 
@@ -657,7 +726,10 @@ export const tasks = sqliteTable("tasks", {
   createdBy: integer("createdBy"),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),
-});
+}, (table) => ({
+  jobIdIdx: index("tasks_jobId_idx").on(table.jobId),
+  assignedEmployeeIdIdx: index("tasks_assignedEmployeeId_idx").on(table.assignedEmployeeId),
+}));
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
 
@@ -707,7 +779,10 @@ export const materialRequests = sqliteTable("materialRequests", {
   orderedAt: text("orderedAt"),
   rejectionReason: text("rejectionReason"),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  jobIdIdx: index("materialRequests_jobId_idx").on(table.jobId),
+  statusIdx: index("materialRequests_status_idx").on(table.status),
+}));
 export type MaterialRequest = typeof materialRequests.$inferSelect;
 export type InsertMaterialRequest = typeof materialRequests.$inferInsert;
 
@@ -770,7 +845,11 @@ export const staffTasks = sqliteTable("staffTasks", {
   createdAt: text("createdAt").default(now).notNull(),
   completedAt: text("completedAt"),
   completedBy: integer("completedBy"),
-});
+}, (table) => ({
+  statusIdx: index("staffTasks_status_idx").on(table.status),
+  ownerIdIdx: index("staffTasks_ownerId_idx").on(table.ownerId),
+  linkedJobIdIdx: index("staffTasks_linkedJobId_idx").on(table.linkedJobId),
+}));
 export type StaffTask = typeof staffTasks.$inferSelect;
 export type InsertStaffTask = typeof staffTasks.$inferInsert;
 
@@ -784,7 +863,9 @@ export const jobSignatures = sqliteTable("jobSignatures", {
   purpose: text("purpose"), // e.g. "Job completion sign-off"
   capturedBy: integer("capturedBy"),
   signedAt: text("signedAt").default(now).notNull(),
-});
+}, (table) => ({
+  jobIdIdx: index("jobSignatures_jobId_idx").on(table.jobId),
+}));
 export type JobSignature = typeof jobSignatures.$inferSelect;
 export type InsertJobSignature = typeof jobSignatures.$inferInsert;
 
@@ -847,7 +928,10 @@ export const taskAssignments = sqliteTable("taskAssignments", {
   taskId: integer("taskId").notNull(),
   employeeId: integer("employeeId").notNull(),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  taskIdIdx: index("taskAssignments_taskId_idx").on(table.taskId),
+  employeeIdIdx: index("taskAssignments_employeeId_idx").on(table.employeeId),
+}));
 export type TaskAssignment = typeof taskAssignments.$inferSelect;
 
 /** Document Comments - back-and-forth notes on a photo between staff and the customer. */
@@ -859,5 +943,7 @@ export const documentComments = sqliteTable("documentComments", {
   authorRole: text("authorRole").notNull(),
   body: text("body").notNull(),
   createdAt: text("createdAt").default(now).notNull(),
-});
+}, (table) => ({
+  documentIdIdx: index("documentComments_documentId_idx").on(table.documentId),
+}));
 export type DocumentComment = typeof documentComments.$inferSelect;

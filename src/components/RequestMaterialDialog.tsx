@@ -103,7 +103,7 @@ export function RequestMaterialDialog({
             <div>
               <label className="block text-sm font-medium text-slate-900">Job *</label>
               <Select value={form.jobId} onValueChange={(v) => setForm({ ...form, jobId: v })}>
-                <SelectTrigger className="mt-1 border-slate-200">
+                <SelectTrigger aria-label="Job" className="mt-1 border-slate-200">
                   <SelectValue placeholder="Which job is this for?" />
                 </SelectTrigger>
                 <SelectContent>
@@ -119,7 +119,7 @@ export function RequestMaterialDialog({
           <div>
             <label className="block text-sm font-medium text-slate-900">From Inventory (optional)</label>
             <Select value={form.inventoryItemId || "other"} onValueChange={handleInventoryPick}>
-              <SelectTrigger className="mt-1 border-slate-200">
+              <SelectTrigger aria-label="From Inventory (optional)" className="mt-1 border-slate-200">
                 <SelectValue placeholder="Pick an existing item, or choose Other" />
               </SelectTrigger>
               <SelectContent>
@@ -137,7 +137,7 @@ export function RequestMaterialDialog({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Material *</label>
-            <Input
+            <Input aria-label="Material"
               value={form.materialName}
               onChange={(e) => setForm({ ...form, materialName: e.target.value, inventoryItemId: "" })}
               placeholder="e.g. Antifoul paint - 4L"
@@ -147,7 +147,7 @@ export function RequestMaterialDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-900">Quantity</label>
-              <Input
+              <Input aria-label="Quantity"
                 type="number"
                 step="0.5"
                 value={form.quantity}
@@ -158,7 +158,7 @@ export function RequestMaterialDialog({
             <div>
               <label className="block text-sm font-medium text-slate-900">Urgency</label>
               <Select value={form.urgency} onValueChange={(v) => setForm({ ...form, urgency: v as any })}>
-                <SelectTrigger className="mt-1 border-slate-200">
+                <SelectTrigger aria-label="Urgency" className="mt-1 border-slate-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -172,7 +172,7 @@ export function RequestMaterialDialog({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Supplier (optional)</label>
-            <Input
+            <Input aria-label="Supplier (optional)"
               value={form.supplier}
               onChange={(e) => setForm({ ...form, supplier: e.target.value })}
               className="mt-1 border-slate-200"
@@ -180,7 +180,7 @@ export function RequestMaterialDialog({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-900">Reason</label>
-            <Textarea
+            <Textarea aria-label="Reason"
               value={form.reason}
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
               rows={2}
@@ -194,7 +194,7 @@ export function RequestMaterialDialog({
             Cancel
           </Button>
           <Button
-            className="bg-[#0c1e38] hover:bg-[#0c1e38]/90"
+            className="bg-navy hover:bg-navy-700"
             onClick={handleSubmit}
             disabled={createMutation.isPending}
           >

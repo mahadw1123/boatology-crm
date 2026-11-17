@@ -133,7 +133,7 @@ export function SignatureCapture({ jobId, purpose }: { jobId: number; purpose?: 
               <Trash2 className="mr-1 h-3 w-3" />
               Clear
             </Button>
-            <Button size="sm" className="flex-1 bg-[#0c1e38] hover:bg-[#0c1e38]/90" onClick={handleSave} disabled={saveMutation.isPending}>
+            <Button size="sm" className="flex-1 bg-navy hover:bg-navy-700" onClick={handleSave} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? "Saving..." : "Save Signature"}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setIsCapturing(false)}>
