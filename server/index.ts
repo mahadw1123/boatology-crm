@@ -132,7 +132,9 @@ app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(self), geolocation=(self)");
+  // The QR scanner opens the camera from the page itself, so the camera must be
+  // allowed for our own pages (and no one else's).
+  res.setHeader("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(self)");
   if (ENV.isProd) {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     res.setHeader(

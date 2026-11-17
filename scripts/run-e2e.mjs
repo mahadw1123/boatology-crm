@@ -469,6 +469,11 @@ try {
     equal((await upload(anonymous, { jobId: String(seededJob.id) })).status(), 401, "upload");
     equal((await query(anonymous, "customers.list")).code, "UNAUTHORIZED", "API");
   });
+  await step("the app lets its own pages use the camera (the QR scanner needs it)", async () => {
+    const response = await anonymous.request.get(`${BASE}/trpc/auth.me`);
+    const policy = response.headers()["permissions-policy"] || "";
+    expect(policy.includes("camera=(self)"), `camera is not allowed for the app's own pages: "${policy}"`);
+  });
   await step("report and quote PDFs: office yes, technician no, the quote's own customer yes, another customer no", async () => {
     const report = await office.request.get(`${BASE}/api/reports/morning-briefing.pdf`);
     equal([report.status(), report.headers()["content-type"]], [200, "application/pdf"], "office report");
