@@ -121,7 +121,7 @@ export function CreateJobDialog({
   const allEmployeesQuery = trpc.employees.list.useQuery();
   const techniciansQuery = {
     ...allEmployeesQuery,
-    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
+    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "shipwright" || e.role === "subcontractor"),
   };
   const utils = trpc.useUtils();
   const customerVessels = (vesselsQuery.data || []).filter(

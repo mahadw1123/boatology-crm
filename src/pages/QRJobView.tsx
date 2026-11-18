@@ -99,8 +99,8 @@ export default function QRJobView() {
     onError: (err) => showErrorToast(err),
   });
 
-  const startMutation = trpc.tasks.start.useMutation({ onSuccess: () => utils.tasks.listForJob.invalidate(jobId || 0) });
-  const pauseMutation = trpc.tasks.pause.useMutation({ onSuccess: () => utils.tasks.listForJob.invalidate(jobId || 0) });
+  const startMutation = trpc.tasks.start.useMutation({ onSuccess: () => { utils.tasks.listForJob.invalidate(jobId || 0); utils.timeEntries.listByJob.invalidate(jobId || 0); } });
+  const pauseMutation = trpc.tasks.pause.useMutation({ onSuccess: () => { utils.tasks.listForJob.invalidate(jobId || 0); utils.timeEntries.listByJob.invalidate(jobId || 0); } });
   const completeMutation = trpc.tasks.complete.useMutation({
     onSuccess: () => {
       toast.success("Task complete");

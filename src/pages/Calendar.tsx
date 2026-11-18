@@ -71,7 +71,7 @@ export default function Calendar() {
   // Technicians and subcontractors are the people who get scheduled onto jobs.
   const employeesQuery = {
     ...allStaffWithCountsQuery,
-    data: allStaffWithCountsQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
+    data: allStaffWithCountsQuery.data?.filter((e: any) => e.role === "technician" || e.role === "shipwright" || e.role === "subcontractor"),
   };
   const schedulesQuery = trpc.schedules.list.useQuery();
   const weatherQuery = trpc.analytics.weatherForecast.useQuery();

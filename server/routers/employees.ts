@@ -21,7 +21,7 @@ function technicianEmployeeView(employee: NonNullable<Awaited<ReturnType<typeof 
 
 export const employeesRouter = router({
   list: protectedProcedure
-    .input(z.object({ role: z.enum(["technician", "subcontractor", "office_staff", "management"]).optional() }).optional())
+    .input(z.object({ role: z.enum(["technician", "shipwright", "subcontractor", "office_staff", "management"]).optional() }).optional())
     .query(async ({ input, ctx }) => {
       if (ctx.user.role === "customer") throw new TRPCError({ code: "FORBIDDEN" });
       try {
@@ -34,7 +34,7 @@ export const employeesRouter = router({
     }),
 
   listWithJobCounts: staffProcedure
-    .input(z.object({ role: z.enum(["technician", "subcontractor", "office_staff", "management"]).optional() }).optional())
+    .input(z.object({ role: z.enum(["technician", "shipwright", "subcontractor", "office_staff", "management"]).optional() }).optional())
     .query(async ({ input, ctx }) => {
       try {
         const employeeList = await db.getEmployees(input?.role);
@@ -66,7 +66,7 @@ export const employeesRouter = router({
         email: z.string().max(254).email().optional().or(z.literal("")),
         phone: z.string().max(10000).optional(),
         notes: z.string().max(10000).optional(),
-        role: z.enum(["technician", "subcontractor", "office_staff", "management"]),
+        role: z.enum(["technician", "shipwright", "subcontractor", "office_staff", "management"]),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -86,7 +86,7 @@ export const employeesRouter = router({
         email: z.string().max(254).email().optional().or(z.literal("")),
         phone: z.string().max(10000).optional(),
         notes: z.string().max(10000).optional(),
-        role: z.enum(["technician", "subcontractor", "office_staff", "management"]).optional(),
+        role: z.enum(["technician", "shipwright", "subcontractor", "office_staff", "management"]).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {

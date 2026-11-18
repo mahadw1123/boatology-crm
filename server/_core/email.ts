@@ -202,7 +202,15 @@ export const emailTemplates = {
        <p style="margin-top:20px;">
          <a href="${safeHttpUrl(reviewUrl)}" style="background:#0c1e38;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Review Your Quote</a>
        </p>
-       <p style="margin-top:16px;font-size:12px;color:#5B6B78;">If the button doesn't work, copy this link: ${safeHttpUrl(reviewUrl)}</p>`
+       <p style="margin-top:16px;font-size:12px;color:#5B6B78;">If the button doesn't work, copy this link: ${safeHttpUrl(reviewUrl)}</p>
+       <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
+       <p>Thanks for accepting your quote - A 30% deposit is required prior to the commencement of work.</p>
+       <p>Once the deposit is received, we will schedule your job and get started. For projects extending beyond one week, progress payments may be invoiced during the course of the work. The final invoice will be adjusted to reflect the actual costs incurred upon completion of the project.</p>
+       <p><strong>Payment Methods:</strong> Bank Transfer, Credit Card<br />
+       <strong>Boatology Marine Services</strong><br />
+       BSB: 067-873<br />
+       Account: 2218 6022</p>
+       <p>Please email your payment receipt to <a href="mailto:marineservices@boatology.com.au">marineservices@boatology.com.au</a></p>`
     ),
   quoteAccepted: (_quoteNumber: string) =>
     wrapLayout(

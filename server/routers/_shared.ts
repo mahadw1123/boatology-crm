@@ -41,7 +41,7 @@ export function nextSequentialNumber(existing: Array<{ [key: string]: unknown }>
 // office_staff/management are not (they use the separate "Assigned To"
 // paperwork-owner field instead).
 export function isAssignableEmployeeRole(role: string) {
-  return role === "technician" || role === "subcontractor";
+  return role === "technician" || role === "shipwright" || role === "subcontractor";
 }
 
 export async function technicianIsAssigned(employeeId: number | null, jobId: number) {

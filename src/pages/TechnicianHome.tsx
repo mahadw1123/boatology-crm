@@ -271,10 +271,10 @@ function TechnicianTaskList({ jobId, employeeId }: { jobId: number; employeeId?:
   const [newTaskName, setNewTaskName] = useState("");
 
   const startMutation = trpc.tasks.start.useMutation({
-    onSuccess: () => utils.tasks.listForJob.invalidate(jobId),
+    onSuccess: () => { utils.tasks.listForJob.invalidate(jobId); utils.timeEntries.invalidate(); },
   });
   const pauseMutation = trpc.tasks.pause.useMutation({
-    onSuccess: () => utils.tasks.listForJob.invalidate(jobId),
+    onSuccess: () => { utils.tasks.listForJob.invalidate(jobId); utils.timeEntries.invalidate(); },
   });
   const completeMutation = trpc.tasks.complete.useMutation({
     onSuccess: () => {
