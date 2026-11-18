@@ -595,7 +595,7 @@ function TechnicianAssignment({ jobId }: { jobId: number }) {
   const allEmployeesQuery = trpc.employees.list.useQuery();
   const employeesQuery = {
     ...allEmployeesQuery,
-    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
+    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "shipwright" || e.role === "subcontractor"),
   };
 
   const assignMutation = trpc.jobs.assignTechnician.useMutation({
@@ -1333,7 +1333,7 @@ function TasksSection({ jobId }: { jobId: number }) {
   const allEmployeesQuery = trpc.employees.list.useQuery();
   const employeesQuery = {
     ...allEmployeesQuery,
-    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "subcontractor"),
+    data: allEmployeesQuery.data?.filter((e: any) => e.role === "technician" || e.role === "shipwright" || e.role === "subcontractor"),
   };
 
   // Only people already assigned to the job can be given one of its tasks.

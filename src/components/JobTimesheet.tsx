@@ -5,6 +5,12 @@ import { trpc } from "@/lib/trpc";
 import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 
+function entryHours(e: any) {
+  if (e.hoursWorked != null) return e.hoursWorked as number;
+  if (e.clockInTime && !e.clockOutTime) return Math.max(0, (Date.now() - Date.parse(e.clockInTime)) / 3600000);
+  return 0;
+}
+
 function fmtTime(iso: string | null | undefined) {
   return iso ? new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" }) : "…";
 }
@@ -16,7 +22,7 @@ export function JobTimesheet({ jobId }: { jobId: number }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
 
-  const entriesQuery = trpc.timeEntries.listByJob.useQuery(jobId);
+  const entriesQuery = trpc.timeEntries.listByJob.useQuery(jobId, { refetchInterval: 60000 });
   const employeesQuery = trpc.employees.list.useQuery();
   const tasksQuery = trpc.tasks.listForJob.useQuery(jobId, { retry: false });
 
@@ -27,7 +33,7 @@ export function JobTimesheet({ jobId }: { jobId: number }) {
   );
 
   const hoursByEmployee = new Map<number, number>();
-  for (const e of entries) hoursByEmployee.set(e.employeeId, (hoursByEmployee.get(e.employeeId) || 0) + (e.hoursWorked || 0));
+  for (const e of entries) hoursByEmployee.set(e.employeeId, (hoursByEmployee.get(e.employeeId) || 0) + entryHours(e));
   const totalHours = Array.from(hoursByEmployee.values()).reduce((a, b) => a + b, 0);
 
   return (
@@ -83,7 +89,7 @@ export function JobTimesheet({ jobId }: { jobId: number }) {
                     <td className="px-3 py-2 text-slate-600">
                       {e.clockInTime ? `${fmtTime(e.clockInTime)} – ${e.clockOutTime ? fmtTime(e.clockOutTime) : "running"}` : "—"}
                     </td>
-                    <td className="px-3 py-2 text-right font-medium text-slate-900">{e.hoursWorked != null ? e.hoursWorked.toFixed(2) : "…"}</td>
+                    <td className="px-3 py-2 text-right font-medium text-slate-900">{entryHours(e).toFixed(2)}</td>
                     <td className="px-3 py-2">
                       {isStaff && (
                         <button aria-label="Edit this entry"

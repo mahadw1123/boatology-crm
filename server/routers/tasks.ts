@@ -207,7 +207,7 @@ export const tasksRouter = router({
         for (const employeeId of wantedIds) {
           const employee = await db.getEmployeeById(employeeId);
           if (!employee || !isAssignableEmployeeRole(employee.role) || !employee.isActive) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "Select active technicians or subcontractors for this task." });
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Select active technicians, shipwrights or subcontractors for this task." });
           }
           if (!(await technicianIsAssigned(employee.id, input.jobId))) {
             throw new TRPCError({ code: "BAD_REQUEST", message: `Assign ${employee.name} to the job before assigning them this task.` });
@@ -252,7 +252,7 @@ export const tasksRouter = router({
           for (const employeeId of newIds) {
             const employee = await db.getEmployeeById(employeeId);
             if (!employee || !isAssignableEmployeeRole(employee.role) || !employee.isActive) {
-              throw new TRPCError({ code: "BAD_REQUEST", message: "Select active technicians or subcontractors for this task." });
+              throw new TRPCError({ code: "BAD_REQUEST", message: "Select active technicians, shipwrights or subcontractors for this task." });
             }
             if (!(await technicianIsAssigned(employee.id, existingTask.jobId))) {
               throw new TRPCError({ code: "BAD_REQUEST", message: `Assign ${employee.name} to the job before assigning them this task.` });
@@ -282,7 +282,15 @@ export const tasksRouter = router({
       }
       // Each person who presses Start gets their own timesheet entry, so
       // several people starting the same task together are each logged.
-      if (ctx.user.employeeId) await startTaskTimer(ctx.user.employeeId, task);
+      // A login with no linked employee record (e.g. an admin) can't own a
+      // timesheet entry, so log the task's assigned workers instead.
+      if (ctx.user.employeeId) {
+        await startTaskTimer(ctx.user.employeeId, task);
+      } else {
+        const ids = await db.getTaskAssigneeIds(task.id);
+        if (task.assignedEmployeeId != null && !ids.includes(task.assignedEmployeeId)) ids.push(task.assignedEmployeeId);
+        for (const id of ids) await startTaskTimer(id, task);
+      }
       // Work has started, so a job that was only created or scheduled is now in progress.
       if (job && (job.status === "created" || job.status === "scheduled")) {
         await db.updateJob(job.id, { status: "in_progress" });

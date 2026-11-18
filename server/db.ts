@@ -517,13 +517,13 @@ export async function createEmployee(data: {
   name: string;
   email?: string;
   phone?: string;
-  role: "technician" | "subcontractor" | "office_staff" | "management";
+  role: "technician" | "shipwright" | "subcontractor" | "office_staff" | "management";
 }) {
   const result = await db.insert(employees).values(data).returning();
   return result[0];
 }
 
-export async function getEmployees(role?: "technician" | "subcontractor" | "office_staff" | "management") {
+export async function getEmployees(role?: "technician" | "shipwright" | "subcontractor" | "office_staff" | "management") {
   if (role) {
     return await db.select().from(employees).where(eq(employees.role, role)).orderBy(asc(employees.name));
   }

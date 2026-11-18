@@ -254,7 +254,7 @@ export const employees = sqliteTable("employees", {
   email: text("email"),
   phone: text("phone"),
   notes: text("notes"),
-  role: text("role", { enum: ["technician", "subcontractor", "office_staff", "management"] }).notNull(),
+  role: text("role", { enum: ["technician", "shipwright", "subcontractor", "office_staff", "management"] }).notNull(),
   isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
   createdAt: text("createdAt").default(now).notNull(),
   updatedAt: text("updatedAt").default(now).notNull(),

@@ -221,8 +221,8 @@ export const importsRouter = router({
             const rawRole = importField(row, "role").toLowerCase().replace(/\s+/g, "_");
             const role = rawRole === "office" ? "office_staff" : rawRole;
             if (!name) throw new Error("Employee name is required.");
-            if (!["technician", "subcontractor", "office_staff", "management"].includes(role)) {
-              throw new Error("Role must be technician, subcontractor, office_staff, or management. Admin login access is granted separately in Administration → Users.");
+            if (!["technician", "shipwright", "subcontractor", "office_staff", "management"].includes(role)) {
+              throw new Error("Role must be technician, shipwright, subcontractor, office_staff, or management. Admin login access is granted separately in Administration → Users.");
             }
             if (email && !z.string().max(254).email().safeParse(email).success) throw new Error("Email address is invalid.");
             if (email && employeeList.some((employee) => employee.email?.trim().toLowerCase() === email)) {
