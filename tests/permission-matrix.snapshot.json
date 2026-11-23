@@ -2051,6 +2051,25 @@
    "admin": "allow"
   }
  },
+ "invoices.createManual": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
  "invoices.createPaymentIntent": {
   "type": "mutation",
   "own": {
@@ -2280,6 +2299,25 @@
   }
  },
  "invoices.syncToXero": {
+  "type": "mutation",
+  "own": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  },
+  "foreign": {
+   "anonymous": "deny",
+   "customer": "deny",
+   "technician": "deny",
+   "office_staff": "allow",
+   "management": "allow",
+   "admin": "allow"
+  }
+ },
+ "invoices.update": {
   "type": "mutation",
   "own": {
    "anonymous": "deny",

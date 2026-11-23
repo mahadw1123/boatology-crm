@@ -334,6 +334,16 @@ export default function CustomerPortal() {
                       </div>
                     )}
 
+                    <div className="mb-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(`/api/quotes/${quote.id}/pdf`, "_blank")}
+                      >
+                        View quote (PDF)
+                      </Button>
+                    </div>
+
                     {quote.notes && (
                       <div className="mb-4 rounded-lg border border-slate-200 p-4">
                         <p className="text-sm font-medium text-slate-900">Notes</p>
@@ -775,6 +785,14 @@ function InvoicesTab({ initialInvoiceId }: { initialInvoiceId: number | null }) 
                 <span>${inv.totalDue.toFixed(2)} AUD</span>
               </div>
             </div>
+
+            {inv.status !== "draft" && (
+              <div className="mt-3">
+                <Button variant="outline" size="sm" onClick={() => window.open(`/api/invoices/${inv.id}/pdf`, "_blank")}>
+                  View tax invoice (PDF)
+                </Button>
+              </div>
+            )}
 
             {inv.status === "draft" && inv.emailStatus === "failed" && (
               <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">

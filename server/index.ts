@@ -714,6 +714,7 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
   } catch {}
 
   const money = (n: number) => `$${(n || 0).toFixed(2)}`;
+  const gstPercentLabel = Number((await db.getGstRatePercent()).toFixed(2));
   const items: any[] = Array.isArray(quote.lineItems) ? (quote.lineItems as any[]) : [];
   const PDFDocument = (await import("pdfkit")).default;
   const doc = new PDFDocument({ margin: 50, size: "A4" });
@@ -766,7 +767,7 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
     doc.text(item.description || "", cols.desc, y, { width: 185 });
     doc.text(String(item.quantity ?? 1), cols.qty, y, { width: 40, align: "right" });
     doc.text(money(item.unitPrice || 0), cols.price, y, { width: 60, align: "right" });
-    doc.text(item.gstApplicable === false ? "No" : "Yes", cols.gst, y, { width: 30, align: "right" });
+    doc.text(quote.taxMode === "none" || item.gstApplicable === false ? "-" : `${gstPercentLabel}%`, cols.gst, y, { width: 30, align: "right" });
     doc.text(money((item.quantity ?? 1) * (item.unitPrice || 0)), cols.total, y, { width: 70, align: "right" });
     doc.moveDown(0.5);
   }
@@ -791,6 +792,238 @@ app.get("/api/quotes/:id/pdf", async (req, res) => {
     doc.fontSize(10).fillColor("#0B2341").text("Notes", 50);
     doc.fillColor("#333").text(quote.notes, 50, doc.y, { width: 495 });
   }
+  doc.end();
+});
+
+app.get("/api/invoices/:id/pdf", async (req, res) => {
+  const user = await requireAuthUser(req);
+  if (!user) {
+    apiError(res, 401, "Your session has expired. Sign in again before opening an invoice.", "Sign in", "/");
+    return;
+  }
+  if (await refuseIfAccessSwitchedOff(user, res, "invoices.pdf", "query")) return;
+  const invoiceId = Number(req.params.id);
+  const invoice = Number.isInteger(invoiceId) ? await db.getInvoiceById(invoiceId) : null;
+  if (!invoice) {
+    apiError(res, 404, "That invoice no longer exists. Return to Invoices and refresh.", "Invoices", "/invoices");
+    return;
+  }
+  const isStaff = ["admin", "office_staff", "management"].includes(user.role);
+  const isOwnCustomer = user.role === "customer" && user.customerId === invoice.customerId && invoice.status !== "draft";
+  if (!isStaff && !isOwnCustomer) {
+    apiError(res, 403, "You don't have access to this invoice.", "Dashboard", "/");
+    return;
+  }
+
+  const customer = await db.getCustomerById(invoice.customerId);
+  const vesselId = invoice.vesselId ?? (invoice.quoteId ? (await db.getQuoteById(invoice.quoteId))?.vesselId : null) ?? null;
+  const vessel = vesselId ? await db.getVesselById(vesselId) : null;
+  let companyName = "Boatology";
+  const business = { legalName: "", abn: "", address: "", email: "" };
+  try {
+    const all = await db.getSettings();
+    const read = (key: string) => all.find((s) => s.key === key)?.value?.trim() || "";
+    if (read("company_name")) companyName = read("company_name");
+    business.legalName = read("company_legal_name");
+    business.abn = read("company_abn");
+    business.address = read("company_address");
+    business.email = read("company_email");
+  } catch {}
+
+  const money = (n: number) => `$${(n || 0).toFixed(2)}`;
+  const gstPercentLabel = Number((await db.getGstRatePercent()).toFixed(2));
+  const items: any[] = Array.isArray(invoice.lineItems) ? (invoice.lineItems as any[]) : [];
+  const PDFDocument = (await import("pdfkit")).default;
+  const doc = new PDFDocument({ margin: 50, size: "A4" });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${(invoice.invoiceNumber || `invoice-${invoice.id}`).replace(/[^A-Za-z0-9._-]/g, "_")}.pdf"`);
+  doc.pipe(res);
+
+  doc.fontSize(22).fillColor("#0B2341").text(business.legalName || companyName);
+  const businessLines = [business.abn ? `ABN ${business.abn}` : "", business.address, business.email].filter(Boolean);
+  if (businessLines.length > 0) {
+    doc.fontSize(9).fillColor("#666");
+    for (const line of businessLines) doc.text(line);
+    doc.moveDown(0.6);
+  }
+  doc.fontSize(16).fillColor("#0B2341").text("TAX INVOICE");
+  doc.fontSize(11).fillColor("#666").text(`${invoice.invoiceNumber || `#${invoice.id}`}${invoice.status === "draft" ? "  (DRAFT - not yet sent)" : ""}${invoice.status === "void" ? "  (VOID)" : ""}`);
+  doc.moveDown(0.8);
+  doc.fontSize(10).fillColor("#333");
+  doc.text(`Bill to: ${customer?.name || "-"}`);
+  if (vessel) doc.text(`Vessel: ${vessel.name}`);
+  doc.text(`Invoice date: ${new Date(invoice.sentAt || invoice.createdAt).toLocaleDateString("en-AU")}`);
+  doc.text(`Status: ${invoice.status === "paid" ? "Paid" : invoice.status === "draft" ? "Draft" : "Payment due"}`);
+  doc.moveDown(1);
+
+  const cols = { code: 50, desc: 140, qty: 330, price: 375, gst: 440, total: 475 };
+  let y = doc.y;
+  doc.fontSize(9).fillColor("#0B2341");
+  doc.text("Account", cols.code, y, { width: 85 });
+  doc.text("Description", cols.desc, y, { width: 185 });
+  doc.text("Qty", cols.qty, y, { width: 40, align: "right" });
+  doc.text("Unit", cols.price, y, { width: 60, align: "right" });
+  doc.text("GST", cols.gst, y, { width: 30, align: "right" });
+  doc.text("Total", cols.total, y, { width: 70, align: "right" });
+  doc.moveTo(50, doc.y + 2).lineTo(545, doc.y + 2).strokeColor("#cccccc").stroke();
+  doc.moveDown(0.6);
+  doc.fillColor("#333");
+  if (items.length === 0) {
+    doc.fontSize(9).text("Services as quoted", cols.desc, doc.y, { width: 185 });
+    doc.moveDown(0.5);
+  }
+  for (const item of items) {
+    y = doc.y;
+    if (y > 700) {
+      doc.addPage();
+      y = doc.y;
+    }
+    doc.fontSize(9);
+    doc.text(item.accountCode || "", cols.code, y, { width: 85 });
+    doc.text(item.description || "", cols.desc, y, { width: 185 });
+    doc.text(String(item.quantity ?? 1), cols.qty, y, { width: 40, align: "right" });
+    doc.text(money(item.unitPrice || 0), cols.price, y, { width: 60, align: "right" });
+    doc.text(invoice.taxMode === "none" || item.gstApplicable === false ? "-" : `${gstPercentLabel}%`, cols.gst, y, { width: 30, align: "right" });
+    doc.text(money((item.quantity ?? 1) * (item.unitPrice || 0)), cols.total, y, { width: 70, align: "right" });
+    doc.moveDown(0.5);
+  }
+
+  doc.moveDown(1);
+  const totalsLine = (label: string, value: string, bold = false) => {
+    const ty = doc.y;
+    doc.fontSize(bold ? 11 : 10).fillColor(bold ? "#0B2341" : "#333");
+    doc.text(label, 340, ty, { width: 120 });
+    doc.text(value, 460, ty, { width: 85, align: "right" });
+  };
+  const lineDiscount = items.length > 0 && invoice.lineDiscountType !== "none"
+    ? invoice.lineDiscountType === "percent"
+      ? items.reduce((s, i) => s + (i.quantity ?? 1) * (i.unitPrice || 0), 0) * Math.min(100, invoice.lineDiscountValue || 0) / 100
+      : invoice.lineDiscountValue || 0
+    : 0;
+  if (items.length > 0) {
+    totalsLine("Subtotal", money(items.reduce((s, i) => s + (i.quantity ?? 1) * (i.unitPrice || 0), 0)));
+    if (lineDiscount > 0) totalsLine("Discount", `-${money(lineDiscount)}`);
+  }
+  if (invoice.taxMode !== "none" && (invoice.taxAmount || 0) > 0) {
+    totalsLine(invoice.taxMode === "inclusive" ? `Includes GST (${gstPercentLabel}%)` : `GST (${gstPercentLabel}%)`, money(invoice.taxAmount || 0));
+  }
+  totalsLine("Invoice total", money(invoice.subtotal), true);
+  if ((invoice.depositAppliedAmount || 0) > 0) totalsLine("Deposit paid", `-${money(invoice.depositAppliedAmount || 0)}`);
+  if ((invoice.discountAmount || 0) > 0) totalsLine("Review discount", `-${money(invoice.discountAmount || 0)}`);
+  totalsLine(invoice.status === "paid" ? "Amount paid" : "Amount due", money(invoice.totalDue), true);
+
+  if (invoice.notes) {
+    doc.moveDown(2);
+    doc.fontSize(10).fillColor("#0B2341").text("Notes", 50);
+    doc.fillColor("#333").text(invoice.notes, 50, doc.y, { width: 495 });
+  }
+  if (invoice.status !== "paid") {
+    doc.moveDown(1.5);
+    doc.fontSize(10).fillColor("#0B2341").text("Payment details", 50);
+    doc.fillColor("#333").fontSize(9);
+    doc.text("Payment methods: Bank transfer, Credit card");
+    doc.text("Boatology Marine Services");
+    doc.text("BSB: 067-873   Account: 2218 6022");
+    doc.text("Please email your payment receipt to marineservices@boatology.com.au");
+  }
+  doc.end();
+});
+
+// Employee timesheet for a chosen period (from/to are inclusive YYYY-MM-DD dates).
+app.get("/api/timesheets/pdf", async (req, res) => {
+  const user = await requireAuthUser(req);
+  if (!user) {
+    apiError(res, 401, "Your session has expired. Sign in again before downloading a timesheet.", "Sign in", "/");
+    return;
+  }
+  if (await refuseIfAccessSwitchedOff(user, res, "timesheets.pdf", "query")) return;
+  const employeeId = Number(req.query.employeeId);
+  const from = String(req.query.from || "");
+  const to = String(req.query.to || "");
+  const dateOk = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if (!Number.isInteger(employeeId) || !dateOk(from) || !dateOk(to) || from > to) {
+    apiError(res, 400, "Choose an employee and a valid period (start date on or before the end date).", "Time Tracking", "/time-tracking");
+    return;
+  }
+  const isStaff = ["admin", "office_staff", "management"].includes(user.role);
+  const isSelf = user.role === "technician" && user.employeeId === employeeId;
+  if (!isStaff && !isSelf) {
+    apiError(res, 403, "You don't have access to this timesheet.", "Dashboard", "/");
+    return;
+  }
+  const employee = await db.getEmployeeById(employeeId);
+  if (!employee) {
+    apiError(res, 404, "That employee no longer exists.", "Time Tracking", "/time-tracking");
+    return;
+  }
+
+  const entries = (await db.getTimeEntriesByEmployee(employeeId))
+    .filter((e) => e.date >= from && e.date <= to)
+    .sort((a, b) => String(a.clockInTime || a.date).localeCompare(String(b.clockInTime || b.date)));
+  const jobCache = new Map<number, string>();
+  const taskCache = new Map<number, string>();
+  const jobLabel = async (jobId: number | null) => {
+    if (!jobId) return "General hours";
+    if (!jobCache.has(jobId)) {
+      const job = await db.getJobById(jobId);
+      jobCache.set(jobId, job?.jobNumber || `Job #${jobId}`);
+    }
+    return jobCache.get(jobId)!;
+  };
+  const taskLabel = async (taskId: number | null) => {
+    if (!taskId) return "";
+    if (!taskCache.has(taskId)) taskCache.set(taskId, (await db.getTaskById(taskId))?.name || `Task #${taskId}`);
+    return taskCache.get(taskId)!;
+  };
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "2-digit", month: "short", year: "numeric" });
+  const fmtClock = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("en-AU", { timeZone: "Australia/Sydney", hour: "2-digit", minute: "2-digit" }) : "");
+
+  const PDFDocument = (await import("pdfkit")).default;
+  const doc = new PDFDocument({ margin: 50, size: "A4" });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="timesheet-${employee.name.replace(/[^A-Za-z0-9._-]/g, "_")}-${from}-to-${to}.pdf"`);
+  doc.pipe(res);
+
+  doc.fontSize(18).fillColor("#0B2341").text("Timesheet");
+  doc.fontSize(11).fillColor("#333").text(employee.name);
+  doc.fontSize(10).fillColor("#666").text(`Period: ${fmtDate(`${from}T12:00:00Z`)} to ${fmtDate(`${to}T12:00:00Z`)}`);
+  doc.moveDown(1);
+
+  const cols = { date: 50, job: 120, task: 200, time: 330, hours: 480 };
+  const header = () => {
+    const y = doc.y;
+    doc.fontSize(9).fillColor("#0B2341");
+    doc.text("Date", cols.date, y, { width: 65 });
+    doc.text("Job", cols.job, y, { width: 75 });
+    doc.text("Task / notes", cols.task, y, { width: 125 });
+    doc.text("Start - finish", cols.time, y, { width: 145 });
+    doc.text("Hours", cols.hours, y, { width: 65, align: "right" });
+    doc.moveTo(50, doc.y + 2).lineTo(545, doc.y + 2).strokeColor("#cccccc").stroke();
+    doc.moveDown(0.6);
+    doc.fillColor("#333");
+  };
+  header();
+  let total = 0;
+  for (const e of entries) {
+    if (doc.y > 740) {
+      doc.addPage();
+      header();
+    }
+    const y = doc.y;
+    const hours = e.hoursWorked || 0;
+    total += hours;
+    const detail = [await taskLabel(e.taskId), e.notes || ""].filter(Boolean).join(" - ");
+    doc.fontSize(9);
+    doc.text(fmtDate(e.clockInTime || `${e.date}T12:00:00Z`), cols.date, y, { width: 65 });
+    doc.text(await jobLabel(e.jobId), cols.job, y, { width: 75 });
+    doc.text(detail, cols.task, y, { width: 125 });
+    doc.text(e.clockInTime ? `${fmtClock(e.clockInTime)} - ${e.clockOutTime ? fmtClock(e.clockOutTime) : "running"}` : "-", cols.time, y, { width: 145 });
+    doc.text(hours.toFixed(2), cols.hours, y, { width: 65, align: "right" });
+    doc.moveDown(0.4);
+  }
+  if (entries.length === 0) doc.fontSize(10).text("No time was logged in this period.", 50);
+  doc.moveDown(1);
+  doc.fontSize(11).fillColor("#0B2341").text(`Total hours: ${total.toFixed(2)}`, 50, doc.y, { width: 495, align: "right" });
   doc.end();
 });
 

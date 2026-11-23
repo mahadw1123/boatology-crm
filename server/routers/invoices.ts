@@ -7,7 +7,40 @@ import { createXeroInvoiceForInvoice, getXeroOnlineInvoiceUrl } from "../_core/x
 import { ENV } from "../_core/env";
 import { isStripeConfigured, createPaymentIntent, retrievePaymentIntent, cancelPaymentIntent } from "../_core/stripe";
 import { checkStripeStatus, reconcileInvoicePayment } from "../_core/paymentReconciliation";
+import { quoteBreakdown } from "@shared/quoteMath";
 import { createInvoiceWithGeneratedNumber, emailErrorMessage, logAudit, logCustomerEmail } from "./_shared";
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+const invoiceLineItemSchema = z.object({
+  description: z.string().trim().min(1).max(500),
+  quantity: z.number().positive().max(100000),
+  unitPrice: z.number().nonnegative().max(100000000),
+  accountCode: z.string().trim().max(100).optional(),
+  gstApplicable: z.boolean().default(true),
+});
+
+// Turns the editable body of an invoice into the stored money columns. With
+// line items the total is calculated; without, a lump-sum total is used.
+async function invoiceMoney(body: {
+  lineItems: Array<{ quantity: number; unitPrice: number; gstApplicable?: boolean }>;
+  taxMode: "exclusive" | "inclusive" | "none";
+  discountType: "none" | "percent" | "fixed";
+  discountValue: number;
+  lumpAmount?: number | null;
+}) {
+  if (body.lineItems.length > 0) {
+    const b = quoteBreakdown({
+      lineItems: body.lineItems,
+      taxMode: body.taxMode,
+      discountType: body.discountType,
+      discountValue: body.discountValue,
+      gstRate: (await db.getGstRatePercent()) / 100,
+    });
+    return { total: b.total, taxAmount: b.taxAmount };
+  }
+  return { total: round2(body.lumpAmount || 0), taxAmount: 0 };
+}
 
 // The Google-review discount is a one-time welcome offer: only on a
 // customer's first real (non-deposit) invoice, and only when the job came
@@ -175,14 +208,25 @@ export const invoicesRouter = router({
       const finalAmount = Math.max(0, Math.round((rawAmount - depositPaid) * 100) / 100);
       const noBalance = finalAmount <= 0;
 
+      // Carry the quote's line items across so the invoice can be reviewed and
+      // edited line by line. A hand-typed amount replaces them (lump sum).
+      const copyQuoteBody = !!linkedQuote && input.adjustedAmount === undefined && Array.isArray(linkedQuote.lineItems) && linkedQuote.lineItems.length > 0;
+
       const invoice = await createInvoiceWithGeneratedNumber({
         jobId: input.jobId,
         customerId: job.customerId,
         quoteId: job.quoteId,
+        vesselId: (job as any).vesselId ?? linkedQuote?.vesselId ?? null,
         // Whoever raises it owns chasing payment unless they hand it off.
         assignedUserId: input.assignedUserId ?? ctx.user.id,
         invoiceType: depositPaid > 0 ? "final" : "standalone",
         depositAppliedAmount: depositPaid > 0 ? depositPaid : null,
+        lineItems: copyQuoteBody ? (linkedQuote!.lineItems as any[]) : [],
+        taxMode: copyQuoteBody ? linkedQuote!.taxMode : "none",
+        taxAmount: copyQuoteBody ? linkedQuote!.taxAmount || 0 : 0,
+        lineDiscountType: copyQuoteBody ? linkedQuote!.discountType : "none",
+        lineDiscountValue: copyQuoteBody ? linkedQuote!.discountValue || 0 : 0,
+        notes: copyQuoteBody ? linkedQuote!.notes : null,
         subtotal: rawAmount,
         totalDue: finalAmount,
         originalQuoteAmount: amountChanged ? quoteAmount : null,
@@ -196,18 +240,22 @@ export const invoicesRouter = router({
         status: noBalance ? "paid" : "draft",
         paymentMethod: noBalance ? "no_balance" : null,
         paidAt: noBalance ? new Date().toISOString() : null,
-        emailStatus: "pending",
-        lastEmailAttemptAt: new Date().toISOString(),
+        emailStatus: noBalance ? "pending" : "not_sent",
+        lastEmailAttemptAt: noBalance ? new Date().toISOString() : null,
       });
 
       // Closes the loop on the extra-work approval flow: the customer
       // approved extra work on this job, and this invoice is staff actually
-      // billing for it — clears the "approved, invoice not updated yet"
+      // billing for it - clears the "approved, invoice not updated yet"
       // Today's Agenda reminder.
       if (job.additionalWorkApproved && !job.additionalWorkInvoicedAt) {
         await db.updateJob(job.id, { additionalWorkInvoicedAt: new Date().toISOString() });
       }
 
+      // A normal invoice stays a draft: staff review and edit it on the
+      // Invoices page, then send it. Only a zero-balance one (fully covered by
+      // the deposit) has nothing to review, so it is confirmed straight away.
+      if (!noBalance) return invoice;
       try {
         return await deliverInvoiceEmail(invoice.id);
       } catch (emailError) {
@@ -218,6 +266,140 @@ export const invoicesRouter = router({
         }
         return savedInvoice;
       }
+    }),
+
+  // Edit a draft invoice before it goes to the customer. Sent and paid
+  // invoices are locked - they are the document the customer already saw.
+  update: staffProcedure
+    .input(
+      z.object({
+        id: z.number(),
+        lineItems: z.array(invoiceLineItemSchema).max(250).optional(),
+        taxMode: z.enum(["exclusive", "inclusive", "none"]).optional(),
+        discountType: z.enum(["none", "percent", "fixed"]).optional(),
+        discountValue: z.number().nonnegative().max(100000000).optional(),
+        lumpAmount: z.number().positive().max(100000000).optional(),
+        notes: z.string().max(10000).nullable().optional(),
+        adjustmentReason: z.string().trim().max(2000).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const invoice = await db.getInvoiceById(input.id);
+      if (!invoice) throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found." });
+      if (invoice.status !== "draft") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Only a draft invoice can be edited. This one has already been sent or settled." });
+      }
+      if (invoice.invoiceType === "deposit") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "A deposit invoice is set by the quote and can't be edited." });
+      }
+      const lineItems = (input.lineItems ?? (Array.isArray(invoice.lineItems) ? (invoice.lineItems as any[]) : [])) as Array<{ quantity: number; unitPrice: number; gstApplicable?: boolean }>;
+      const taxMode = input.taxMode ?? invoice.taxMode;
+      const discountType = input.discountType ?? invoice.lineDiscountType;
+      const discountValue = input.discountValue ?? invoice.lineDiscountValue ?? 0;
+      const { total, taxAmount } = await invoiceMoney({
+        lineItems,
+        taxMode,
+        discountType,
+        discountValue,
+        lumpAmount: input.lumpAmount ?? invoice.subtotal,
+      });
+      if (total <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "An invoice total greater than zero is required." });
+
+      const linkedQuote = invoice.quoteId ? await db.getQuoteById(invoice.quoteId) : null;
+      const quoteAmount = linkedQuote?.totalAmount || 0;
+      const amountChanged = quoteAmount > 0 && Math.abs(total - quoteAmount) > 0.001;
+      const reason = input.adjustmentReason?.trim() || invoice.adjustmentReason || "";
+      if (amountChanged && !reason) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Explain why the invoice differs from the accepted quote." });
+      }
+      const totalDue = Math.max(0, round2(total - (invoice.depositAppliedAmount || 0) - (invoice.discountAmount || 0)));
+
+      await db.updateInvoice(invoice.id, {
+        lineItems,
+        taxMode,
+        lineDiscountType: discountType,
+        lineDiscountValue: discountValue,
+        taxAmount,
+        subtotal: total,
+        totalDue,
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        originalQuoteAmount: amountChanged ? quoteAmount : null,
+        adjustmentReason: amountChanged ? reason : null,
+        requiresApproval: amountChanged && totalDue > 0,
+        // Any earlier email described the old numbers.
+        emailStatus: "not_sent",
+        emailError: null,
+      });
+      await logAudit({
+        userId: ctx.user.id,
+        action: "edit_draft_invoice",
+        entityType: "invoice",
+        entityId: invoice.id,
+        changes: JSON.stringify({ previousTotal: invoice.subtotal, newTotal: total }),
+        ipAddress: ctx.req?.ip || null,
+      });
+      return await db.getInvoiceById(invoice.id);
+    }),
+
+  // An invoice with no quote behind it (an insurance survey, an emergency
+  // repair...). Created as a draft; review it, then send.
+  createManual: staffProcedure
+    .input(
+      z.object({
+        customerId: z.number(),
+        vesselId: z.number().optional(),
+        jobId: z.number().optional(),
+        lineItems: z.array(invoiceLineItemSchema).min(1, "Add at least one line item.").max(250),
+        taxMode: z.enum(["exclusive", "inclusive", "none"]).default("exclusive"),
+        discountType: z.enum(["none", "percent", "fixed"]).default("none"),
+        discountValue: z.number().nonnegative().max(100000000).default(0),
+        notes: z.string().max(10000).optional(),
+        assignedUserId: z.number().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const customer = await db.getCustomerById(input.customerId);
+      if (!customer) throw new TRPCError({ code: "BAD_REQUEST", message: "That customer doesn't exist." });
+      if (input.vesselId) {
+        const vessel = await db.getVesselById(input.vesselId);
+        if (!vessel || vessel.customerId !== input.customerId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "That vessel does not belong to the selected customer." });
+        }
+      }
+      if (input.jobId) {
+        const job = await db.getJobById(input.jobId);
+        if (!job || job.customerId !== input.customerId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "That job does not belong to the selected customer." });
+        }
+        if (await db.getInvoiceByJob(input.jobId)) throw new TRPCError({ code: "CONFLICT", message: "This job already has an invoice." });
+      }
+      const { total, taxAmount } = await invoiceMoney({
+        lineItems: input.lineItems,
+        taxMode: input.taxMode,
+        discountType: input.discountType,
+        discountValue: input.discountValue,
+      });
+      if (total <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "An invoice total greater than zero is required." });
+      const invoice = await createInvoiceWithGeneratedNumber({
+        jobId: input.jobId ?? null,
+        customerId: input.customerId,
+        quoteId: null,
+        vesselId: input.vesselId ?? null,
+        assignedUserId: input.assignedUserId ?? ctx.user.id,
+        invoiceType: "standalone",
+        lineItems: input.lineItems,
+        taxMode: input.taxMode,
+        taxAmount,
+        lineDiscountType: input.discountType,
+        lineDiscountValue: input.discountValue,
+        notes: input.notes || null,
+        subtotal: total,
+        totalDue: total,
+        status: "draft",
+        emailStatus: "not_sent",
+      });
+      await logAudit({ userId: ctx.user.id, action: "create_manual_invoice", entityType: "invoice", entityId: invoice.id, changes: null, ipAddress: ctx.req?.ip || null });
+      return invoice;
     }),
 
   assign: staffProcedure
@@ -257,7 +439,7 @@ export const invoicesRouter = router({
   getByJob: protectedProcedure.input(z.number()).query(async ({ input, ctx }) => {
     if (ctx.user.role === "technician") throw new TRPCError({ code: "FORBIDDEN" });
     const invoice = await db.getInvoiceByJob(input);
-    if (invoice && ctx.user.role === "customer" && invoice.customerId !== ctx.user.customerId) {
+    if (invoice && ctx.user.role === "customer" && (invoice.customerId !== ctx.user.customerId || invoice.status === "draft")) {
       throw new TRPCError({ code: "FORBIDDEN" });
     }
     return invoice && ctx.user.role === "customer" ? customerInvoiceView(invoice) : invoice;
@@ -267,7 +449,7 @@ export const invoicesRouter = router({
     if (ctx.user.role === "technician") throw new TRPCError({ code: "FORBIDDEN" });
     const invoice = await db.getInvoiceById(input);
     if (!invoice) throw new TRPCError({ code: "NOT_FOUND" });
-    if (ctx.user.role === "customer" && invoice.customerId !== ctx.user.customerId) {
+    if (ctx.user.role === "customer" && (invoice.customerId !== ctx.user.customerId || invoice.status === "draft")) {
       throw new TRPCError({ code: "FORBIDDEN" });
     }
     return ctx.user.role === "customer" ? customerInvoiceView(invoice) : invoice;
@@ -275,7 +457,9 @@ export const invoicesRouter = router({
 
   listMine: protectedProcedure.query(async ({ ctx }) => {
     if (ctx.user.role !== "customer" || !ctx.user.customerId) return [];
-    return (await db.getInvoicesByCustomer(ctx.user.customerId)).map((invoice) => customerInvoiceView(invoice));
+    return (await db.getInvoicesByCustomer(ctx.user.customerId))
+      .filter((invoice) => invoice.status !== "draft")
+      .map((invoice) => customerInvoiceView(invoice));
   }),
 
   listByCustomer: staffProcedure.input(z.number()).query(async ({ input, ctx }) => {

@@ -1319,3 +1319,80 @@ test.after(() => {
   db.closeDatabase();
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
+
+test("invoices are drafts first: a manual invoice can be created and edited, and customers can't see it until sent", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:invoice-draft-admin@example.com",
+    name: "Invoice Draft Admin",
+    email: "invoice-draft-admin@example.com",
+    passwordHash: await hashPassword("Invoice-Draft-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Manual Invoice Customer", email: "manual-invoice@example.com" });
+  const customerUser = await db.createUser({
+    openId: "local:manual-invoice@example.com",
+    name: "Manual Invoice Customer",
+    email: "manual-invoice@example.com",
+    passwordHash: await hashPassword("Manual-Invoice-42"),
+    loginMethod: "password",
+    role: "customer",
+    customerId: customer.id,
+  });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  const customerCaller = appRouter.createCaller(contextFor(customerUser));
+
+  const invoice = await adminCaller.invoices.createManual({
+    customerId: customer.id,
+    lineItems: [{ description: "Insurance survey", quantity: 1, unitPrice: 500, gstApplicable: true }],
+    taxMode: "exclusive",
+  });
+  assert.equal(invoice.status, "draft");
+  assert.equal(invoice.emailStatus, "not_sent");
+  assert.equal(invoice.quoteId, null);
+  assert.equal(invoice.subtotal, 550); // $500 + 10% GST
+  assert.equal(invoice.totalDue, 550);
+
+  const edited = await adminCaller.invoices.update({
+    id: invoice.id,
+    lineItems: [
+      { description: "Insurance survey", quantity: 1, unitPrice: 500, gstApplicable: true },
+      { description: "Travel", quantity: 2, unitPrice: 50, gstApplicable: true },
+    ],
+  });
+  assert.equal(edited?.subtotal, 660);
+  assert.equal(edited?.taxAmount, 60);
+
+  assert.equal((await customerCaller.invoices.listMine()).some((i) => i.id === invoice.id), false);
+  await assert.rejects(() => customerCaller.invoices.getById(invoice.id), /FORBIDDEN/);
+
+  await db.updateInvoice(invoice.id, { status: "sent" });
+  await assert.rejects(
+    () => adminCaller.invoices.update({ id: invoice.id, notes: "too late" }),
+    /Only a draft invoice can be edited/,
+    "a sent invoice is locked"
+  );
+  assert.equal((await customerCaller.invoices.listMine()).some((i) => i.id === invoice.id), true);
+});
+
+test("a quote can be saved as a draft without emailing the customer", async () => {
+  const adminUser = await db.createUser({
+    openId: "local:quote-draft-admin@example.com",
+    name: "Quote Draft Admin",
+    email: "quote-draft-admin@example.com",
+    passwordHash: await hashPassword("Quote-Draft-Admin-42"),
+    loginMethod: "password",
+    role: "admin",
+  });
+  const customer = await db.createCustomer({ name: "Draft Quote Customer", email: "draft-quote@example.com" });
+  const adminCaller = appRouter.createCaller(contextFor(adminUser));
+  const quote = await adminCaller.quotes.create({
+    customerId: customer.id,
+    lineItems: [{ description: "Antifoul", quantity: 1, unitPrice: 1000, gstApplicable: true }],
+    taxMode: "exclusive",
+    saveAsDraft: true,
+  });
+  assert.equal(quote?.status, "draft");
+  assert.equal(quote?.emailStatus, "not_sent");
+  assert.equal(quote?.sentAt ?? null, null);
+});

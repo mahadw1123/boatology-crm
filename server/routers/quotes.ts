@@ -286,9 +286,12 @@ export const quotesRouter = router({
         notes: z.string().max(10000).optional(),
         expiryDate: z.string().max(10000).optional(),
         assignedUserId: z.number().nullable().optional(),
+        // Save without emailing — the quote stays a draft until staff open it and press Send.
+        saveAsDraft: z.boolean().optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input: rawInput, ctx }) => {
+      const { saveAsDraft, ...input } = rawInput;
 
       const customer = await db.getCustomerById(input.customerId);
       if (!customer) throw new TRPCError({ code: "BAD_REQUEST", message: "That customer doesn't exist." });
@@ -315,10 +318,12 @@ export const quotesRouter = router({
             quoteNumber,
             createdBy: ctx.user.id,
             status: "draft",
-            emailStatus: "pending",
-            lastEmailAttemptAt: new Date().toISOString(),
+            emailStatus: saveAsDraft ? "not_sent" : "pending",
+            lastEmailAttemptAt: saveAsDraft ? null : new Date().toISOString(),
           });
           await logCreateAudit(ctx, "quote", quote.id);
+
+          if (saveAsDraft) return await db.getQuoteById(quote.id);
 
           if (!customer.email) {
             await db.updateQuote(quote.id, {

@@ -109,8 +109,7 @@ export function CreateQuoteDialog({
   const breakdown = computeQuoteMoney(lineItems, labourAmount, partsAmount, pricing, gstPercent);
   const calculatedTotal = breakdown.total;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitQuote = async (saveAsDraft: boolean) => {
 
     if (!formData.customerId) {
       toast.error("Customer is required");
@@ -140,8 +139,11 @@ export function CreateQuoteDialog({
             : undefined,
         expiryDate,
         notes: formData.notes || undefined,
+        saveAsDraft,
       });
-      if (quote?.status === "sent" && quote?.emailStatus === "sent") {
+      if (saveAsDraft) {
+        toast.success("Quote saved as a draft — open it from Quotes and press Send when it's final");
+      } else if (quote?.status === "sent" && quote?.emailStatus === "sent") {
         toast.success("Quote sent to customer");
       } else {
         toast.warning("Quote saved as a draft because the email could not be delivered. Retry it from the quote page.");
@@ -162,6 +164,11 @@ export function CreateQuoteDialog({
       showErrorToast(error, "Failed to create quote");
       console.error(error);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void submitQuote(false);
   };
 
   return (
@@ -317,11 +324,19 @@ export function CreateQuoteDialog({
               Cancel
             </Button>
             <Button
+              type="button"
+              variant="outline"
+              disabled={createMutation.isPending}
+              onClick={() => void submitQuote(true)}
+            >
+              Save as Draft
+            </Button>
+            <Button
               type="submit"
               className="bg-navy hover:bg-navy-700"
               disabled={createMutation.isPending}
             >
-              {createMutation.isPending ? "Creating..." : "Create Quote"}
+              {createMutation.isPending ? "Saving..." : "Create & Send Quote"}
             </Button>
           </div>
         </form>

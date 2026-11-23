@@ -702,7 +702,9 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
 
   const createMutation = trpc.invoices.createForJob.useMutation({
     onSuccess: (invoice) => {
-      if (invoice.emailStatus === "sent") {
+      if (invoice.status === "draft") {
+        toast.success(`Invoice ${invoice.invoiceNumber} created as a draft. Review and send it from Invoices.`);
+      } else if (invoice.emailStatus === "sent") {
         toast.success(`Invoice ${invoice.invoiceNumber} sent to customer`);
       } else {
         toast.warning(`Invoice ${invoice.invoiceNumber} was saved, but the email failed. Retry it from Invoices.`);
@@ -771,7 +773,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
             disabled={createMutation.isPending || !editedAmount.trim()}
             onClick={handleCreate}
           >
-            {createMutation.isPending ? "Sending..." : "Save & Create Invoice"}
+            {createMutation.isPending ? "Saving..." : "Save & Create Draft Invoice"}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setIsEditingAmount(false)}>
             Cancel
@@ -803,10 +805,10 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
             }
           }}
         >
-          {createMutation.isPending ? "Sending..." : quoteAmount ? "Create & Send Invoice" : "Enter Amount & Invoice"}
+          {createMutation.isPending ? "Saving..." : quoteAmount ? "Create Draft Invoice" : "Enter Amount & Invoice"}
         </Button>
         {!!quoteAmount && (
-          <Button aria-label="Edit amount before sending"
+          <Button aria-label="Edit amount before creating"
             variant="ghost"
             size="icon"
             title="Edit amount before sending"
@@ -823,10 +825,10 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
       <Dialog open={confirmingSend} onOpenChange={setConfirmingSend}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create and send final invoice</DialogTitle>
+            <DialogTitle>Create draft invoice</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-slate-600">
-            This will create the final invoice for ${Number(quoteAmount).toFixed(2)} and email it to the customer. Please check the amount is correct.
+            This will create a draft invoice for ${Number(quoteAmount).toFixed(2)}. Nothing is emailed yet: review and edit it on the Invoices page, then send it to the customer.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmingSend(false)}>
@@ -839,7 +841,7 @@ function CreateInvoiceButton({ jobId }: { jobId: number }) {
                 handleCreate();
               }}
             >
-              Create and send
+              Create draft
             </Button>
           </DialogFooter>
         </DialogContent>
