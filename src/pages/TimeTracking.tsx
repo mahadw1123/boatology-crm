@@ -11,8 +11,41 @@ import { TimeEntryDialog } from "@/components/TimeEntryDialog";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useJobDisplayName } from "@/lib/jobNaming";
-import { Clock, Pencil, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Clock, Download, FileText, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
+import { downloadCSV } from "@/lib/csvExport";
+import { toast } from "sonner";
+
+const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// Date ranges for the report period picker. Weeks run Monday to Sunday.
+function periodRange(period: string): { from: string; to: string } | null {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const mondayOffset = (today.getDay() + 6) % 7;
+  if (period === "this_week") {
+    const start = new Date(today);
+    start.setDate(today.getDate() - mondayOffset);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { from: isoDay(start), to: isoDay(end) };
+  }
+  if (period === "last_week") {
+    const start = new Date(today);
+    start.setDate(today.getDate() - mondayOffset - 7);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { from: isoDay(start), to: isoDay(end) };
+  }
+  if (period === "this_month") {
+    return { from: isoDay(new Date(today.getFullYear(), today.getMonth(), 1)), to: isoDay(new Date(today.getFullYear(), today.getMonth() + 1, 0)) };
+  }
+  if (period === "last_month") {
+    return { from: isoDay(new Date(today.getFullYear(), today.getMonth() - 1, 1)), to: isoDay(new Date(today.getFullYear(), today.getMonth(), 0)) };
+  }
+  return null;
+}
 
 const fmtDay = (iso: string) =>
   new Date(iso).toLocaleDateString("en-AU", { weekday: "short", year: "numeric", month: "short", day: "numeric" });
@@ -25,6 +58,9 @@ export default function TimeTracking() {
   const [selectedEmployee, setSelectedEmployee] = useState(isTechnician && user?.employeeId ? String(user.employeeId) : "");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [period, setPeriod] = useState("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   const employeesQuery = trpc.employees.list.useQuery();
   const jobsQuery = trpc.jobs.list.useQuery();
@@ -34,15 +70,52 @@ export default function TimeTracking() {
 
   const employees = employeesQuery.data || [];
   const jobs = jobsQuery.data || [];
-  const timeEntries = [...(timeEntriesQuery.data || [])].sort((a: any, b: any) =>
-    String(b.clockInTime || b.date).localeCompare(String(a.clockInTime || a.date))
-  );
+  const range = period === "custom" ? { from: customFrom, to: customTo } : periodRange(period);
+  const timeEntries = [...(timeEntriesQuery.data || [])]
+    .filter((e: any) => !range || ((!range.from || e.date >= range.from) && (!range.to || e.date <= range.to)))
+    .sort((a: any, b: any) => String(b.clockInTime || b.date).localeCompare(String(a.clockInTime || a.date)));
   const totalHours = timeEntries.reduce((sum: number, entry: any) => sum + (entry.hoursWorked || 0), 0);
 
   // Task names for the entries shown (one lookup per job that has any)
   const jobIdsShown = Array.from(new Set(timeEntries.filter((e: any) => e.jobId && e.taskId).map((e: any) => e.jobId as number)));
   const taskLookup = trpc.tasks.listForJobs.useQuery(jobIdsShown, { enabled: jobIdsShown.length > 0, retry: false });
   const taskNames = new Map((taskLookup.data || []).map((t: any) => [t.id, t.name]));
+
+  const selectedName = employees.find((e: any) => String(e.id) === selectedEmployee)?.name || "employee";
+  const reportRange = range && range.from && range.to ? range : null;
+
+  const downloadCsv = () => {
+    if (timeEntries.length === 0) {
+      toast.info("No time entries in this period");
+      return;
+    }
+    const rows = [...timeEntries]
+      .sort((a: any, b: any) => String(a.clockInTime || a.date).localeCompare(String(b.clockInTime || b.date)))
+      .map((entry: any) => {
+        const job = jobs.find((j: any) => j.id === entry.jobId);
+        return {
+          Date: entry.date,
+          Employee: selectedName,
+          Job: job ? getDisplayName(job) : entry.jobId ? `Job #${entry.jobId}` : "General Hours",
+          Task: entry.taskId ? taskNames.get(entry.taskId) || `Task #${entry.taskId}` : "",
+          Start: fmtTime(entry.clockInTime),
+          Finish: entry.clockOutTime ? fmtTime(entry.clockOutTime) : entry.clockInTime ? "running" : "",
+          Hours: entry.hoursWorked ?? "",
+          Notes: entry.notes || "",
+        };
+      });
+    const label = reportRange ? `${reportRange.from}-to-${reportRange.to}` : "all-time";
+    downloadCSV(`timesheet-${selectedName.replace(/\s+/g, "-")}-${label}`, rows);
+    toast.success("Timesheet downloaded");
+  };
+
+  const downloadPdf = () => {
+    if (!reportRange) {
+      toast.info("Choose a period first (this week, last month, or a custom date range) to download the PDF.");
+      return;
+    }
+    window.open(`/api/timesheets/pdf?employeeId=${employeeId}&from=${reportRange.from}&to=${reportRange.to}`, "_blank");
+  };
 
   return (
     <div className="min-h-[calc(100vh-4rem)]">
@@ -88,6 +161,51 @@ export default function TimeTracking() {
 
         {selectedEmployee ? (
           <div className="space-y-4">
+            <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="w-48">
+                <label className="block text-xs font-medium text-slate-900">Period</label>
+                <Select value={period} onValueChange={setPeriod}>
+                  <SelectTrigger aria-label="Period" className="mt-1 h-9 border-slate-200 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All time</SelectItem>
+                    <SelectItem value="this_week">This week</SelectItem>
+                    <SelectItem value="last_week">Last week</SelectItem>
+                    <SelectItem value="this_month">This month</SelectItem>
+                    <SelectItem value="last_month">Last month</SelectItem>
+                    <SelectItem value="custom">Custom range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {period === "custom" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-900">From</label>
+                    <Input aria-label="From date" type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="mt-1 h-9 border-slate-200" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-900">To</label>
+                    <Input aria-label="To date" type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="mt-1 h-9 border-slate-200" />
+                  </div>
+                </>
+              )}
+              {reportRange && (
+                <p className="pb-2 text-xs text-slate-500">
+                  {reportRange.from} to {reportRange.to}
+                </p>
+              )}
+              <div className="ml-auto flex gap-2">
+                <Button variant="outline" size="sm" onClick={downloadCsv}>
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  Download CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadPdf}>
+                  <FileText className="mr-1.5 h-3.5 w-3.5" />
+                  Download PDF
+                </Button>
+              </div>
+            </div>
             <p className="text-sm text-slate-600">
               Total hours: <span className="font-semibold">{totalHours.toFixed(2)}</span>
             </p>

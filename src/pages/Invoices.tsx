@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DownloadButton } from "@/components/DownloadButton";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { InvoiceEditorDialog } from "@/components/InvoiceEditorDialog";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { useJobDisplayName } from "@/lib/jobNaming";
-import { FileText, Search, Trash2 } from "lucide-react";
+import { FileText, Plus, Search, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errors";
@@ -32,6 +33,8 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 export default function Invoices() {
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<any>(null);
   // Links from the agenda, notifications and search arrive as /invoices?invoice=<id>.
   const highlightId = Number(new URLSearchParams(window.location.search).get("invoice")) || null;
 
@@ -109,7 +112,20 @@ export default function Invoices() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-navy">Invoices</h1>
             </div>
-            <DownloadButton data={invoices} filename="boatology-invoices" />
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                className="bg-navy hover:bg-navy-700"
+                onClick={() => {
+                  setEditTarget(null);
+                  setEditorOpen(true);
+                }}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                New Invoice
+              </Button>
+              <DownloadButton data={invoices} filename="boatology-invoices" />
+            </div>
           </div>
         </div>
       </div>
@@ -233,6 +249,26 @@ export default function Invoices() {
                       </td>
                       <td className="px-3 py-3 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1">
+                          {inv.status === "draft" && inv.invoiceType !== "deposit" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-navy hover:bg-slate-100"
+                              onClick={() => {
+                                setEditTarget(inv);
+                                setEditorOpen(true);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(`/api/invoices/${inv.id}/pdf`, "_blank")}
+                          >
+                            Preview PDF
+                          </Button>
                           {inv.emailStatus !== "sent" && !["paid", "void", "refunded", "reversed"].includes(inv.status) && (
                             <Button
                               variant="ghost"
@@ -240,7 +276,7 @@ export default function Invoices() {
                               onClick={() => sendMutation.mutate({ invoiceId: inv.id })}
                               disabled={sendMutation.isPending}
                             >
-                              {inv.emailStatus === "failed" ? "Retry Email" : "Send Email"}
+                              {inv.emailStatus === "failed" ? "Retry Email" : inv.status === "draft" ? "Send to Customer" : "Send Email"}
                             </Button>
                           )}
                           {inv.requiresApproval && !inv.approvedAt && inv.status === "sent" && (
@@ -325,6 +361,8 @@ export default function Invoices() {
           </Card>
         )}
       </div>
+
+      <InvoiceEditorDialog open={editorOpen} onOpenChange={setEditorOpen} invoice={editTarget} />
 
       <DeleteConfirmDialog
         open={!!deleteTarget}

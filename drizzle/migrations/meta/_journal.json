@@ -309,6 +309,13 @@
       "when": 1794789726830,
       "tag": "0043_customer_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1795100590558,
+      "tag": "0044_invoice_editable_body",
+      "breakpoints": true
     }
   ]
 }

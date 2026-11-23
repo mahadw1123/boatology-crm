@@ -538,6 +538,15 @@ export const invoices = sqliteTable("invoices", {
   customerId: integer("customerId").notNull(),
   quoteId: integer("quoteId"),
   invoiceNumber: text("invoiceNumber").unique(),
+  // The editable tax-invoice body. Same line-item shape as quotes. Empty for
+  // older invoices and lump-sum ones, which just show `subtotal`.
+  vesselId: integer("vesselId"),
+  lineItems: text("lineItems", { mode: "json" }).default(sql`'[]'`),
+  notes: text("notes"),
+  taxMode: text("taxMode", { enum: ["exclusive", "inclusive", "none"] }).default("none").notNull(),
+  taxAmount: real("taxAmount").default(0),
+  lineDiscountType: text("lineDiscountType", { enum: ["none", "percent", "fixed"] }).default("none").notNull(),
+  lineDiscountValue: real("lineDiscountValue").default(0),
   subtotal: real("subtotal").notNull(),
   originalQuoteAmount: real("originalQuoteAmount"),
   adjustmentReason: text("adjustmentReason"),
